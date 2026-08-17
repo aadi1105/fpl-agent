@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-08-17T17:39:15.312684",
+  "timestamp": "2026-08-17T20:25:41.527218",
   "pipeline_version": "1.0.0",
   "features_used": [
     "price",
@@ -36,41 +36,41 @@
       "selected_model": "LightGBM",
       "validation_metrics": {
         "Baseline": {
-          "log_loss": 0.3713,
-          "brier_score": 0.1139,
-          "roc_auc": 0.8888,
-          "pr_auc": 0.755,
-          "ece": 0.0347
+          "log_loss": 0.3695,
+          "brier_score": 0.1133,
+          "roc_auc": 0.8895,
+          "pr_auc": 0.7558,
+          "ece": 0.0336
         },
         "LogisticRegression": {
-          "log_loss": 0.3128,
-          "brier_score": 0.096,
-          "roc_auc": 0.9302,
-          "pr_auc": 0.8295,
-          "ece": 0.0259
+          "log_loss": 0.3091,
+          "brier_score": 0.0951,
+          "roc_auc": 0.9322,
+          "pr_auc": 0.8301,
+          "ece": 0.026
         },
         "LightGBM": {
-          "log_loss": 0.2816,
-          "brier_score": 0.0875,
-          "roc_auc": 0.9424,
-          "pr_auc": 0.8624,
-          "ece": 0.0123
+          "log_loss": 0.2798,
+          "brier_score": 0.0869,
+          "roc_auc": 0.943,
+          "pr_auc": 0.865,
+          "ece": 0.0128
         }
       },
       "test_metrics": {
         "Baseline": {
-          "log_loss": 0.3561,
-          "brier_score": 0.1091,
-          "roc_auc": 0.8922,
-          "pr_auc": 0.7461,
-          "ece": 0.0408
+          "log_loss": 0.3548,
+          "brier_score": 0.1086,
+          "roc_auc": 0.8926,
+          "pr_auc": 0.7462,
+          "ece": 0.0407
         },
         "Selected_ML": {
-          "log_loss": 0.2568,
-          "brier_score": 0.0791,
-          "roc_auc": 0.9497,
-          "pr_auc": 0.8667,
-          "ece": 0.0117
+          "log_loss": 0.2553,
+          "brier_score": 0.0786,
+          "roc_auc": 0.9502,
+          "pr_auc": 0.8675,
+          "ece": 0.0087
         }
       },
       "ml_beats_baseline": true
@@ -80,40 +80,40 @@
       "selected_model": "LightGBM",
       "validation_metrics": {
         "Baseline": {
-          "mae": 14.447,
-          "rmse": 26.579,
-          "median_ae": 1.0
+          "mae": 13.988,
+          "rmse": 25.75,
+          "median_ae": 0.8
         },
         "RidgeRegression": {
-          "mae": 15.054,
-          "rmse": 24.151,
-          "median_ae": 8.123
+          "mae": 14.575,
+          "rmse": 23.217,
+          "median_ae": 8.043
         },
         "LightGBM": {
-          "mae": 14.047,
-          "rmse": 23.616,
-          "median_ae": 6.337
+          "mae": 13.943,
+          "rmse": 22.752,
+          "median_ae": 7.089
         }
       },
       "test_metrics": {
         "Baseline": {
-          "mae": 13.578,
-          "rmse": 26.043,
+          "mae": 13.162,
+          "rmse": 25.248,
           "median_ae": 0.0
         },
         "Selected_ML": {
-          "mae": 12.844,
-          "rmse": 22.488,
-          "median_ae": 4.682
+          "mae": 12.774,
+          "rmse": 21.642,
+          "median_ae": 5.708
         }
       },
       "subgroup_test_mae": {
-        "starters": 21.09,
-        "substitutes": 9.6,
-        "GKP": 6.47,
-        "DEF": 15.31,
-        "MID": 12.87,
-        "FWD": 12.07
+        "starters": 22.09,
+        "substitutes": 9.13,
+        "GKP": 6.56,
+        "DEF": 15.26,
+        "MID": 12.78,
+        "FWD": 11.87
       },
       "ml_beats_baseline": true
     },
@@ -122,34 +122,34 @@
       "selected_model": "LightGBM",
       "validation_metrics": {
         "Baseline": {
-          "log_loss": 0.3778,
-          "brier_score": 0.1161,
-          "roc_auc": 0.8838,
-          "pr_auc": 0.7224,
-          "ece": 0.0424
+          "log_loss": 0.3762,
+          "brier_score": 0.1155,
+          "roc_auc": 0.8844,
+          "pr_auc": 0.7228,
+          "ece": 0.042
         },
         "LightGBM": {
-          "log_loss": 0.2871,
-          "brier_score": 0.0899,
-          "roc_auc": 0.9369,
-          "pr_auc": 0.8349,
-          "ece": 0.0083
+          "log_loss": 0.2858,
+          "brier_score": 0.0895,
+          "roc_auc": 0.9373,
+          "pr_auc": 0.8364,
+          "ece": 0.0082
         }
       },
       "test_metrics": {
         "Baseline": {
-          "log_loss": 0.3606,
-          "brier_score": 0.1104,
-          "roc_auc": 0.8877,
-          "pr_auc": 0.7147,
-          "ece": 0.0468
+          "log_loss": 0.3595,
+          "brier_score": 0.1099,
+          "roc_auc": 0.8881,
+          "pr_auc": 0.7145,
+          "ece": 0.0467
         },
         "LightGBM": {
-          "log_loss": 0.2609,
-          "brier_score": 0.081,
-          "roc_auc": 0.9455,
-          "pr_auc": 0.8431,
-          "ece": 0.0077
+          "log_loss": 0.2591,
+          "brier_score": 0.0804,
+          "roc_auc": 0.9461,
+          "pr_auc": 0.8454,
+          "ece": 0.0073
         }
       },
       "ml_beats_baseline": true
@@ -159,66 +159,66 @@
       "selected_model": "LightGBM",
       "validation_metrics": {
         "Baseline": {
-          "log_loss": 0.4338,
-          "brier_score": 0.1353,
-          "roc_auc": 0.8866,
-          "pr_auc": 0.9013,
-          "ece": 0.0684
+          "log_loss": 0.4313,
+          "brier_score": 0.1345,
+          "roc_auc": 0.8876,
+          "pr_auc": 0.9024,
+          "ece": 0.0679
         },
         "LightGBM": {
-          "log_loss": 0.3142,
-          "brier_score": 0.0951,
-          "roc_auc": 0.9366,
-          "pr_auc": 0.9534,
-          "ece": 0.0102
+          "log_loss": 0.3128,
+          "brier_score": 0.0946,
+          "roc_auc": 0.9372,
+          "pr_auc": 0.954,
+          "ece": 0.0106
         }
       },
       "test_metrics": {
         "Baseline": {
-          "log_loss": 0.4132,
-          "brier_score": 0.1282,
-          "roc_auc": 0.8958,
-          "pr_auc": 0.9189,
-          "ece": 0.0711
+          "log_loss": 0.4113,
+          "brier_score": 0.1276,
+          "roc_auc": 0.8965,
+          "pr_auc": 0.9197,
+          "ece": 0.0705
         },
         "LightGBM": {
-          "log_loss": 0.2838,
-          "brier_score": 0.0854,
-          "roc_auc": 0.9469,
-          "pr_auc": 0.9654,
-          "ece": 0.0125
+          "log_loss": 0.2829,
+          "brier_score": 0.0852,
+          "roc_auc": 0.9473,
+          "pr_auc": 0.9656,
+          "ece": 0.0133
         }
       },
       "ml_beats_baseline": true
     }
   },
   "feature_importances_xg_mins": {
-    "minutes_last_1": 553.0,
-    "price": 452.0,
-    "average_minutes_last_10": 390.0,
-    "minutes_last_3": 350.0,
-    "team_attack_rating": 342.0,
-    "days_since_last_match": 330.0,
-    "team_defence_rating": 216.0,
-    "minutes_last_10": 216.0,
-    "opponent_attack_rating": 180.0,
-    "minutes_last_5": 151.0,
-    "opponent_defence_rating": 122.0,
-    "pos_DEF": 121.0,
-    "matches_in_previous_21_days": 117.0,
-    "unused_substitute_last_5": 103.0,
+    "minutes_last_1": 499.0,
+    "price": 469.0,
+    "minutes_last_3": 423.0,
+    "average_minutes_last_10": 391.0,
+    "days_since_last_match": 285.0,
+    "minutes_last_10": 280.0,
+    "team_attack_rating": 257.0,
+    "team_defence_rating": 217.0,
+    "minutes_last_5": 203.0,
+    "pos_DEF": 146.0,
+    "matches_in_previous_21_days": 123.0,
+    "opponent_attack_rating": 115.0,
+    "unused_substitute_last_5": 104.0,
+    "opponent_defence_rating": 96.0,
+    "average_minutes_last_5": 96.0,
+    "pos_FWD": 92.0,
     "starts_last_1": 85.0,
-    "average_minutes_last_5": 72.0,
-    "pos_FWD": 60.0,
-    "appearances_last_5": 59.0,
-    "starts_last_10": 47.0,
-    "fixture_difficulty": 46.0,
-    "pos_MID": 42.0,
-    "starts_last_5": 36.0,
-    "starts_last_3": 35.0,
-    "matches_in_previous_14_days": 26.0,
-    "bench_appearances_last_5": 24.0,
-    "home_away_is_home": 13.0,
+    "appearances_last_5": 72.0,
+    "pos_MID": 71.0,
+    "starts_last_3": 57.0,
+    "bench_appearances_last_5": 45.0,
+    "starts_last_10": 40.0,
+    "matches_in_previous_14_days": 39.0,
+    "starts_last_5": 38.0,
+    "home_away_is_home": 28.0,
+    "fixture_difficulty": 0.0,
     "fixture_congestion": 0.0
   }
 }

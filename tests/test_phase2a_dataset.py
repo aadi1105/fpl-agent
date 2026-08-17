@@ -41,7 +41,7 @@ def test_seasons_and_splits_defined_chronologically(dataset_and_metadata):
 
 def test_no_duplicate_player_gameweek_rows(dataset_and_metadata):
     df, meta = dataset_and_metadata
-    dups = df.duplicated(subset=['season', 'gameweek', 'player_id']).sum()
+    dups = df.duplicated(subset=['season', 'gameweek', 'fixture_id', 'player_id']).sum()
     assert dups == 0
 
 def test_target_logical_consistency(dataset_and_metadata):
@@ -73,10 +73,11 @@ def test_temporal_leakage_rolling_statistics_sequence(dataset_and_metadata):
     if len(sample_player) > 0:
         row = sample_player.iloc[0]
         
-        # Check prior GW9 target minutes
-        gw9_row = df[(df['season'] == '2023-24') & (df['player_id'] == 355) & (df['gameweek'] == 9)]
-        if len(gw9_row) > 0:
-            assert row['minutes_last_1'] == gw9_row.iloc[0]['target_minutes']
+        # Check prior immediately preceding fixture target minutes
+        prior_fixtures = df[(df['season'] == '2023-24') & (df['player_id'] == 355) & (df['gameweek'] < 10)].sort_values(by=['gameweek', 'fixture_id'])
+        if len(prior_fixtures) > 0:
+            last_fix = prior_fixtures.iloc[-1]
+            assert row['minutes_last_1'] == last_fix['target_minutes']
 
 def test_team_ratings_bounds_and_temporal_isolation(dataset_and_metadata):
     df, meta = dataset_and_metadata
