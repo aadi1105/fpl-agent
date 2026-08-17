@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FPL 2026/27 Decision Engine — Optimization & ML Roadmap v2</title>
+    <meta name="description" content="Quantitative FPL Decision Support System combining deterministic baseline projections, Poisson DEFCON rules, and multi-mode MILP optimization.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0b0f19;
+            --bg-card: rgba(18, 26, 43, 0.75);
+            --bg-card-border: rgba(255, 255, 255, 0.08);
+            --accent-green: #00ff87;
+            --accent-purple: #38003c;
+            --accent-cyan: #04f5ff;
+            --accent-pink: #e90052;
+            --accent-warning: #f59e0b;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --pitch-bg: radial-gradient(circle at center, #1b4332 0%, #081c15 100%);
+            --pitch-line: rgba(255, 255, 255, 0.25);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(56, 0, 60, 0.4) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(4, 245, 255, 0.15) 0px, transparent 50%);
+            background-attachment: fixed;
+            padding-bottom: 60px;
+        }
+
+        header {
+            background: rgba(11, 15, 25, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--bg-card-border);
+            position: sticky; top: 0; z-index: 100; padding: 16px 32px;
+        }
+
+        .header-content {
+            max-width: 1440px; margin: 0 auto;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .logo-title { display: flex; align-items: center; gap: 12px; }
+
+        .logo-badge {
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-cyan));
+            color: #000; font-family: 'Outfit', sans-serif; font-weight: 800;
+            font-size: 1.1rem; padding: 6px 12px; border-radius: 8px;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 700;
+            background: linear-gradient(90deg, #ffffff, #d1d5db);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .header-actions { display: flex; gap: 12px; }
+
+        .btn {
+            background: var(--bg-card); border: 1px solid var(--bg-card-border);
+            color: var(--text-primary); font-family: 'Inter', sans-serif; font-weight: 600;
+            font-size: 0.9rem; padding: 10px 18px; border-radius: 10px; cursor: pointer;
+            transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 8px;
+        }
+
+        .btn:hover { border-color: var(--accent-green); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 255, 135, 0.2); }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-green), #00cc6a);
+            color: #0b0f19; border: none; font-weight: 700;
+        }
+
+        .health-banner {
+            max-width: 1440px; margin: 16px auto 0; padding: 12px 24px;
+            background: rgba(18, 26, 43, 0.8); border: 1px solid var(--bg-card-border);
+            border-radius: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem;
+        }
+
+        .health-tag {
+            background: rgba(4, 245, 255, 0.15); color: var(--accent-cyan);
+            font-weight: 700; padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(4, 245, 255, 0.3);
+        }
+
+        main {
+            max-width: 1440px; margin: 24px auto; padding: 0 24px;
+            display: grid; grid-template-columns: 1fr 440px; gap: 24px;
+        }
+
+        @media (max-width: 1024px) { main { grid-template-columns: 1fr; } }
+
+        .card {
+            background: var(--bg-card); backdrop-filter: blur(16px);
+            border: 1px solid var(--bg-card-border); border-radius: 20px; padding: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+
+        .card-title {
+            font-family: 'Outfit', sans-serif; font-size: 1.2rem; font-weight: 700;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .controls-card {
+            grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center;
+            justify-content: space-between; gap: 16px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+        }
+
+        select.mode-select {
+            background: rgba(0, 0, 0, 0.6); color: var(--accent-green); font-family: 'Inter', sans-serif;
+            font-weight: 700; font-size: 0.9rem; padding: 8px 14px; border-radius: 10px;
+            border: 1px solid var(--accent-green); cursor: pointer;
+        }
+
+        .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.03); border: 1px solid var(--bg-card-border);
+            border-radius: 16px; padding: 16px; text-align: center;
+        }
+
+        .metric-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 6px; }
+        .metric-value { font-family: 'Outfit', sans-serif; font-size: 1.6rem; font-weight: 700; color: var(--accent-green); }
+        .metric-sub { font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; }
+
+        /* Pitch Visualizer */
+        .pitch-container {
+            background: var(--pitch-bg); border-radius: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.1); padding: 24px 16px;
+            position: relative; box-shadow: inset 0 0 60px rgba(0,0,0,0.6);
+            display: flex; flex-direction: column; justify-content: space-between; min-height: 540px;
+        }
+
+        .pitch-row { display: flex; justify-content: space-around; align-items: center; z-index: 2; margin: 8px 0; }
+
+        .player-card-pitch {
+            background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px;
+            padding: 8px; width: 115px; text-align: center; position: relative;
+            transition: all 0.2s ease; cursor: pointer;
+        }
+
+        .player-card-pitch:hover { transform: translateY(-4px); border-color: var(--accent-green); }
+
+        .badge-cap {
+            position: absolute; top: -8px; right: -8px;
+            background: linear-gradient(135deg, #f59e0b, #d97706); color: #000;
+            font-weight: 800; font-size: 0.75rem; width: 22px; height: 22px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; border: 2px solid #fff;
+        }
+
+        .badge-vc {
+            position: absolute; top: -8px; right: -8px;
+            background: linear-gradient(135deg, #94a3b8, #64748b); color: #fff;
+            font-weight: 800; font-size: 0.7rem; width: 22px; height: 22px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; border: 2px solid #fff;
+        }
+
+        .player-pos-badge { font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-bottom: 4px; text-transform: uppercase; }
+        .pos-GKP { background: #3b82f6; color: #fff; }
+        .pos-DEF { background: #10b981; color: #fff; }
+        .pos-MID { background: #f59e0b; color: #000; }
+        .pos-FWD { background: #ef4444; color: #fff; }
+
+        .player-name { font-weight: 700; font-size: 0.85rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .player-team-cost { font-size: 0.72rem; color: var(--text-secondary); margin: 2px 0; }
+        
+        .player-xp-badge {
+            background: rgba(0, 255, 135, 0.15); color: var(--accent-green);
+            font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 0.85rem;
+            padding: 2px 6px; border-radius: 6px; display: inline-block; margin-top: 4px;
+            border: 1px solid rgba(0, 255, 135, 0.3);
+        }
+
+        .bench-container {
+            margin-top: 16px; background: rgba(0, 0, 0, 0.3); border-radius: 16px;
+            padding: 14px; border: 1px dashed var(--bg-card-border);
+        }
+
+        .bench-row { display: flex; justify-content: space-around; gap: 10px; }
+
+        /* Tables & Modals */
+        .leaderboard-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        .leaderboard-table th { text-align: left; padding: 8px; color: var(--text-muted); font-size: 0.7rem; border-bottom: 1px solid var(--bg-card-border); }
+        .leaderboard-table td { padding: 10px 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+        .leaderboard-table tr:hover { background: rgba(255, 255, 255, 0.03); cursor: pointer; }
+
+        .explanation-box {
+            background: rgba(4, 245, 255, 0.05); border: 1px solid rgba(4, 245, 255, 0.2);
+            border-radius: 12px; padding: 12px 16px; margin-top: 16px; font-size: 0.85rem; color: #e2e8f0;
+        }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
+            display: flex; align-items: center; justify-content: center; z-index: 1000;
+            visibility: hidden; opacity: 0; transition: all 0.25s ease;
+        }
+        .modal-overlay.open { visibility: visible; opacity: 1; }
+        .modal-card {
+            background: var(--bg-dark); border: 1px solid var(--bg-card-border);
+            border-radius: 20px; width: 520px; max-width: 90%; padding: 24px;
+        }
+        .breakdown-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem; }
+        .breakdown-label { color: var(--text-secondary); }
+        .breakdown-val { font-family: 'Outfit', sans-serif; font-weight: 700; color: var(--accent-green); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-content">
+            <div class="logo-title">
+                <span class="logo-badge">FPL AI</span>
+                <h1>2026/27 Decision Engine</h1>
+            </div>
+            <div class="header-actions">
+                <button id="sync-btn" class="btn"><span>Sync FPL Data</span></button>
+                <button id="optimize-btn" class="btn btn-primary"><span>⚡ Run Optimizer</span></button>
+            </div>
+        </div>
+    </header>
+
+    <div class="health-banner">
+        <div style="display:flex; align-items:center; gap:12px;">
+            <span class="health-tag" id="model-version-tag">Baseline Projection Model v0.2</span>
+            <span style="color:var(--text-secondary);">Classification:</span>
+            <span style="color:var(--accent-green); font-weight:700;">Deterministic Statistical Baseline</span>
+        </div>
+        <div style="color:var(--text-muted); font-size:0.8rem;">
+            No ML Trained Yet • Poisson DEFCON • Separate Starting XI & Horizon Optimization
+        </div>
+    </div>
+
+    <main>
+        <!-- Controls Bar -->
+        <div class="card controls-card">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-size:0.85rem; font-weight:600; color:var(--text-secondary);">Optimization Mode:</span>
+                <select id="mode-select" class="mode-select">
+                    <option value="CURRENT_GW_PLUS_3" selected>Current GW + 3 (55/20/15/10%)</option>
+                    <option value="STRONG_XI_DUMP_BENCH">Strong XI / Dump Bench</option>
+                    <option value="BALANCED_BENCH">Balanced Bench</option>
+                    <option value="MAXIMUM_SQUAD">Maximum Squad (Equal 4-GW)</option>
+                </select>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:0.85rem; font-weight:600; color:var(--text-secondary);">Budget:</span>
+                <input type="range" id="budget-range" min="900" max="1050" step="5" value="1000" style="accent-color: var(--accent-cyan); cursor: pointer;">
+                <span id="budget-display" style="font-family:'Outfit', sans-serif; font-weight:700; color:var(--accent-cyan);">100.0m</span>
+            </div>
+        </div>
+
+        <!-- Left Column: Squad & Pitch -->
+        <div>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-title">Current GW XI xP</div>
+                    <div id="metric-gw0-xp" class="metric-value">0.0</div>
+                    <div id="metric-cap-extra" class="metric-sub">+0.0 Cap Bonus</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">4-GW Weighted Horizon</div>
+                    <div id="metric-weighted-xp" class="metric-value" style="color:var(--accent-cyan);">0.0</div>
+                    <div class="metric-sub">Strategic Squad Score</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Budget Used</div>
+                    <div id="metric-cost" class="metric-value">£0.0m</div>
+                    <div class="metric-sub">Bank: <span id="metric-bank">£0.0m</span></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Captain Pick</div>
+                    <div id="metric-captain" class="metric-value" style="font-size:1.1rem; color:var(--accent-cyan);">-</div>
+                    <div class="metric-sub">Vice: <span id="metric-vc">-</span></div>
+                </div>
+            </div>
+
+            <div class="card" style="padding: 16px;">
+                <div class="card-header">
+                    <div class="card-title">⚽ Current GW Optimal Starting XI</div>
+                    <span id="formation-badge" style="font-weight: 700; font-size: 0.9rem; color: var(--accent-cyan);">Formation: -</span>
+                </div>
+
+                <div class="pitch-container">
+                    <div id="pitch-gkp" class="pitch-row"></div>
+                    <div id="pitch-def" class="pitch-row"></div>
+                    <div id="pitch-mid" class="pitch-row"></div>
+                    <div id="pitch-fwd" class="pitch-row"></div>
+                </div>
+
+                <div class="bench-container">
+                    <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">Substitutes Bench</div>
+                    <div id="pitch-bench" class="bench-row"></div>
+                </div>
+
+                <div id="explanation-container" class="explanation-box" style="display:none;"></div>
+            </div>
+        </div>
+
+        <!-- Right Column: Player Diagnostics -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">📊 4-GW Outlook & Diagnostics</div>
+            </div>
+
+            <div style="display:flex; gap:6px; margin-bottom:12px;">
+                <button class="pos-filter-btn active" data-pos="ALL">ALL</button>
+                <button class="pos-filter-btn" data-pos="GKP">GKP</button>
+                <button class="pos-filter-btn" data-pos="DEF">DEF</button>
+                <button class="pos-filter-btn" data-pos="MID">MID</button>
+                <button class="pos-filter-btn" data-pos="FWD">FWD</button>
+            </div>
+
+            <div style="max-height: 600px; overflow-y: auto;">
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th>Player</th>
+                            <th>Cost</th>
+                            <th>GW0 Fixture</th>
+                            <th>GW1 Fixture</th>
+                            <th>GW2 Fixture</th>
+                            <th>GW3 Fixture</th>
+                            <th>4-GW Weighted</th>
+                        </tr>
+                    </thead>
+                    <tbody id="player-table-body">
+                        <tr><td colspan="7" style="text-align:center; color:var(--text-muted);">Loading 4-GW diagnostics...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Component Breakdown Modal -->
+    <div id="breakdown-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <div>
+                    <h3 id="modal-player-name" style="font-family:'Outfit', sans-serif; font-size:1.3rem;">Player Name</h3>
+                    <span id="modal-player-sub" style="font-size:0.8rem; color:var(--text-secondary);">MID • £12.5m</span>
+                </div>
+                <button id="modal-close" style="background:none; border:none; color:#fff; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <div id="modal-breakdown-content"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentPosFilter = 'ALL';
+        let diagnosticsCache = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initControls();
+            fetchDiagnostics();
+            runOptimization();
+        });
+
+        function initControls() {
+            document.getElementById('mode-select').addEventListener('change', runOptimization);
+
+            const range = document.getElementById('budget-range');
+            const display = document.getElementById('budget-display');
+            range.addEventListener('input', (e) => {
+                display.innerText = (parseInt(e.target.value) / 10).toFixed(1) + 'm';
+            });
+            range.addEventListener('change', () => runOptimization());
+
+            document.querySelectorAll('.pos-filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.pos-filter-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    currentPosFilter = e.target.getAttribute('data-pos');
+                    renderDiagnosticsTable();
+                });
+            });
+
+            document.getElementById('sync-btn').addEventListener('click', syncFplData);
+            document.getElementById('optimize-btn').addEventListener('click', runOptimization);
+            document.getElementById('modal-close').addEventListener('click', closeModal);
+        }
+
+        async function fetchDiagnostics() {
+            try {
+                const res = await fetch('/api/v1/projections/diagnostics?limit=100');
+                if (res.ok) {
+                    diagnosticsCache = await res.json();
+                    renderDiagnosticsTable();
+                }
+            } catch (err) { console.error('Failed to fetch diagnostics:', err); }
+        }
+
+        function renderDiagnosticsTable() {
+            const tbody = document.getElementById('player-table-body');
+            tbody.innerHTML = '';
+
+            let filtered = diagnosticsCache;
+            if (currentPosFilter !== 'ALL') {
+                filtered = filtered.filter(p => p.position === currentPosFilter);
+            }
+
+            filtered.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.addEventListener('click', () => openModal(p));
+                
+                const g0_opp = p.gw0_opponent || p.opponent || '-';
+                const g1_opp = p.gw1_opponent || '-';
+                const g2_opp = p.gw2_opponent || '-';
+                const g3_opp = p.gw3_opponent || '-';
+
+                const g0_val = p.gw0_xp !== undefined ? p.gw0_xp : p.total_xp;
+                const g1_val = p.gw1_xp !== undefined ? p.gw1_xp : '-';
+                const g2_val = p.gw2_xp !== undefined ? p.gw2_xp : '-';
+                const g3_val = p.gw3_xp !== undefined ? p.gw3_xp : '-';
+                const w_val = p.weighted_xp !== undefined ? p.weighted_xp : p.total_xp;
+
+                tr.innerHTML = `
+                    <td>
+                        <div style="font-weight:700;">${p.web_name}</div>
+                        <div style="font-size:0.7rem; color:var(--text-muted);">${p.team_name} • ${p.position}</div>
+                    </td>
+                    <td style="font-weight:600;">${p.price_str}</td>
+                    <td>
+                        <div style="font-size:0.7rem; color:var(--text-muted);">${g0_opp}</div>
+                        <span class="player-xp-badge">${g0_val}</span>
+                    </td>
+                    <td>
+                        <div style="font-size:0.7rem; color:var(--text-muted);">${g1_opp}</div>
+                        <span style="color:var(--text-secondary); font-weight:600;">${g1_val}</span>
+                    </td>
+                    <td>
+                        <div style="font-size:0.7rem; color:var(--text-muted);">${g2_opp}</div>
+                        <span style="color:var(--text-secondary); font-weight:600;">${g2_val}</span>
+                    </td>
+                    <td>
+                        <div style="font-size:0.7rem; color:var(--text-muted);">${g3_opp}</div>
+                        <span style="color:var(--text-secondary); font-weight:600;">${g3_val}</span>
+                    </td>
+                    <td>
+                        <span style="color:var(--accent-cyan); font-weight:700; font-family:'Outfit', sans-serif;">${w_val}</span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openModal(p) {
+            document.getElementById('modal-player-name').innerText = p.web_name;
+            document.getElementById('modal-player-sub').innerText = `${p.position} • ${p.team_name} • ${p.price_str}`;
+            const content = document.getElementById('modal-breakdown-content');
+            content.innerHTML = `
+                <div class="breakdown-row"><span class="breakdown-label">Expected Minutes (xMins)</span><span class="breakdown-val">${p.xMins} mins</span></div>
+                <div class="breakdown-row"><span class="breakdown-label">Appearance Points</span><span class="breakdown-val">${p.appearance_xp}</span></div>
+                <div class="breakdown-row"><span class="breakdown-label">Goals Points</span><span class="breakdown-val">${p.goals_xp}</span></div>
+                <div class="breakdown-row"><span class="breakdown-label">Assists Points</span><span class="breakdown-val">${p.assists_xp}</span></div>
+                <div class="breakdown-row"><span class="breakdown-label">Clean Sheet Points</span><span class="breakdown-val">${p.cs_xp}</span></div>
+                <div class="breakdown-row"><span class="breakdown-label">DEFCON Points (10+ CBIT)</span><span class="breakdown-val">${p.defcon_xp}</span></div>
+                <div class="breakdown-row"><span class="breakdown-label">Saves Points</span><span class="breakdown-val">${p.saves_xp}</span></div>
+                <div class="breakdown-row"><span class="breakdown-label">Bonus Points</span><span class="breakdown-val">${p.bonus_xp}</span></div>
+                <div class="breakdown-row"><span class="breakdown-label">Cards & Penalty Risk</span><span class="breakdown-val" style="color:var(--accent-pink);">${p.cards_xp}</span></div>
+                <div class="breakdown-row" style="margin-top:12px; border-top:2px solid var(--accent-green); padding-top:12px;">
+                    <span class="breakdown-label" style="font-weight:700; color:#fff;">Total Base Expected Points (xP)</span>
+                    <span class="breakdown-val" style="font-size:1.2rem;">${p.total_xp}</span>
+                </div>
+            `;
+            document.getElementById('breakdown-modal').classList.add('open');
+        }
+
+        function closeModal() { document.getElementById('breakdown-modal').classList.remove('open'); }
+
+        async function syncFplData() {
+            try {
+                const res = await fetch('/api/v1/ingest', { method: 'POST' });
+                if (res.ok) {
+                    alert('FPL Data Synced Successfully!');
+                    await fetchDiagnostics();
+                    await runOptimization();
+                }
+            } catch (err) { alert('Failed to sync.'); }
+        }
+
+        async function runOptimization() {
+            const budgetVal = parseInt(document.getElementById('budget-range').value);
+            const modeVal = document.getElementById('mode-select').value;
+
+            const payload = {
+                mode: modeVal,
+                current_gw: 1,
+                total_budget: budgetVal,
+                max_players_per_team: 3,
+                projection_source: 'internal'
+            };
+
+            try {
+                const res = await fetch('/api/v1/optimize/squad', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    renderSquad(data);
+                }
+            } catch (err) { console.error('Optimization error:', err); }
+        }
+
+        function renderSquad(data) {
+            document.getElementById('model-version-tag').innerText = data.model_version || "Baseline Projection Model v0.2";
+            document.getElementById('metric-gw0-xp').innerText = data.current_gw_starting_xi_xp;
+            document.getElementById('metric-cap-extra').innerText = `+${data.captain_contribution_xp} Cap (Total ${data.total_current_gw_xp})`;
+            document.getElementById('metric-weighted-xp').innerText = data.weighted_horizon_xp;
+            document.getElementById('metric-cost').innerText = data.total_cost_str;
+            document.getElementById('metric-bank').innerText = data.bank_str;
+            document.getElementById('metric-captain').innerText = data.captain ? `${data.captain.web_name} (${data.captain.gw0_xp})` : '-';
+            document.getElementById('metric-vc').innerText = data.vice_captain ? data.vice_captain.web_name : '-';
+
+            const gkpRow = document.getElementById('pitch-gkp');
+            const defRow = document.getElementById('pitch-def');
+            const midRow = document.getElementById('pitch-mid');
+            const fwdRow = document.getElementById('pitch-fwd');
+            const benchRow = document.getElementById('pitch-bench');
+
+            gkpRow.innerHTML = ''; defRow.innerHTML = ''; midRow.innerHTML = ''; fwdRow.innerHTML = ''; benchRow.innerHTML = '';
+
+            let defCount = 0, midCount = 0, fwdCount = 0;
+
+            data.starting_11.forEach(p => {
+                const card = createPlayerCard(p);
+                if (p.element_type === 'GKP') gkpRow.appendChild(card);
+                else if (p.element_type === 'DEF') { defRow.appendChild(card); defCount++; }
+                else if (p.element_type === 'MID') { midRow.appendChild(card); midCount++; }
+                else if (p.element_type === 'FWD') { fwdRow.appendChild(card); fwdCount++; }
+            });
+
+            document.getElementById('formation-badge').innerText = `Formation: ${defCount}-${midCount}-${fwdCount}`;
+            data.bench.forEach(p => benchRow.appendChild(createPlayerCard(p)));
+
+            // Render Explanations
+            const expContainer = document.getElementById('explanation-container');
+            if (data.explanations && data.explanations.length > 0) {
+                expContainer.style.display = 'block';
+                expContainer.innerHTML = '<strong>💡 Decision Explanations:</strong><ul style="margin-left:20px; margin-top:6px;">' +
+                    data.explanations.map(e => `<li>${e}</li>`).join('') + '</ul>';
+            } else { expContainer.style.display = 'none'; }
+        }
+
+        function createPlayerCard(p) {
+            const div = document.createElement('div');
+            div.className = 'player-card-pitch';
+            let capBadge = '';
+            if (p.is_captain) capBadge = '<div class="badge-cap">C</div>';
+            else if (p.is_vice_captain) capBadge = '<div class="badge-vc">V</div>';
+
+            div.innerHTML = `
+                ${capBadge}
+                <span class="player-pos-badge pos-${p.element_type}">${p.element_type}</span>
+                <div class="player-name">${p.web_name}</div>
+                <div class="player-team-cost">${p.team_name} • ${p.now_cost_str}</div>
+                <div class="player-xp-badge">${p.gw0_xp} GW0</div>
+            `;
+            return div;
+        }
+    </script>
+</body>
+</html>

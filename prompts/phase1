@@ -1,0 +1,238 @@
+FPL AI — PHASE 1: FIXTURE-AWARE GAMEWEEK PROJECTIONS
+
+Do NOT make any further changes to the optimizer.
+
+Do NOT train any ML models yet.
+
+Do NOT add new optimization modes.
+
+Do NOT add RAG, news, ownership, Monte Carlo, or other features.
+
+We are fixing ONE problem first.
+
+==================================================
+THE PROBLEM
+==================================================
+
+The current dashboard shows identical projections for every gameweek.
+
+For example:
+
+Awoniyi:
+GW0 = 4.92
+GW1 = 4.92
+GW2 = 4.92
+GW3 = 4.92
+
+Haaland:
+GW0 = 4.61
+GW1 = 4.61
+GW2 = 4.61
+GW3 = 4.61
+
+Bruno:
+GW0 = 4.30
+GW1 = 4.30
+GW2 = 4.30
+GW3 = 4.30
+
+This means the CURRENT_GW_PLUS_3 weighting is currently meaningless:
+
+0.55X + 0.20X + 0.15X + 0.10X = X
+
+The system is effectively using one projection and copying it across four gameweeks.
+
+==================================================
+OBJECTIVE
+==================================================
+
+Make the projection engine genuinely GAMEWEEK-SPECIFIC.
+
+For every player and each GW0–GW3:
+
+1. Identify the player's actual fixture.
+2. Identify opponent.
+3. Identify home/away.
+4. Retrieve relevant fixture/team/opponent information.
+5. Generate a projection specific to that fixture.
+
+The same player's projection must be allowed to change between gameweeks because their fixture changes.
+
+==================================================
+WHAT TO IMPLEMENT
+==================================================
+
+For every player/gameweek projection, store:
+
+- Player
+- Gameweek
+- Opponent
+- Home/Away
+- Fixture difficulty
+- Expected minutes
+- xG
+- xA
+- Clean-sheet probability
+- DEFCON probability
+- Bonus expectation
+- Negative-event expectation
+- Total xP
+
+Do NOT simply copy the player's base xP across gameweeks.
+
+Do NOT artificially force projections to differ.
+
+The differences must come from actual fixture/context inputs.
+
+==================================================
+FIXTURE EFFECTS
+==================================================
+
+At minimum:
+
+### Attackers
+
+Opponent defensive strength should affect:
+
+- xG
+- xA
+- goal expectation
+- assist expectation
+
+### Defenders / Goalkeepers
+
+Opponent attacking strength should affect:
+
+- clean-sheet probability
+- expected defensive workload where relevant
+
+### DEFCON
+
+Fixture context should be allowed to affect DEFCON probability.
+
+For example, opponent possession/attacking volume can influence expected defensive actions.
+
+### Expected Minutes
+
+For now, use the existing minutes model/baseline.
+
+Do NOT build ML yet.
+
+But expected minutes must be stored separately for each gameweek and must be allowed to vary.
+
+==================================================
+IMPORTANT
+==================================================
+
+Do NOT just multiply the final xP by a generic fixture multiplier.
+
+The fixture should influence the underlying components where possible.
+
+For example:
+
+Player
+→ fixture context
+→ xG/xA/CS/DEFCON/etc.
+→ FPL scoring calculation
+→ gameweek-specific xP
+
+NOT:
+
+Player base xP
+→ generic fixture multiplier
+→ final xP
+
+==================================================
+TESTS
+==================================================
+
+Add automated tests.
+
+At minimum:
+
+1. Verify every player has the correct opponent for GW0–GW3.
+
+2. Verify home/away is correct.
+
+3. Verify projections are calculated independently for each gameweek.
+
+4. Verify fixture-specific inputs actually reach the projection calculation.
+
+5. Create a test using a player whose GW0–GW3 fixtures differ.
+
+6. The test should fail if the engine simply copies the same projection into all four gameweeks.
+
+IMPORTANT:
+
+Do NOT make a test that merely says:
+
+"GW0 xP != GW1 xP"
+
+because two fixtures could legitimately produce identical rounded xP.
+
+Instead test the underlying fixture inputs/components.
+
+==================================================
+DASHBOARD
+==================================================
+
+Keep the current dashboard structure.
+
+Just make sure the player outlook table now genuinely shows:
+
+Player | Opponent | H/A | GW0 xP | GW1 xP | GW2 xP | GW3 xP
+
+Also expose enough diagnostic information to verify why the values differ.
+
+==================================================
+DO NOT DO YET
+==================================================
+
+Do NOT:
+
+- train ML models
+- change optimizer mathematics
+- change the 55/20/15/10 weights
+- change captaincy logic
+- change squad selection logic
+- add RAG
+- add news
+- add ownership
+- add Monte Carlo
+- redesign the dashboard
+- add new optimization modes
+
+==================================================
+DEFINITION OF DONE
+==================================================
+
+This phase is complete only when:
+
+1. Every player has the correct fixture for GW0–GW3.
+
+2. Fixture context is actually used by the projection engine.
+
+3. xG/xA/CS/DEFCON/etc. can change based on fixture context.
+
+4. Expected minutes are stored per gameweek.
+
+5. GW0–GW3 xP is genuinely calculated separately.
+
+6. The dashboard clearly shows the different fixtures and projections.
+
+7. Automated tests verify that fixture data is not being ignored.
+
+8. Existing tests still pass.
+
+9. Run the optimizer once after the fix and show the resulting squad.
+
+10. Provide a concise report of:
+   - files changed
+   - tests added
+   - tests passed
+   - example player showing GW0–GW3 projections
+   - confirmation that projections are no longer being copied across gameweeks
+
+STOP AFTER THIS PHASE.
+
+Do not proceed to ML until I review the output.

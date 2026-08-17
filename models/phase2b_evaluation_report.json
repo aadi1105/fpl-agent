@@ -1,0 +1,224 @@
+{
+  "timestamp": "2026-08-17T17:39:15.312684",
+  "pipeline_version": "1.0.0",
+  "features_used": [
+    "price",
+    "fixture_difficulty",
+    "team_attack_rating",
+    "team_defence_rating",
+    "opponent_attack_rating",
+    "opponent_defence_rating",
+    "home_away_is_home",
+    "minutes_last_1",
+    "minutes_last_3",
+    "minutes_last_5",
+    "minutes_last_10",
+    "starts_last_1",
+    "starts_last_3",
+    "starts_last_5",
+    "starts_last_10",
+    "appearances_last_5",
+    "bench_appearances_last_5",
+    "unused_substitute_last_5",
+    "average_minutes_last_5",
+    "average_minutes_last_10",
+    "days_since_last_match",
+    "matches_in_previous_14_days",
+    "matches_in_previous_21_days",
+    "fixture_congestion",
+    "pos_DEF",
+    "pos_MID",
+    "pos_FWD"
+  ],
+  "models": {
+    "model_a_p_start": {
+      "target": "target_started",
+      "selected_model": "LightGBM",
+      "validation_metrics": {
+        "Baseline": {
+          "log_loss": 0.3713,
+          "brier_score": 0.1139,
+          "roc_auc": 0.8888,
+          "pr_auc": 0.755,
+          "ece": 0.0347
+        },
+        "LogisticRegression": {
+          "log_loss": 0.3128,
+          "brier_score": 0.096,
+          "roc_auc": 0.9302,
+          "pr_auc": 0.8295,
+          "ece": 0.0259
+        },
+        "LightGBM": {
+          "log_loss": 0.2816,
+          "brier_score": 0.0875,
+          "roc_auc": 0.9424,
+          "pr_auc": 0.8624,
+          "ece": 0.0123
+        }
+      },
+      "test_metrics": {
+        "Baseline": {
+          "log_loss": 0.3561,
+          "brier_score": 0.1091,
+          "roc_auc": 0.8922,
+          "pr_auc": 0.7461,
+          "ece": 0.0408
+        },
+        "Selected_ML": {
+          "log_loss": 0.2568,
+          "brier_score": 0.0791,
+          "roc_auc": 0.9497,
+          "pr_auc": 0.8667,
+          "ece": 0.0117
+        }
+      },
+      "ml_beats_baseline": true
+    },
+    "model_b_expected_minutes": {
+      "target": "target_minutes",
+      "selected_model": "LightGBM",
+      "validation_metrics": {
+        "Baseline": {
+          "mae": 14.447,
+          "rmse": 26.579,
+          "median_ae": 1.0
+        },
+        "RidgeRegression": {
+          "mae": 15.054,
+          "rmse": 24.151,
+          "median_ae": 8.123
+        },
+        "LightGBM": {
+          "mae": 14.047,
+          "rmse": 23.616,
+          "median_ae": 6.337
+        }
+      },
+      "test_metrics": {
+        "Baseline": {
+          "mae": 13.578,
+          "rmse": 26.043,
+          "median_ae": 0.0
+        },
+        "Selected_ML": {
+          "mae": 12.844,
+          "rmse": 22.488,
+          "median_ae": 4.682
+        }
+      },
+      "subgroup_test_mae": {
+        "starters": 21.09,
+        "substitutes": 9.6,
+        "GKP": 6.47,
+        "DEF": 15.31,
+        "MID": 12.87,
+        "FWD": 12.07
+      },
+      "ml_beats_baseline": true
+    },
+    "model_c_p_60_plus": {
+      "target": "target_60_plus",
+      "selected_model": "LightGBM",
+      "validation_metrics": {
+        "Baseline": {
+          "log_loss": 0.3778,
+          "brier_score": 0.1161,
+          "roc_auc": 0.8838,
+          "pr_auc": 0.7224,
+          "ece": 0.0424
+        },
+        "LightGBM": {
+          "log_loss": 0.2871,
+          "brier_score": 0.0899,
+          "roc_auc": 0.9369,
+          "pr_auc": 0.8349,
+          "ece": 0.0083
+        }
+      },
+      "test_metrics": {
+        "Baseline": {
+          "log_loss": 0.3606,
+          "brier_score": 0.1104,
+          "roc_auc": 0.8877,
+          "pr_auc": 0.7147,
+          "ece": 0.0468
+        },
+        "LightGBM": {
+          "log_loss": 0.2609,
+          "brier_score": 0.081,
+          "roc_auc": 0.9455,
+          "pr_auc": 0.8431,
+          "ece": 0.0077
+        }
+      },
+      "ml_beats_baseline": true
+    },
+    "model_d_p_zero": {
+      "target": "target_zero_minutes",
+      "selected_model": "LightGBM",
+      "validation_metrics": {
+        "Baseline": {
+          "log_loss": 0.4338,
+          "brier_score": 0.1353,
+          "roc_auc": 0.8866,
+          "pr_auc": 0.9013,
+          "ece": 0.0684
+        },
+        "LightGBM": {
+          "log_loss": 0.3142,
+          "brier_score": 0.0951,
+          "roc_auc": 0.9366,
+          "pr_auc": 0.9534,
+          "ece": 0.0102
+        }
+      },
+      "test_metrics": {
+        "Baseline": {
+          "log_loss": 0.4132,
+          "brier_score": 0.1282,
+          "roc_auc": 0.8958,
+          "pr_auc": 0.9189,
+          "ece": 0.0711
+        },
+        "LightGBM": {
+          "log_loss": 0.2838,
+          "brier_score": 0.0854,
+          "roc_auc": 0.9469,
+          "pr_auc": 0.9654,
+          "ece": 0.0125
+        }
+      },
+      "ml_beats_baseline": true
+    }
+  },
+  "feature_importances_xg_mins": {
+    "minutes_last_1": 553.0,
+    "price": 452.0,
+    "average_minutes_last_10": 390.0,
+    "minutes_last_3": 350.0,
+    "team_attack_rating": 342.0,
+    "days_since_last_match": 330.0,
+    "team_defence_rating": 216.0,
+    "minutes_last_10": 216.0,
+    "opponent_attack_rating": 180.0,
+    "minutes_last_5": 151.0,
+    "opponent_defence_rating": 122.0,
+    "pos_DEF": 121.0,
+    "matches_in_previous_21_days": 117.0,
+    "unused_substitute_last_5": 103.0,
+    "starts_last_1": 85.0,
+    "average_minutes_last_5": 72.0,
+    "pos_FWD": 60.0,
+    "appearances_last_5": 59.0,
+    "starts_last_10": 47.0,
+    "fixture_difficulty": 46.0,
+    "pos_MID": 42.0,
+    "starts_last_5": 36.0,
+    "starts_last_3": 35.0,
+    "matches_in_previous_14_days": 26.0,
+    "bench_appearances_last_5": 24.0,
+    "home_away_is_home": 13.0,
+    "fixture_congestion": 0.0
+  }
+}

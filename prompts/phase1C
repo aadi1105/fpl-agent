@@ -1,0 +1,383 @@
+FPL AI — PHASE 1C: PROPER TEAM STRENGTH RATINGS
+
+Phase 1 and Phase 1A/1B are complete.
+
+We have now fixed the major projection bug where missing opponent defensive ratings were being interpreted as 500, producing an artificial 2.10x attacking multiplier.
+
+The current safe fallback is 1000 = league-average strength.
+
+However, this means the fixture model currently does NOT properly distinguish between strong and weak opponents whenever team strength ratings are missing or unpopulated.
+
+For example, Arsenal, Bournemouth, Crystal Palace, etc. should not all effectively become "league average" simply because their ratings are unavailable.
+
+The next objective is therefore:
+
+BUILD A PROPER TEAM STRENGTH / FIXTURE CONTEXT LAYER.
+
+Do NOT train ML models yet.
+
+Do NOT change the optimizer.
+
+Do NOT change expected-minutes modelling yet.
+
+Do NOT change the FPL scoring rules.
+
+Do NOT add RAG/news/ownership/etc.
+
+==================================================
+OBJECTIVE
+==================================================
+
+Create reliable team-level attacking and defensive strength ratings that can be used by the existing fixture-aware projection engine.
+
+The system should be able to distinguish between:
+
+- strong attacking teams
+- average attacking teams
+- weak attacking teams
+- strong defensive teams
+- average defensive teams
+- weak defensive teams
+
+These ratings must then influence player projections depending on the opponent.
+
+==================================================
+TEAM RATINGS REQUIRED
+==================================================
+
+For every Premier League team, create/update:
+
+1. Attacking Strength
+2. Defensive Strength
+
+Where possible, maintain separate:
+
+3. Home Attacking Strength
+4. Away Attacking Strength
+5. Home Defensive Strength
+6. Away Defensive Strength
+
+Use the available historical/team data already present in the project.
+
+Do NOT invent ratings.
+
+If the project already has team-strength fields, inspect how they are populated and determine why they were previously zero.
+
+==================================================
+DATA SOURCES / FEATURES
+==================================================
+
+Use reliable historical team-level information available before the relevant gameweek.
+
+Where available, consider:
+
+ATTACK:
+
+- Goals scored
+- xG
+- Shots
+- Shots on target
+- Big chances
+- Goals per match
+- xG per match
+
+DEFENCE:
+
+- Goals conceded
+- xGA
+- Shots conceded
+- Shots on target conceded
+- Big chances conceded
+- Clean sheets
+- Goals conceded per match
+- xGA per match
+
+Prefer xG/xGA over raw goals where reliable xG data exists.
+
+Do not blindly combine highly correlated statistics without understanding the effect.
+
+Keep the first implementation simple and interpretable.
+
+==================================================
+RATING METHODOLOGY
+==================================================
+
+Create a transparent rating methodology.
+
+The initial baseline should be relative to league average.
+
+For example:
+
+League average = 1000
+
+Team above league average attack > 1000
+Team below league average attack < 1000
+
+Team above league average defence > 1000
+Team below league average defence < 1000
+
+IMPORTANT:
+
+Clearly define what a HIGH defensive rating means.
+
+Do not create ambiguity where:
+
+"higher defensive rating" could mean either "better defence" or "more goals conceded."
+
+Document the convention in code.
+
+The projection engine must use the convention consistently.
+
+==================================================
+HOME / AWAY
+==================================================
+
+If sufficient data exists, maintain separate home and away strengths.
+
+For example:
+
+Team A:
+Home Attack = 1120
+Away Attack = 980
+
+Team A:
+Home Defence = 1080
+Away Defence = 1010
+
+Do not create separate ratings merely for the sake of it if there is insufficient data.
+
+If the sample is too small, use a sensible regression toward the league average rather than producing extreme ratings.
+
+==================================================
+SMALL SAMPLE HANDLING
+==================================================
+
+This is important.
+
+Do NOT allow teams with very little data to receive extreme ratings.
+
+Use a simple shrinkage approach toward league average.
+
+For example:
+
+rating = weighted(team_observed_strength, league_average)
+
+where the weight increases with sample size.
+
+Document the exact method.
+
+Do not build an ML model for this.
+
+This is still the deterministic/statistical baseline.
+
+==================================================
+FIXTURE PROJECTION INTEGRATION
+==================================================
+
+Once the team ratings are available, integrate them into the EXISTING fixture-aware projection engine.
+
+The existing pipeline should conceptually be:
+
+Player historical rates
++
+Expected minutes
++
+Team attacking strength
++
+Opponent defensive strength
++
+Home/Away
+→
+fixture-adjusted xG/xA
+
+And:
+
+Team defensive strength
++
+Opponent attacking strength
++
+Home/Away
++
+Expected minutes
+→
+clean-sheet probability
+
+DEFCON should also be allowed to use relevant opponent/team context where the existing implementation supports it.
+
+Do NOT redesign the entire projection engine.
+
+Make the smallest clean change necessary to replace the league-average fallback with actual team ratings.
+
+==================================================
+IMPORTANT: DO NOT DOUBLE-COUNT
+==================================================
+
+Audit the existing fixture multiplier before integrating the new ratings.
+
+We previously had:
+
+1000 / opponent_def_rating × home_factor
+
+Do not blindly insert another team-strength multiplier on top of this.
+
+There must be ONE clearly defined mechanism for how opponent strength modifies the player's underlying projection.
+
+Document the final formula.
+
+For example, conceptually:
+
+player_rate
+× expected_minutes_factor
+× fixture_strength_factor
+
+But use the project's actual rating convention and data.
+
+Avoid creating enormous multipliers.
+
+Add reasonable bounds/clamping if necessary.
+
+The purpose of the team-strength layer is to improve realism, not create extreme projections.
+
+==================================================
+SANITY CHECKS
+==================================================
+
+After implementation, inspect several fixtures representing different difficulty levels.
+
+At minimum compare examples involving:
+
+- a strong attacking team vs a weak defence
+- a strong attacking team vs a strong defence
+- a weak attacking team vs a weak defence
+- a weak attacking team vs a strong defence
+
+Verify that the resulting player xG/xA changes in the expected direction.
+
+For defenders/GKs:
+
+Verify that clean-sheet probability changes in the expected direction when opponent attacking strength changes.
+
+==================================================
+REQUIRED TESTS
+==================================================
+
+Add tests for:
+
+1. Every Premier League team has non-zero valid strength ratings.
+
+2. League-average fallback remains available if data genuinely cannot be obtained.
+
+3. Missing data does NOT produce the old 500-rating bug.
+
+4. Ratings remain within sensible bounds.
+
+5. Stronger opponent defence reduces attacking projection relative to a weaker opponent defence, all else equal.
+
+6. Stronger opponent attack reduces defensive clean-sheet probability, all else equal.
+
+7. Home/away effects work correctly where implemented.
+
+8. Team ratings are actually consumed by the fixture projection engine.
+
+9. Different opponents produce different underlying fixture adjustments where their strengths differ.
+
+10. Existing projection arithmetic tests still pass.
+
+11. Existing fixture mapping tests still pass.
+
+12. Existing API tests still pass.
+
+==================================================
+DIAGNOSTIC OUTPUT
+==================================================
+
+Add or extend the diagnostics endpoint so that for any player/gameweek we can see:
+
+Player
+Gameweek
+Team
+Opponent
+Home/Away
+
+Team Attack Rating
+Team Defence Rating
+
+Opponent Attack Rating
+Opponent Defence Rating
+
+Fixture Attack Modifier
+Fixture Defence Modifier
+
+xG
+xA
+Clean Sheet Probability
+DEFCON Probability
+Total xP
+
+This is important because we need to be able to explain WHY a fixture changed a player's projection.
+
+==================================================
+VALIDATION EXAMPLE
+==================================================
+
+After implementation, provide a small table similar to:
+
+Fixture | Opp Attack | Opp Defence | Player | xG | xA | CS%
+
+The exact players/fixtures can be chosen from the current database.
+
+The important thing is that the table demonstrates that fixture strength is genuinely affecting the underlying projection.
+
+==================================================
+CRITICAL CONSTRAINT
+==================================================
+
+Do NOT train ML.
+
+Do NOT call the system ML-powered.
+
+Do NOT modify the optimizer.
+
+Do NOT modify the 55/20/15/10 horizon weights.
+
+Do NOT modify captaincy.
+
+Do NOT modify squad-selection logic.
+
+Do NOT change the expected-minutes model.
+
+We are still improving the deterministic/statistical baseline.
+
+==================================================
+DEFINITION OF DONE
+==================================================
+
+Phase 1C is complete when:
+
+1. Every team has a documented attack/defence strength rating.
+
+2. Ratings are based on actual available data.
+
+3. Missing data no longer causes the old 500-rating multiplier bug.
+
+4. Ratings are relative to league average and use a clearly documented convention.
+
+5. Small samples are appropriately regressed toward league average.
+
+6. Actual opponent strength now affects player projections.
+
+7. Actual opponent attacking strength affects defensive/clean-sheet projections.
+
+8. Home/away context works correctly.
+
+9. No double-counting or runaway fixture multipliers exist.
+
+10. All tests pass.
+
+11. Diagnostics expose the team/opponent ratings and resulting fixture adjustments.
+
+12. Show several example fixtures demonstrating that the model now distinguishes between genuinely easy and difficult opponents.
+
+STOP AFTER PHASE 1C.
+
+Do not proceed to the historical ML dataset or Expected Minutes model until I review this output.

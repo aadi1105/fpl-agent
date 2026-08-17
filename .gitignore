@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# Database & Cache
+*.db
+*.sqlite
+*.sqlite3
+fpl_engine.db
+
+# Environment variables
+.env
+.env.local
+
+# IDEs & System
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

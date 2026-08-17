@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: fpl_db
+    environment:
+      POSTGRES_USER: fpl_user
+      POSTGRES_PASSWORD: fpl_password
+      POSTGRES_DB: fpl_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fpl_user -d fpl_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: .
+    container_name: fpl_backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://fpl_user:fpl_password@postgres:5432/fpl_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app/backend
+      - ./frontend:/app/frontend
+
+volumes:
+  postgres_data:

@@ -1,0 +1,658 @@
+FPL AI — PHASE 2B: EXPECTED MINUTES ML MODEL
+
+Phase 2A is complete.
+
+We now have a validated, leak-free historical dataset containing 110,268 player-gameweek snapshots across:
+
+- 2022/23
+- 2023/24
+- 2024/25
+- 2025/26
+
+with the chronological split:
+
+TRAIN:
+2022/23 + 2023/24
+
+VALIDATION:
+2024/25
+
+TEST:
+2025/26
+
+The deterministic/statistical baseline is also complete through Phase 1C.
+
+We are now beginning the FIRST ACTUAL MACHINE LEARNING MODEL.
+
+IMPORTANT:
+
+This phase is ONLY about the Expected Minutes / availability prediction problem.
+
+Do NOT train xG.
+Do NOT train xA.
+Do NOT train Clean Sheet.
+Do NOT train DEFCON.
+Do NOT train Bonus.
+Do NOT modify the optimizer.
+Do NOT replace the current projection engine yet.
+Do NOT change the current team-strength model.
+Do NOT add RAG/news/ownership/game theory.
+Do NOT redesign the dashboard.
+
+The purpose of this phase is:
+
+TRAIN → EVALUATE → BACKTEST → COMPARE AGAINST BASELINE.
+
+Only if the ML model demonstrably beats the deterministic baseline should we consider integrating it into the live projection engine.
+
+==================================================
+1. DEFINE THE PREDICTION TASKS
+==================================================
+
+Build separate predictive tasks rather than one giant "minutes model".
+
+We want to predict:
+
+MODEL A:
+P(start)
+
+MODEL B:
+Expected minutes
+
+MODEL C:
+P(60+ minutes)
+
+MODEL D:
+P(0 minutes)
+
+Use the existing Phase 2A historical dataset.
+
+Before implementation, inspect the actual dataset schema and verify the available features.
+
+Do NOT invent features that aren't actually available.
+
+==================================================
+2. BASELINE MODELS
+==================================================
+
+Before training ML, establish explicit deterministic baselines.
+
+For each target, define a reasonable baseline using only information available in the historical snapshot.
+
+At minimum compare against:
+
+P(start) baseline:
+recent-start/minutes-based heuristic
+
+Expected minutes baseline:
+recent-minutes / starts-based heuristic
+
+P(60+) baseline:
+recent frequency of playing 60+ minutes
+
+P(0) baseline:
+recent frequency of 0-minute appearances
+
+Use the existing deterministic minutes logic where appropriate.
+
+Document the exact baseline formulas.
+
+The ML models must beat these baselines OUT-OF-SAMPLE.
+
+==================================================
+3. FEATURE AUDIT
+==================================================
+
+Before training, produce a feature audit.
+
+For every feature intended for the model, document:
+
+- Feature name
+- Meaning
+- Data type
+- Source
+- Whether it is numeric/categorical
+- Missing-value behaviour
+- Temporal origin
+- Why it could have been known before the GW deadline
+
+Pay particular attention to:
+
+- minutes_last_1
+- minutes_last_3
+- minutes_last_5
+- minutes_last_10
+- starts_last_1
+- starts_last_3
+- starts_last_5
+- starts_last_10
+- average_minutes_last_5
+- average_minutes_last_10
+- appearances_last_5
+- bench appearances
+- unused substitute counts
+- price
+- position
+- team
+- opponent
+- home/away
+- fixture difficulty
+- team attack rating
+- team defence rating
+- opponent attack rating
+- opponent defence rating
+- days since last match
+- fixture congestion
+- relevant availability/status fields
+
+Do NOT automatically use every available feature.
+
+If a feature is suspicious, redundant, unavailable historically, or potentially leaky, flag it before training.
+
+==================================================
+4. TEMPORAL LEAKAGE REQUIREMENT
+==================================================
+
+This is non-negotiable.
+
+For a prediction for GW N:
+
+ONLY information available before the GW N deadline may be used.
+
+The target outcome must never appear as a feature.
+
+Do NOT randomly split rows.
+
+Use the existing chronological split:
+
+TRAIN:
+2022/23 + 2023/24
+
+VALIDATION:
+2024/25
+
+TEST:
+2025/26
+
+The 2025/26 TEST SET must remain untouched during model selection and hyperparameter tuning.
+
+Do NOT use test-set performance to choose the model.
+
+==================================================
+5. MODEL A — P(START)
+==================================================
+
+Train a binary classification model predicting:
+
+target_started
+
+Candidate models:
+
+- LightGBM
+- XGBoost
+- Logistic Regression baseline
+
+Start with a simple, interpretable implementation.
+
+Do not assume LightGBM/XGBoost automatically wins.
+
+Evaluate:
+
+- Log Loss
+- Brier Score
+- ROC-AUC
+- PR-AUC
+- Calibration
+
+Calibration is particularly important.
+
+A prediction of:
+
+P(start) = 0.80
+
+should actually correspond to roughly an 80% start rate over sufficiently large groups.
+
+Produce a calibration analysis.
+
+==================================================
+6. MODEL B — EXPECTED MINUTES
+==================================================
+
+Train a regression model predicting:
+
+target_minutes
+
+Candidate models:
+
+- LightGBM
+- XGBoost
+- Gradient Boosting
+- simple baseline regression where useful
+
+Evaluate:
+
+- MAE
+- RMSE
+- Median Absolute Error
+
+Also report performance separately for useful groups where sample size allows:
+
+- starters
+- substitutes
+- defenders
+- midfielders
+- forwards
+- goalkeepers
+
+Be careful not to overfit tiny subgroups.
+
+==================================================
+7. MODEL C — P(60+)
+==================================================
+
+Train a classifier predicting:
+
+target_60_plus
+
+Evaluate:
+
+- Log Loss
+- Brier Score
+- ROC-AUC
+- PR-AUC
+- Calibration
+
+Compare against the deterministic frequency baseline.
+
+==================================================
+8. MODEL D — P(0)
+==================================================
+
+Train a classifier predicting:
+
+target_zero_minutes
+
+Evaluate:
+
+- Log Loss
+- Brier Score
+- ROC-AUC
+- PR-AUC
+- Calibration
+
+Pay particular attention to class imbalance.
+
+Do NOT judge this model solely by accuracy.
+
+A model that predicts "0 minutes" for nobody can still achieve misleadingly high accuracy if zero-minute outcomes are sufficiently uncommon.
+
+==================================================
+9. MODEL SELECTION
+==================================================
+
+Do NOT automatically deploy the best-performing ML algorithm.
+
+For each target:
+
+Compare:
+
+DETERMINISTIC BASELINE
+vs
+LOGISTIC / SIMPLE BASELINE
+vs
+LIGHTGBM / XGBOOST
+
+Use the VALIDATION season (2024/25) for model selection.
+
+Only after selecting the model should the untouched 2025/26 TEST season be evaluated.
+
+Report both:
+
+Validation performance
+Test performance
+
+The test set must be evaluated ONCE after model selection.
+
+==================================================
+10. OUT-OF-SAMPLE EVALUATION
+==================================================
+
+Create a clear comparison table.
+
+Example:
+
+MODEL | TARGET | BASELINE | ML | IMPROVEMENT
+
+For example:
+
+Baseline | P(start) | LogLoss X | — | —
+LightGBM | P(start) | — | LogLoss Y | Z%
+
+Do this for:
+
+P(start)
+Expected minutes
+P(60+)
+P(0)
+
+Clearly identify whether ML actually beats the baseline.
+
+==================================================
+11. CALIBRATION
+==================================================
+
+For all probability models, produce calibration results.
+
+Check whether:
+
+Predicted probability
+≈
+Observed frequency
+
+Do not optimize only for discrimination.
+
+An FPL decision engine needs reliable probabilities.
+
+For example:
+
+If the model says:
+
+P(start) = 0.90
+
+we need that to mean something operationally.
+
+==================================================
+12. FEATURE IMPORTANCE / INTERPRETABILITY
+==================================================
+
+For the selected ML model, produce feature importance.
+
+Prefer interpretable methods such as:
+
+- LightGBM feature importance
+- permutation importance
+- SHAP if already supported and practical
+
+Do NOT add unnecessary dependencies just for visualizations.
+
+We want to understand what drives the model.
+
+For example, it would be sensible if:
+
+recent starts
+recent minutes
+recent substitution history
+
+are highly influential.
+
+If an obviously suspicious feature dominates the model, investigate it.
+
+==================================================
+13. ERROR ANALYSIS
+==================================================
+
+Do not stop at aggregate metrics.
+
+Identify examples where the model performs poorly.
+
+Inspect cases such as:
+
+- nailed starter unexpectedly benched
+- substitute unexpectedly started
+- injury/rotation cases
+- players returning from injury
+- new signings
+- fixture congestion
+- players with very small samples
+
+Show at least several representative errors.
+
+The objective is to understand where the model fails.
+
+==================================================
+14. SMALL-SAMPLE BEHAVIOUR
+==================================================
+
+Pay particular attention to players with limited historical minutes.
+
+The model must not overreact to tiny samples.
+
+For example:
+
+A player with 180 historical minutes should not automatically receive extreme confidence because of three matches.
+
+Check model behaviour for:
+
+- < 300 minutes
+- 300–600 minutes
+- 600–1000 minutes
+- >1000 minutes
+
+where sample sizes permit.
+
+Report whether performance degrades for small samples.
+
+==================================================
+15. MODEL ARTIFACTS
+==================================================
+
+Create a model registry entry for the trained model(s).
+
+For every selected model record:
+
+- Model name
+- Version
+- Target
+- Algorithm
+- Training seasons
+- Validation season
+- Test season
+- Feature list
+- Hyperparameters
+- Validation metrics
+- Test metrics
+- Calibration metrics
+- Creation timestamp
+
+Suggested names:
+
+minutes_start_v1
+minutes_regression_v1
+minutes_60plus_v1
+minutes_zero_v1
+
+Do NOT overwrite the deterministic baselines.
+
+They must remain available for comparison.
+
+==================================================
+16. MODEL STORAGE
+==================================================
+
+Store trained artifacts in an appropriate model directory.
+
+For example:
+
+models/
+
+or the project's existing model-artifact convention.
+
+Do not commit enormous generated artifacts unnecessarily if the project already has a better artifact strategy.
+
+Document where the artifacts live.
+
+==================================================
+17. DO NOT INTEGRATE INTO LIVE PROJECTIONS YET
+==================================================
+
+This is extremely important.
+
+Even if the ML model performs well:
+
+DO NOT replace the current deterministic expected-minutes logic yet.
+
+First report the results.
+
+We will review whether the model is sufficiently better and trustworthy before integration.
+
+The current baseline remains the production projection method until explicitly approved.
+
+==================================================
+18. BACKTEST / TEST REPORT
+==================================================
+
+Produce a concise but complete report containing:
+
+1. Dataset used
+2. Features used
+3. Baseline definitions
+4. Algorithms tested
+5. Validation metrics
+6. Test metrics
+7. Calibration results
+8. Feature importance
+9. Error analysis
+10. Small-sample analysis
+11. Selected model(s)
+12. Whether ML beat the baseline
+13. Whether deployment is recommended
+
+If ML does NOT beat the baseline:
+
+Say so clearly.
+
+Do NOT force deployment.
+
+==================================================
+19. DOCUMENTATION — MANDATORY
+==================================================
+
+UPDATE THE PROJECT DOCUMENTATION AS PART OF THIS PHASE.
+
+This requirement applies to EVERY FUTURE DEVELOPMENT PHASE as well.
+
+At the end of this phase:
+
+1. Update:
+
+docs/ROADMAP.md
+
+2. Create/update:
+
+docs/phases/PHASE_2B_EXPECTED_MINUTES.md
+
+3. Update:
+
+docs/models/MODEL_REGISTRY.md
+
+4. Update:
+
+docs/models/ML_MODELS.md
+
+5. Update:
+
+docs/data/DATA_DICTIONARY.md
+
+if any dataset/features changed.
+
+6. Update:
+
+docs/decisions/ARCHITECTURAL_DECISIONS.md
+
+if any new architectural decision was made.
+
+7. Preserve the exact development prompt in:
+
+docs/prompts/PHASE_2B_EXPECTED_MINUTES.md
+
+8. Clearly distinguish:
+
+IMPLEMENTED
+vs
+EVALUATED
+vs
+DEPLOYED
+vs
+PLANNED
+
+Do NOT mark the Expected Minutes model as "deployed" unless we explicitly approve deployment after reviewing the results.
+
+For the rest of the project, every future phase must update the documentation in the same manner.
+
+==================================================
+20. TESTS
+==================================================
+
+Add tests covering:
+
+- Feature preparation
+- Target preparation
+- Temporal splitting
+- No target leakage
+- Model input schema
+- Prediction output ranges
+- Probability outputs within [0,1]
+- Expected minutes within sensible bounds
+- Reproducibility where appropriate
+
+Run:
+
+python -m pytest
+
+All existing tests must continue to pass.
+
+==================================================
+DEFINITION OF DONE
+==================================================
+
+Phase 2B is complete when:
+
+1. P(start) model has been trained and evaluated.
+
+2. Expected-minutes regression model has been trained and evaluated.
+
+3. P(60+) model has been trained and evaluated.
+
+4. P(0) model has been trained and evaluated.
+
+5. Deterministic baselines have been established.
+
+6. Validation uses 2024/25.
+
+7. The 2025/26 test set remains untouched until final evaluation.
+
+8. No temporal leakage is detected.
+
+9. Probability calibration has been evaluated.
+
+10. Feature importance has been examined.
+
+11. Error analysis has been performed.
+
+12. Small-sample behaviour has been examined.
+
+13. ML vs baseline performance is clearly reported.
+
+14. Model artifacts and registry entries have been created.
+
+15. The current production projection engine has NOT been replaced yet.
+
+16. All project documentation has been updated.
+
+17. The exact development prompt has been saved under docs/prompts/.
+
+18. All existing tests pass.
+
+==================================================
+STOP CONDITION
+==================================================
+
+STOP after Phase 2B.
+
+Do NOT begin xG/xA/Clean Sheet/DEFCON/Bonus ML.
+
+Do NOT integrate the model into the production projection engine.
+
+Do NOT modify the optimizer.
+
+Wait for review of the Phase 2B results before proceeding.

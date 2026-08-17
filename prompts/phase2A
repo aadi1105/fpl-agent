@@ -1,0 +1,490 @@
+FPL AI — PHASE 2A: HISTORICAL DATASET CONSTRUCTION
+
+Phase 1C is officially complete.
+
+The deterministic/statistical baseline is now fixture-aware, has proper team-strength ratings, has passed its current validation suite, and has been confirmed to use only pre-GW1 2026/27 information.
+
+We are now beginning the ML pipeline.
+
+IMPORTANT:
+
+Do NOT train any ML models yet.
+
+Do NOT modify the optimizer.
+
+Do NOT modify the current projection formulas.
+
+Do NOT modify the current team-strength model.
+
+Do NOT add RAG, news, ownership, Monte Carlo, or other features.
+
+This phase has ONE objective:
+
+BUILD A CLEAN, HISTORICAL, PRE-DEADLINE, LEAK-FREE DATASET THAT CAN LATER BE USED TO TRAIN THE EXPECTED-MINUTES MODEL.
+
+==================================================
+OBJECTIVE
+==================================================
+
+We eventually want to predict:
+
+1. P(start)
+2. Expected minutes
+3. P(60+ minutes)
+4. P(0 minutes)
+
+for every player before an FPL gameweek deadline.
+
+Before training anything, we need historical snapshots representing exactly what would have been known BEFORE each historical gameweek.
+
+The dataset must therefore be constructed chronologically.
+
+Each row should represent:
+
+PLAYER + GAMEWEEK + PRE-DEADLINE INFORMATION
+
+with the actual outcome stored separately as the target.
+
+==================================================
+HISTORICAL DATA
+==================================================
+
+Use the historical seasons already available/reliably accessible to the project.
+
+Target seasons:
+
+2022/23
+2023/24
+2024/25
+2025/26
+
+If some seasons or fields are unavailable, do NOT fabricate data.
+
+Inspect the existing database/data ingestion system first.
+
+Reuse existing FPL data structures where possible rather than creating a parallel incompatible database.
+
+Report exactly which seasons and gameweeks were successfully imported.
+
+==================================================
+CRITICAL TEMPORAL RULE
+==================================================
+
+For a row representing:
+
+PLAYER X — GW N
+
+ALL FEATURES must represent information available BEFORE the GW N deadline.
+
+The target represents what actually happened DURING GW N.
+
+Example:
+
+Prediction snapshot:
+
+Player: Haaland
+Gameweek: GW10
+Deadline: before GW10
+
+Allowed features:
+
+- minutes in GW9 and earlier
+- starts in GW9 and earlier
+- goals/xG in GW9 and earlier
+- assists/xA in GW9 and earlier
+- FPL points in GW9 and earlier
+- price before GW10
+- team before GW10
+- opponent for GW10
+- home/away for GW10
+- fixture information known before GW10
+- injury/suspension information available before the deadline IF historically available in the dataset
+
+Target:
+
+- actual GW10 minutes
+- actual GW10 started/not-started
+- actual GW10 60+ minutes
+- actual GW10 0 minutes
+
+FORBIDDEN:
+
+- GW10 minutes as an input
+- GW10 points as an input
+- GW10 goals as an input
+- GW10 assists as an input
+- GW10 BPS as an input
+- GW10 post-match statistics
+- GW11+ information
+- future price changes
+- future transfers
+- future results
+- any post-deadline information
+
+==================================================
+DATASET STRUCTURE
+==================================================
+
+Create a dedicated historical ML dataset structure.
+
+Prefer something like:
+
+data/ml/
+
+or the project's existing equivalent.
+
+Create:
+
+historical_minutes_dataset
+
+and associated metadata/schema.
+
+Each row should contain at minimum:
+
+IDENTIFIERS:
+
+- season
+- gameweek
+- player_id
+- player_name
+- team_id
+- team
+- position
+
+FIXTURE:
+
+- opponent
+- opponent_id
+- home_away
+- fixture_difficulty
+- team_attack_rating
+- team_defence_rating
+- opponent_attack_rating
+- opponent_defence_rating
+
+RECENT PLAYER FEATURES:
+
+- minutes_last_1
+- minutes_last_3
+- minutes_last_5
+- minutes_last_10
+- starts_last_1
+- starts_last_3
+- starts_last_5
+- starts_last_10
+- appearances_last_5
+- bench_appearances_last_5
+- unused_substitute_last_5
+- average_minutes_last_5
+- average_minutes_last_10
+
+PLAYER STATUS:
+
+- price
+- position
+- team
+- injury/status fields IF historically available pre-deadline
+- suspension status IF historically available
+- transfer status IF historically available
+
+SCHEDULE / CONTEXT:
+
+- days_since_last_match
+- matches_in_previous_14_days
+- matches_in_previous_21_days
+- fixture_congestion
+- home_away
+- opponent
+- relevant competition context IF historically available
+
+TARGETS:
+
+- target_started
+- target_minutes
+- target_60_plus
+- target_zero_minutes
+
+Do NOT include a feature unless we can establish that it was available before the prediction deadline.
+
+==================================================
+IMPORTANT: DO NOT INVENT HISTORICAL INJURY DATA
+==================================================
+
+Injury/news information is often difficult to reconstruct historically.
+
+If the current data source cannot reliably reconstruct what was known before the historical deadline:
+
+DO NOT pretend that it can.
+
+Instead:
+
+- omit the feature
+- mark it unavailable
+- document the limitation
+
+Do not use present-day information to reconstruct historical snapshots.
+
+==================================================
+ROLLING FEATURES
+==================================================
+
+All rolling features must be calculated using ONLY previous gameweeks.
+
+For example, for GW10:
+
+minutes_last_5 must use:
+
+GW5
+GW6
+GW7
+GW8
+GW9
+
+It must NOT include GW10.
+
+For GW1:
+
+there may be insufficient historical current-season data.
+
+Handle this explicitly.
+
+Possible fallback:
+
+- previous-season information
+- preseason information if reliably available
+- league/position average
+- null value with explicit missing indicator
+
+Do not silently fill everything with arbitrary values.
+
+==================================================
+TEAM STRENGTH FEATURES
+==================================================
+
+The Phase 1C team-strength methodology should be reused where historically applicable.
+
+However, team ratings for historical GW N must also be calculated using information available BEFORE GW N.
+
+Do NOT use the full season's final team statistics when constructing an earlier historical prediction snapshot.
+
+Example:
+
+For 2024/25 GW10:
+
+The team rating must NOT use the team's full 2024/25 season.
+
+It may use:
+
+- previous-season data
+- 2024/25 GW1–GW9 information
+- appropriately shrunk historical information
+
+The exact methodology should be documented.
+
+This is critical for preventing leakage.
+
+==================================================
+TARGET DEFINITION
+==================================================
+
+Define the targets precisely.
+
+target_started:
+
+1 if player started the match
+0 otherwise
+
+target_minutes:
+
+actual minutes played in the target gameweek
+
+target_60_plus:
+
+1 if minutes >= 60
+0 otherwise
+
+target_zero_minutes:
+
+1 if minutes == 0
+0 otherwise
+
+Handle postponed/cancelled fixtures correctly.
+
+Do not treat a postponed fixture as a player playing 0 minutes.
+
+==================================================
+DATA QUALITY
+==================================================
+
+Create validation checks for:
+
+1. Duplicate player/gameweek rows.
+
+2. Missing player IDs.
+
+3. Missing gameweeks.
+
+4. Invalid minutes (<0 or >120 unless the source explicitly represents something different).
+
+5. Invalid positions.
+
+6. Impossible target combinations.
+
+For example:
+
+target_minutes >= 60
+must imply
+target_60_plus = 1
+
+target_minutes = 0
+must imply
+target_zero_minutes = 1
+
+7. Future information accidentally appearing in rolling features.
+
+==================================================
+LEAKAGE TESTS
+==================================================
+
+This is the MOST IMPORTANT part of Phase 2A.
+
+Create automated leakage tests.
+
+At minimum verify:
+
+1. GW N rolling statistics contain no GW N data.
+
+2. GW N rolling statistics contain no GW N+1 or later data.
+
+3. Target columns are never used as features.
+
+4. Future price values are not used.
+
+5. Future fixture results are not used.
+
+6. Full-season aggregates are not accidentally used for earlier gameweeks.
+
+7. Historical team ratings do not use future gameweeks.
+
+8. Dataset construction is deterministic and reproducible.
+
+Where practical, include a "feature_as_of" or equivalent timestamp/reference so that the temporal origin of important features can be audited.
+
+==================================================
+TRAIN / VALIDATION / TEST SPLIT
+==================================================
+
+Do NOT randomly split the dataset yet.
+
+Create a time-based split plan.
+
+For example:
+
+TRAIN:
+2022/23
+2023/24
+
+VALIDATION:
+2024/25
+
+TEST:
+2025/26
+
+The exact split can be adjusted based on available data, but it must be chronological.
+
+The future must never influence the past.
+
+Document the final split.
+
+==================================================
+DATASET SUMMARY
+==================================================
+
+After construction, output:
+
+- Seasons included
+- Gameweeks included
+- Number of unique players
+- Number of rows
+- Number of teams
+- Number of starting appearances
+- Number of 60+ appearances
+- Number of zero-minute appearances
+- Missing-value statistics
+- Feature count
+- Target distribution
+- Train/validation/test row counts
+
+Also show several example rows.
+
+==================================================
+MANUAL LEAKAGE AUDIT
+==================================================
+
+Pick at least 3 historical examples.
+
+For each example show:
+
+Player
+Season
+Gameweek
+Prediction snapshot information
+Target outcome
+
+Then explain why every major feature was available before that game's deadline.
+
+The goal is to make it possible for us to manually inspect the dataset.
+
+==================================================
+DO NOT TRAIN ANYTHING YET
+==================================================
+
+This phase ends after dataset construction and validation.
+
+Do NOT:
+
+- train LightGBM
+- train XGBoost
+- tune hyperparameters
+- build an ensemble
+- change the projection engine
+- change the optimizer
+- deploy an ML model
+
+We are only building the dataset.
+
+==================================================
+DEFINITION OF DONE
+==================================================
+
+Phase 2A is complete when:
+
+1. Historical data for the available target seasons has been collected.
+
+2. A player-gameweek historical dataset has been created.
+
+3. Every feature represents information available before that gameweek deadline.
+
+4. Targets represent actual outcomes from that gameweek.
+
+5. Rolling features are leak-free.
+
+6. Historical team-strength features are leak-free.
+
+7. Time-based train/validation/test splits are defined.
+
+8. Automated leakage tests pass.
+
+9. Data-quality tests pass.
+
+10. Dataset statistics are reported.
+
+11. At least 3 historical rows have been manually audited for temporal correctness.
+
+12. No ML model has been trained yet.
+
+13. Existing project tests continue to pass.
+
+STOP AFTER PHASE 2A.
+
+Do not proceed to model training until I review the dataset construction report.

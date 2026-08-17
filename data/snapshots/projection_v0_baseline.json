@@ -1,0 +1,21 @@
+{
+  "version": "projection_v0_baseline",
+  "created_at": "2026-08-17T21:20:00Z",
+  "description": "Baseline projection model snapshot before position-specific calibration audit.",
+  "coefficients": {
+    "DEFCON_POINTS": 2,
+    "DEFCON_THRESHOLD": 10,
+    "DEF_GOAL_VAL": 6.0,
+    "MID_GOAL_VAL": 5.0,
+    "FWD_GOAL_VAL": 4.0,
+    "ASSIST_VAL": 3.0,
+    "CS_DEF_GKP_VAL": 4.0,
+    "CS_MID_VAL": 1.0
+  },
+  "anomaly_notes": [
+    "Cheap 4.5m defenders defaulted to 0.15 xG/90 fallback when minutes <= 90",
+    "Minutes calculation incorrectly used total_points/4.0 in denominator",
+    "Horizon totals summed over 8 GWs without per-GW averaging display",
+    "Captain multiplier applied to cheap defenders due to inflated base xP"
+  ]
+}
