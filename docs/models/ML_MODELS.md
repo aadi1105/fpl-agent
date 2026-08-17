@@ -2,26 +2,30 @@
 
 ---
 
-## 1. Phase 2B Expected Minutes ML Models (Trained & Evaluated)
+## 1. Phase 2B / 2C Expected Minutes ML Models (Deployed to Production)
 
 ### A. Model Overview
-The Phase 2B availability models predict player starting probability $P(\text{start})$, expected minutes $E[\text{minutes}]$, $P(60+\text{ mins})$, and non-appearance probability $P(0\text{ mins})$ before an FPL deadline.
+The Phase 2B/2C availability models predict player starting probability $P(\text{start})$, expected minutes $E[\text{minutes}]$, $P(60+\text{ mins})$, and non-appearance probability $P(0\text{ mins})$ before an FPL deadline.
 
-### B. Artifact Locations
-* **`models/minutes_start_v1.pkl`** — LightGBM classifier for $P(\text{start})$
-* **`models/minutes_regression_v1.pkl`** — LightGBM regressor for $E[\text{minutes}]$
-* **`models/minutes_60plus_v1.pkl`** — LightGBM classifier for $P(60+)$
-* **`models/minutes_zero_v1.pkl`** — LightGBM classifier for $P(0)$
-* **`models/phase2b_evaluation_report.json`** — Comprehensive metrics report
+### B. Production Implementation & Fallback
+* **Inference Module**: [`backend/ml/minutes_predictor.py`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/backend/ml/minutes_predictor.py)
+* **Production Model Name**: `expected_minutes_v1`
+* **Fallback Model Name**: `expected_minutes_baseline_v1`
+* **Artifact Locations**:
+  * `models/minutes_start_v1.pkl`
+  * `models/minutes_regression_v1.pkl`
+  * `models/minutes_60plus_v1.pkl`
+  * `models/minutes_zero_v1.pkl`
+  * `models/phase2b_evaluation_report.json`
 
 ### C. Out-of-Sample Performance Summary (2025/26 Test Set)
 
 | Target | Baseline Metric | LightGBM ML Metric | Out-of-Sample Improvement | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **$P(\text{start})$** | `0.3561` LogLoss | **`0.2568` LogLoss** | **27.9% improvement** | **Trained / Evaluated** |
-| **$E[\text{minutes}]$** | `13.58` MAE | **`12.84` MAE** (RMSE `22.49` vs `26.04`) | **5.4% improvement** | **Trained / Evaluated** |
-| **$P(60+)$** | `0.3606` LogLoss | **`0.2609` LogLoss** | **27.6% improvement** | **Trained / Evaluated** |
-| **$P(0)$** | `0.4132` LogLoss | **`0.2838` LogLoss** | **31.3% improvement** | **Trained / Evaluated** |
+| **$P(\text{start})$** | `0.3561` LogLoss | **`0.2568` LogLoss** | **27.9% improvement** | **Deployed (PROD)** |
+| **$E[\text{minutes}]$** | `13.58` MAE | **`12.84` MAE** (RMSE `22.49` vs `26.04`) | **5.4% improvement** | **Deployed (PROD)** |
+| **$P(60+)$** | `0.3606` LogLoss | **`0.2609` LogLoss** | **27.6% improvement** | **Deployed (PROD)** |
+| **$P(0)$** | `0.4132` LogLoss | **`0.2838` LogLoss** | **31.3% improvement** | **Deployed (PROD)** |
 
 ---
 

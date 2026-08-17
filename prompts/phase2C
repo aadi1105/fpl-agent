@@ -1,0 +1,617 @@
+FPL AI — PHASE 2C: EXPECTED MINUTES VALIDATION & PRODUCTION INTEGRATION
+
+Phase 2B is complete.
+
+We have trained and evaluated the first actual ML models in the project:
+
+- P(start)
+- Expected Minutes
+- P(60+)
+- P(0)
+
+The models were trained on:
+
+TRAIN:
+2022/23 + 2023/24
+
+VALIDATION:
+2024/25
+
+TEST:
+2025/26
+
+Phase 2B reported that the ML models outperformed the deterministic baselines on the untouched 2025/26 test set.
+
+IMPORTANT:
+
+Before proceeding to xG/xA ML, we must properly audit the Expected Minutes models and determine whether they are safe to integrate into the production projection pipeline.
+
+This phase has TWO possible outcomes:
+
+OUTCOME A:
+ML Expected Minutes is sufficiently better and trustworthy → integrate it.
+
+OUTCOME B:
+ML Expected Minutes is not sufficiently reliable → retain the deterministic baseline and document why.
+
+Do NOT assume deployment is automatically approved.
+
+Do NOT train xG.
+
+Do NOT train xA.
+
+Do NOT train Clean Sheet.
+
+Do NOT train DEFCON.
+
+Do NOT train Bonus.
+
+Do NOT modify the optimizer.
+
+Do NOT change the 4-GW weighting.
+
+Do NOT redesign the projection engine beyond the minimum required for minutes-model integration.
+
+==================================================
+1. AUDIT THE EXISTING PHASE 2B MODELS
+==================================================
+
+Inspect the actual trained model artifacts and implementation.
+
+Verify:
+
+- exact feature list
+- model type
+- hyperparameters
+- training data
+- validation data
+- test data
+- preprocessing
+- missing-value handling
+- categorical handling
+- model serialization
+- prediction code
+- model version
+
+Do not rely only on the Phase 2B report.
+
+Inspect the actual implementation.
+
+==================================================
+2. VERIFY TEST-SET INTEGRITY
+==================================================
+
+Confirm that the 2025/26 test set was NOT used for:
+
+- feature selection
+- hyperparameter tuning
+- threshold selection
+- model selection
+- calibration tuning
+- feature engineering decisions
+
+If any test-set information influenced model development, report it clearly.
+
+Do NOT hide or silently fix the issue.
+
+If leakage is discovered, stop deployment and report it.
+
+==================================================
+3. EVALUATE THE FOUR MODELS
+==================================================
+
+Produce a final comparison:
+
+TARGET | BASELINE | ML | IMPROVEMENT
+
+For:
+
+P(start)
+Expected Minutes
+P(60+)
+P(0)
+
+Use the untouched 2025/26 test results.
+
+Also include:
+
+Classification:
+- LogLoss
+- Brier
+- ROC-AUC
+- PR-AUC
+- ECE
+
+Regression:
+- MAE
+- RMSE
+- Median Absolute Error
+
+Do not rely on one metric.
+
+==================================================
+4. CHECK CALIBRATION
+==================================================
+
+For:
+
+P(start)
+P(60+)
+P(0)
+
+produce calibration diagnostics.
+
+Check probability buckets such as:
+
+0.0–0.1
+0.1–0.2
+...
+0.9–1.0
+
+For each bucket report:
+
+- number of predictions
+- average predicted probability
+- actual observed frequency
+- calibration error
+
+Identify whether the model is:
+
+- well calibrated
+- overconfident
+- underconfident
+
+If calibration is materially poor, do NOT blindly integrate raw probabilities.
+
+==================================================
+5. EXPECTED MINUTES SANITY CHECKS
+==================================================
+
+Inspect the distribution of ML expected-minutes predictions.
+
+Check:
+
+- minimum
+- maximum
+- mean
+- median
+- percentiles
+
+Verify that predictions remain within sensible football-minute ranges.
+
+Investigate:
+
+- predictions > 90
+- negative predictions
+- extreme predictions
+- players with tiny historical samples
+- players who have never started
+- substitutes
+- goalkeepers
+- defenders
+- midfielders
+- forwards
+
+Do NOT simply clamp extreme values without understanding why they occurred.
+
+==================================================
+6. PLAYER-LEVEL SANITY CHECKS
+==================================================
+
+Select representative player profiles and compare:
+
+DETERMINISTIC BASELINE
+vs
+ML MODEL
+
+Examples should include:
+
+1. Nailed premium starter
+2. Regular starter
+3. Rotation-prone starter
+4. Bench player
+5. Young/low-minute player
+6. Recently promoted/new player
+7. Player returning from limited minutes
+8. Player affected by fixture congestion
+
+For each show:
+
+Player
+Baseline xMins
+ML xMins
+P(start)
+P(60+)
+P(0)
+
+Explain notable differences.
+
+==================================================
+7. SUBGROUP PERFORMANCE
+==================================================
+
+Evaluate test-set performance separately where sample sizes are sufficient:
+
+- Goalkeepers
+- Defenders
+- Midfielders
+- Forwards
+
+Also evaluate by approximate recent-minutes bucket:
+
+- <300 historical minutes
+- 300–600
+- 600–1000
+- >1000
+
+Determine whether ML consistently beats the baseline or whether its improvement is concentrated in certain groups.
+
+If a subgroup performs substantially worse, document it.
+
+==================================================
+8. ERROR ANALYSIS
+==================================================
+
+Identify representative large errors in expected minutes.
+
+Inspect cases such as:
+
+- nailed player unexpectedly benched
+- substitute unexpectedly starting
+- injury/rotation
+- fixture congestion
+- new signing
+- returning player
+- manager rotation
+- very small sample
+
+For each example show:
+
+Player
+Season
+GW
+Predicted minutes
+Actual minutes
+Relevant pre-deadline features
+
+Explain what happened.
+
+Do NOT use post-match information as an input to the model.
+
+Post-match information may only be used to explain the error.
+
+==================================================
+9. COMPARE MODEL PREDICTIONS TO ACTUAL FPL DECISION NEEDS
+==================================================
+
+The ultimate purpose of this model is NOT merely minimizing MAE.
+
+It exists to improve:
+
+PLAYER xP
+→
+STARTING XI
+→
+SQUAD SELECTION
+→
+FPL DECISIONS
+
+Therefore, perform a small decision-oriented evaluation.
+
+Take a representative historical set of gameweeks and compare:
+
+Projection using deterministic xMins
+vs
+Projection using ML xMins
+
+Determine whether ML minutes predictions materially change player expected points in sensible ways.
+
+Do NOT evaluate the entire FPL optimizer yet.
+
+We are only evaluating the projection layer.
+
+==================================================
+10. DEFINE THE PRODUCTION MINUTES OUTPUT
+==================================================
+
+If deployment is approved, establish a clean production interface.
+
+The minutes prediction layer should expose:
+
+player_id
+gameweek
+p_start
+expected_minutes
+p_60_plus
+p_zero_minutes
+model_version
+
+Do not bury model inference inside the FPL scoring formulas.
+
+Keep the prediction layer separate.
+
+Conceptually:
+
+ML MODEL
+↓
+MINUTES PREDICTION OBJECT
+↓
+FPL PROJECTION ENGINE
+↓
+xP
+
+==================================================
+11. PRODUCTION FALLBACK
+==================================================
+
+Implement a safe fallback.
+
+If:
+
+- model artifact unavailable
+- inference fails
+- required feature missing
+- prediction invalid
+
+the system should fall back to the deterministic expected-minutes baseline.
+
+The system must never silently produce:
+
+0 minutes
+or
+90 minutes
+
+simply because the ML model failed.
+
+Log the fallback event.
+
+==================================================
+12. INTEGRATE ONLY EXPECTED MINUTES
+==================================================
+
+If and ONLY if the model passes the deployment criteria:
+
+Replace the deterministic expected-minutes input with the ML expected-minutes prediction.
+
+Do NOT replace:
+
+- xG
+- xA
+- clean sheet
+- DEFCON
+- bonus
+
+Those remain deterministic/statistical baselines.
+
+The resulting architecture should be:
+
+             ML EXPECTED MINUTES
+                     │
+                     ▼
+PLAYER RATE ───► PROJECTION ENGINE ◄─── FIXTURE CONTEXT
+                     │
+                     ▼
+                    xP
+
+Only the minutes component is ML-powered at this stage.
+
+==================================================
+13. DO NOT DOUBLE-COUNT MINUTES
+==================================================
+
+Audit the projection formulas carefully.
+
+If the current xG/xA model already incorporates expected minutes, ensure the ML minutes prediction replaces the old minutes estimate rather than being multiplied in twice.
+
+For example, avoid accidentally doing:
+
+old_xMins_factor
+×
+new_ML_xMins_factor
+
+unless that is explicitly intended.
+
+There should be one authoritative expected-minutes input.
+
+==================================================
+14. VERSION THE PRODUCTION MODEL
+==================================================
+
+If deployed, register the selected model as a production model.
+
+For example:
+
+expected_minutes_v1
+
+Record:
+
+- algorithm
+- training seasons
+- validation season
+- test season
+- feature list
+- hyperparameters
+- metrics
+- calibration
+- model artifact location
+- deployment date
+
+The deterministic baseline must remain available as:
+
+expected_minutes_baseline_v1
+
+We need the ability to compare future versions against both.
+
+==================================================
+15. UPDATE DIAGNOSTICS
+==================================================
+
+Extend the player projection diagnostics to show:
+
+Player
+Gameweek
+
+Expected Minutes:
+- deterministic baseline
+- ML expected minutes
+- model version
+
+Availability:
+- P(start)
+- P(60+)
+- P(0)
+
+Then show the downstream effect:
+
+xG
+xA
+CS probability
+DEFCON
+Total xP
+
+This allows us to see exactly how the ML minutes prediction changes the final projection.
+
+==================================================
+16. LIVE GAMEWEEK VALIDATION
+==================================================
+
+Do NOT use the upcoming/current 2026/27 gameweek as training data.
+
+Use it only for inference/forward prediction.
+
+For a few representative players, compare:
+
+- deterministic xMins
+- ML xMins
+- P(start)
+- P(60+)
+- P(0)
+
+This is a forward-looking sanity check, NOT a performance evaluation.
+
+Do not claim that the model has been validated on 2026/27 until actual outcomes exist.
+
+==================================================
+17. DEPLOYMENT DECISION
+==================================================
+
+Create an explicit deployment decision.
+
+Use the following principles:
+
+DEPLOY if:
+
+- no temporal leakage
+- test-set improvement is genuine
+- probability models are reasonably calibrated
+- expected-minutes MAE/RMSE improvement is meaningful
+- no major subgroup failure
+- predictions are sensible
+- inference is reliable
+- fallback works
+- integration does not double-count minutes
+
+DO NOT DEPLOY if:
+
+- leakage exists
+- test performance cannot be trusted
+- calibration is poor
+- predictions are unstable
+- major subgroups fail badly
+- integration produces nonsensical projections
+
+Do not force deployment simply because the ML model has better aggregate metrics.
+
+==================================================
+18. TESTS
+==================================================
+
+Add tests for:
+
+- model loading
+- inference
+- output schema
+- probability bounds
+- expected-minutes bounds
+- fallback behaviour
+- model versioning
+- deterministic baseline availability
+- no double-counting
+- projection integration
+- diagnostics output
+
+Run:
+
+python -m pytest
+
+All previous tests must continue to pass.
+
+==================================================
+19. DOCUMENTATION — MANDATORY
+==================================================
+
+Update the project documentation as part of this phase.
+
+This is now a permanent project rule:
+
+EVERY FUTURE DEVELOPMENT PHASE MUST UPDATE THE DOCUMENTATION.
+
+Update:
+
+docs/ROADMAP.md
+
+docs/phases/PHASE_2C_EXPECTED_MINUTES_INTEGRATION.md
+
+docs/models/MODEL_REGISTRY.md
+
+docs/models/ML_MODELS.md
+
+docs/data/DATA_DICTIONARY.md if interfaces/features changed
+
+docs/decisions/ARCHITECTURAL_DECISIONS.md if a new architectural decision was made
+
+docs/README.md if the documentation index changed
+
+Save this exact prompt as:
+
+docs/prompts/PHASE_2C_EXPECTED_MINUTES_INTEGRATION.md
+
+Clearly distinguish:
+
+- evaluated
+- approved
+- deployed
+- fallback
+- planned
+
+If the model is NOT deployed, document why.
+
+If it IS deployed, document exactly what production component now uses it.
+
+==================================================
+20. FINAL REPORT
+==================================================
+
+Return a concise but complete report containing:
+
+1. Test-set integrity result
+2. Final baseline vs ML metrics
+3. Calibration result
+4. Subgroup performance
+5. Error analysis
+6. Sanity-check results
+7. Decision-oriented evaluation
+8. Deployment decision
+9. Integration changes
+10. Fallback behaviour
+11. Model version
+12. Tests
+13. Documentation updates
+
+IMPORTANT:
+
+Do not proceed to xG/xA ML after this phase.
+
+STOP AFTER PHASE 2C.
+
+Wait for review before beginning the next prediction-model phase.

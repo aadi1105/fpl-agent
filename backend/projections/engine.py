@@ -7,6 +7,7 @@ from datetime import datetime
 from backend.config import settings
 from backend.models import Player, Team, Fixture, Gameweek, PlayerProjection, ElementType
 from backend.projections.team_ratings import TeamRatingCalculator
+from backend.ml.minutes_predictor import MinutesPredictor
 
 logger = logging.getLogger("projection_engine")
 logging.basicConfig(level=logging.INFO)
@@ -33,11 +34,13 @@ PRICE_TIER_DEFAULTS = {
 }
 
 class ProjectionEngine:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, use_ml_minutes: bool = True):
         self.db = db
+        self.use_ml_minutes = use_ml_minutes
+        self.minutes_predictor = MinutesPredictor()
 
     def calculate_expected_minutes(self, player: Player) -> float:
-        """Calculate expected minutes based on injury status, chance of playing, and price tier."""
+        """Calculate deterministic baseline expected minutes."""
         if player.status in ["i", "u", "s"]:
             return 0.0
             
@@ -67,10 +70,7 @@ class ProjectionEngine:
         return round(min(90.0, max(0.0, expected_mins)), 1)
 
     def calculate_defcon_probability(self, cbit_match: float) -> float:
-        """
-        Calculate exact probability of a defender reaching 10+ CBIT in a match.
-        Uses Poisson cumulative probability model: P(X >= 10 | lambda = cbit_match)
-        """
+        """Poisson probability model for 2026/27 DEFCON rules."""
         if cbit_match <= 0.0:
             return 0.0
             
@@ -98,85 +98,100 @@ class ProjectionEngine:
             defaults = defaults.get(tier, {})
 
         if player.minutes >= 180:
-            m_factor = 90.0 / player.minutes
-            xg90 = max(0.0, player.expected_goals * m_factor)
-            xa90 = max(0.0, player.expected_assists * m_factor)
-            bps90 = max(0.0, player.bps * m_factor)
-            cbit90 = max(0.0, player.defensive_contributions * m_factor)
-            saves90 = max(0.0, player.saves * m_factor) if pos == ElementType.GKP.value else 0.0
+            factor = 90.0 / player.minutes
+            return {
+                "xg90": round(player.expected_goals * factor, 3),
+                "xa90": round(player.expected_assists * factor, 3),
+                "saves90": round(defaults.get("saves90", 0.0), 2),
+                "bps90": round(player.bps * factor, 2),
+                "cbit90": round(defaults.get("cbit90", 4.0), 2)
+            }
         else:
-            xg90 = defaults.get("xg90", 0.05)
-            xa90 = defaults.get("xa90", 0.05)
-            bps90 = defaults.get("bps90", 15.0)
-            cbit90 = defaults.get("cbit90", 5.0)
-            saves90 = defaults.get("saves90", 3.0) if pos == ElementType.GKP.value else 0.0
-
-        return {
-            "xg90": xg90,
-            "xa90": xa90,
-            "bps90": bps90,
-            "cbit90": cbit90,
-            "saves90": saves90
-        }
+            return {
+                "xg90": defaults.get("xg90", 0.05),
+                "xa90": defaults.get("xa90", 0.05),
+                "saves90": defaults.get("saves90", 0.0),
+                "bps90": defaults.get("bps90", 15.0),
+                "cbit90": defaults.get("cbit90", 4.0)
+            }
 
     def calculate_player_xp_breakdown(
-        self, 
-        player: Player, 
-        fixture: Optional[Fixture], 
-        is_home: bool,
-        opponent_team: Optional[Team]
+        self,
+        player: Player,
+        fixture: Optional[Fixture] = None,
+        is_home: bool = True,
+        opp_team: Optional[Team] = None
     ) -> Dict[str, Any]:
-        """
-        Calculates fixture-specific expected points breakdown using Team Strength Ratings.
-        
-        CONVENTIONS:
-        - Attacking Rating: Higher = Stronger Attack (scores more xG).
-        - Defensive Rating: Higher = BETTER Defence (concedes lower xGA, harder to score against).
-        - League Average = 1000.0.
-        """
-        x_mins = self.calculate_expected_minutes(player)
-        mins_ratio = x_mins / 90.0
-        
+        """Calculate complete component breakdown for a player in a specific fixture."""
         pos = player.element_type
         metrics = self.get_player_per_90_metrics(player)
-        team = player.team
+        diff = (fixture.team_a_difficulty if is_home else fixture.team_h_difficulty) if fixture else 3
 
-        # Extract ratings with 1000.0 baseline fallback
-        if opponent_team:
-            raw_opp_def = opponent_team.strength_defence_away if is_home else opponent_team.strength_defence_home
-            opp_def_rating = float(raw_opp_def) if raw_opp_def and raw_opp_def > 0 else 1000.0
-            
-            raw_opp_att = opponent_team.strength_attack_away if is_home else opponent_team.strength_attack_home
-            opp_att_rating = float(raw_opp_att) if raw_opp_att and raw_opp_att > 0 else 1000.0
-            opp_short_name = opponent_team.short_name
-        else:
-            opp_def_rating = 1000.0
-            opp_att_rating = 1000.0
-            opp_short_name = "BYE"
+        # Deterministic Baseline Minutes
+        baseline_xMins = self.calculate_expected_minutes(player)
 
-        if team:
-            raw_team_att = team.strength_attack_home if is_home else team.strength_attack_away
-            team_att_rating = float(raw_team_att) if raw_team_att and raw_team_att > 0 else 1000.0
+        # Team Strength Ratings
+        player_team = player.team
+        raw_team_att = (player_team.strength_attack_home if is_home else player_team.strength_attack_away) if player_team else 1000.0
+        team_att_rating = raw_team_att if raw_team_att > 0 else 1000.0
 
-            raw_team_def = team.strength_defence_home if is_home else team.strength_defence_away
-            team_def_rating = float(raw_team_def) if raw_team_def and raw_team_def > 0 else 1000.0
-        else:
-            team_att_rating = 1000.0
-            team_def_rating = 1000.0
+        raw_team_def = (player_team.strength_defence_home if is_home else player_team.strength_defence_away) if player_team else 1000.0
+        team_def_rating = raw_team_def if raw_team_def > 0 else 1000.0
 
-        ha_att_factor = 1.05 if is_home else 0.95
-        ha_def_factor = 1.05 if is_home else 0.95
+        raw_opp_att = (opp_team.strength_attack_away if is_home else opp_team.strength_attack_home) if opp_team else 1000.0
+        opp_att_rating = raw_opp_att if raw_opp_att > 0 else 1000.0
 
-        # 1. Single Fixture Attacking Multiplier (Clamped between 0.60 and 1.50)
-        raw_att_mult = (1000.0 / max(400.0, opp_def_rating)) * ha_att_factor
-        att_multiplier = min(1.50, max(0.60, raw_att_mult))
+        raw_opp_def = (opp_team.strength_defence_away if is_home else opp_team.strength_defence_home) if opp_team else 1000.0
+        opp_def_rating = raw_opp_def if raw_opp_def > 0 else 1000.0
 
-        # 2. Defensive Ratio for Clean Sheets (Clamped between 0.40 and 2.50)
-        raw_cs_ratio = (team_def_rating / max(400.0, opp_att_rating)) * ha_def_factor
-        cs_ratio = min(2.50, max(0.40, raw_cs_ratio))
+        home_factor = 1.05 if is_home else 0.95
+        att_multiplier = min(1.50, max(0.60, (1000.0 / opp_def_rating) * home_factor))
+        cs_ratio = min(2.50, max(0.40, (team_def_rating / opp_att_rating) * home_factor))
         cs_prob = round(min(0.75, max(0.04, 0.32 * cs_ratio)), 3)
+        opp_short_name = opp_team.short_name if opp_team else "OPP"
 
-        if mins_ratio == 0.0:
+        # ML Minutes Prediction (with safe fallback)
+        pdata = {
+            'price': player.now_cost / 10.0,
+            'fixture_difficulty': diff,
+            'team_attack_rating': team_att_rating,
+            'team_defence_rating': team_def_rating,
+            'opponent_attack_rating': opp_att_rating,
+            'opponent_defence_rating': opp_def_rating,
+            'home_away_is_home': 1.0 if is_home else 0.0,
+            'minutes_last_1': float(player.minutes / max(1.0, player.minutes / 75.0)) if player.minutes >= 180 else float(player.minutes),
+            'minutes_last_3': float(player.minutes),
+            'minutes_last_5': float(player.minutes),
+            'minutes_last_10': float(player.minutes),
+            'starts_last_1': 1.0 if player.minutes >= 60 else 0.0,
+            'starts_last_3': float(player.minutes / 75.0),
+            'starts_last_5': float(player.minutes / 75.0),
+            'starts_last_10': float(player.minutes / 75.0),
+            'appearances_last_5': 5.0 if player.minutes >= 180 else 1.0,
+            'bench_appearances_last_5': 0.0,
+            'unused_substitute_last_5': 0.0,
+            'average_minutes_last_5': float(player.minutes / max(1.0, player.minutes / 75.0)) if player.minutes >= 180 else float(player.minutes),
+            'average_minutes_last_10': float(player.minutes / max(1.0, player.minutes / 75.0)) if player.minutes >= 180 else float(player.minutes),
+            'days_since_last_match': 7.0,
+            'matches_in_previous_14_days': 2.0,
+            'matches_in_previous_21_days': 3.0,
+            'fixture_congestion': 0.0,
+            'pos_DEF': 1.0 if pos == "DEF" else 0.0,
+            'pos_MID': 1.0 if pos == "MID" else 0.0,
+            'pos_FWD': 1.0 if pos == "FWD" else 0.0
+        }
+
+        ml_pred = self.minutes_predictor.predict(pdata)
+        
+        # Decide active xMins (ML if enabled and valid, else baseline)
+        if self.use_ml_minutes and not ml_pred["used_fallback"]:
+            x_mins = ml_pred["expected_minutes"]
+        else:
+            x_mins = baseline_xMins
+
+        mins_ratio = min(1.0, max(0.0, x_mins / 90.0))
+
+        if x_mins <= 0.0:
             return {
                 "web_name": player.web_name,
                 "position": pos,
@@ -185,23 +200,41 @@ class ProjectionEngine:
                 "opponent": f"{opp_short_name} ({'H' if is_home else 'A'})",
                 "is_home": is_home,
                 "opp_short_name": opp_short_name,
-                "fixture_difficulty": (fixture.team_a_difficulty if is_home else fixture.team_h_difficulty) if fixture else 3,
+                "fixture_difficulty": diff,
                 "team_attack_rating": round(team_att_rating, 1),
                 "team_defence_rating": round(team_def_rating, 1),
                 "opp_attack_rating": round(opp_att_rating, 1),
                 "opp_defence_rating": round(opp_def_rating, 1),
                 "fixture_attack_modifier": round(att_multiplier, 3),
                 "fixture_defence_modifier": round(cs_ratio, 3),
-                "xMins": 0.0, "total_xp": 0.0,
-                "appearance_xp": 0.0, "goals_xp": 0.0, "assists_xp": 0.0,
-                "cs_xp": 0.0, "defcon_xp": 0.0, "bonus_xp": 0.0,
-                "saves_xp": 0.0, "cards_xp": 0.0, "xp_per_m": 0.0
+                "expected_minutes_baseline": baseline_xMins,
+                "expected_minutes_ml": ml_pred["expected_minutes"],
+                "model_version": ml_pred["model_version"],
+                "p_start": ml_pred["p_start"],
+                "p_60_plus": ml_pred["p_60_plus"],
+                "p_zero": ml_pred["p_zero"],
+                "used_fallback": ml_pred["used_fallback"],
+                "xMins": 0.0,
+                "xg_match": 0.0,
+                "xa_match": 0.0,
+                "cs_prob": cs_prob,
+                "defcon_prob": 0.0,
+                "appearance_xp": 0.0,
+                "goals_xp": 0.0,
+                "assists_xp": 0.0,
+                "cs_xp": 0.0,
+                "defcon_xp": 0.0,
+                "saves_xp": 0.0,
+                "bonus_xp": 0.0,
+                "cards_xp": 0.0,
+                "total_xp": 0.0,
+                "xp_per_m": 0.0
             }
 
-        # 3. Appearance Points
+        # Appearance Points
         appearance_xp = (2.0 if x_mins >= 60 else 1.0) * mins_ratio
 
-        # 4. Goals & Assists Points
+        # Goals & Assists Points
         xg_match = metrics["xg90"] * mins_ratio * att_multiplier
         xa_match = metrics["xa90"] * mins_ratio * att_multiplier
 
@@ -211,7 +244,7 @@ class ProjectionEngine:
         goals_xp = xg_match * goal_val
         assists_xp = xa_match * assist_val
 
-        # 5. Clean Sheet Points
+        # Clean Sheet Points
         if pos in [ElementType.GKP.value, ElementType.DEF.value]:
             cs_xp = cs_prob * 4.0 * mins_ratio
         elif pos == ElementType.MID.value:
@@ -219,7 +252,7 @@ class ProjectionEngine:
         else:
             cs_xp = 0.0
 
-        # 6. DEFCON (CBIT) Probability for Defenders (Scaled by Opponent Attacking Strength)
+        # DEFCON Points
         defcon_xp = 0.0
         defcon_prob = 0.0
         if pos == ElementType.DEF.value:
@@ -228,24 +261,22 @@ class ProjectionEngine:
             defcon_prob = self.calculate_defcon_probability(cbit_match)
             defcon_xp = defcon_prob * settings.DEFCON_POINTS * mins_ratio
 
-        # 7. Saves Points (GKP)
+        # Saves Points
         saves_xp = 0.0
         if pos == ElementType.GKP.value:
             save_multiplier = min(1.80, max(0.50, opp_att_rating / 1000.0))
             saves_match = metrics["saves90"] * mins_ratio * save_multiplier
             saves_xp = (saves_match / 3.0) * 1.0
 
-        # 8. Bonus Points
+        # Bonus Points
         bonus_prob = max(0.0, (metrics["bps90"] - 14.0) / 22.0)
         bonus_xp = min(1.2, bonus_prob) * mins_ratio
 
-        # 9. Card / Penalty Risk
+        # Cards Risk
         cards_xp = -0.10 * mins_ratio
 
         raw_total = appearance_xp + goals_xp + assists_xp + cs_xp + defcon_xp + saves_xp + bonus_xp + cards_xp
         total_xp = max(0.0, round(raw_total, 2))
-
-        diff = (fixture.team_a_difficulty if is_home else fixture.team_h_difficulty) if fixture else 3
 
         return {
             "web_name": player.web_name,
@@ -262,6 +293,13 @@ class ProjectionEngine:
             "opp_defence_rating": round(opp_def_rating, 1),
             "fixture_attack_modifier": round(att_multiplier, 3),
             "fixture_defence_modifier": round(cs_ratio, 3),
+            "expected_minutes_baseline": baseline_xMins,
+            "expected_minutes_ml": ml_pred["expected_minutes"],
+            "model_version": ml_pred["model_version"],
+            "p_start": ml_pred["p_start"],
+            "p_60_plus": ml_pred["p_60_plus"],
+            "p_zero": ml_pred["p_zero"],
+            "used_fallback": ml_pred["used_fallback"],
             "xMins": x_mins,
             "xg_match": round(xg_match, 3),
             "xa_match": round(xa_match, 3),
