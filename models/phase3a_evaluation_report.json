@@ -1,0 +1,87 @@
+{
+  "model_version": "xg_v1_lgbm",
+  "selected_formulation": "poisson",
+  "training_seasons": [
+    "2022-23",
+    "2023-24"
+  ],
+  "validation_season": "2024-25",
+  "test_season": "2025-26",
+  "validation_candidate_results": {
+    "poisson": {
+      "mae": 0.0669,
+      "rmse": 0.1998,
+      "poisson_deviance": 0.1753,
+      "calibration_ratio": 1.0267
+    },
+    "tweedie": {
+      "mae": 0.0595,
+      "rmse": 0.2004,
+      "poisson_deviance": 0.1833,
+      "calibration_ratio": 0.7965
+    },
+    "regression": {
+      "mae": 0.0677,
+      "rmse": 0.2015,
+      "poisson_deviance": 0.1882,
+      "calibration_ratio": 1.0454
+    }
+  },
+  "test_evaluation": {
+    "baseline_mae": 0.0692,
+    "ml_mae": 0.0619,
+    "mae_improvement_pct": 10.55,
+    "baseline_rmse": 0.1904,
+    "ml_rmse": 0.188,
+    "rmse_improvement_pct": 1.24,
+    "baseline_poisson_deviance": 0.1805,
+    "ml_poisson_deviance": 0.1622,
+    "poisson_deviance_improvement_pct": 10.15,
+    "calibration_ratio": 1.1318,
+    "spearman_correlation": 0.2307,
+    "pearson_correlation": 0.3286
+  },
+  "top_10_features": [
+    {
+      "feature": "p_zero",
+      "importance": 868
+    },
+    {
+      "feature": "opponent_defence_rating",
+      "importance": 711
+    },
+    {
+      "feature": "team_defence_rating",
+      "importance": 644
+    },
+    {
+      "feature": "team_attack_rating",
+      "importance": 638
+    },
+    {
+      "feature": "creativity_last_5",
+      "importance": 608
+    },
+    {
+      "feature": "expected_minutes_v1",
+      "importance": 598
+    },
+    {
+      "feature": "price",
+      "importance": 569
+    },
+    {
+      "feature": "p_start",
+      "importance": 548
+    },
+    {
+      "feature": "p_60_plus",
+      "importance": 530
+    },
+    {
+      "feature": "threat_last_10",
+      "importance": 522
+    }
+  ],
+  "deployment_recommendation": "APPROVED"
+}

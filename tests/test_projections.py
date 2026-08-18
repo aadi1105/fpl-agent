@@ -29,12 +29,12 @@ def db_session():
     # Premium FWD (Haaland-like) vs Cheap DEF (Thiaw-like)
     haaland = Player(
         id=1, web_name="Haaland", team_id=1, element_type=ElementType.FWD.value,
-        now_cost=150, status="a", minutes=900, total_points=120,
+        now_cost=150, status="a", minutes=900, total_points=120, goals_scored=12, assists=3,
         expected_goals=10.0, expected_assists=2.0, bps=300
     )
     cheap_def = Player(
         id=2, web_name="CheapDef", team_id=1, element_type=ElementType.DEF.value,
-        now_cost=45, status="a", minutes=900, total_points=40,
+        now_cost=45, status="a", minutes=900, total_points=40, goals_scored=0, assists=1,
         expected_goals=0.2, expected_assists=0.3, defensive_contributions=60, bps=120
     )
     session.add_all([haaland, cheap_def])

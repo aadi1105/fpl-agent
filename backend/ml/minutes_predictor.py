@@ -109,3 +109,39 @@ class MinutesPredictor:
         except Exception as e:
             logger.error(f"Inference error for player data: {e}. Utilizing fallback.")
             return self.get_fallback_prediction(pdata)
+
+    def predict_batch(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Vectorized batch prediction of expected minutes & availability for a DataFrame."""
+        if not self.is_loaded:
+            df_res = df.copy()
+            df_res["expected_minutes_v1"] = df_res["average_minutes_last_5"]
+            df_res["p_start"] = (df_res["starts_last_5"] / 5.0).clip(0.05, 0.95)
+            df_res["p_60_plus"] = (df_res["starts_last_5"] / 5.0).clip(0.05, 0.95)
+            df_res["p_zero"] = 0.1
+            return df_res
+
+        df_res = df.copy()
+        feat_df = pd.DataFrame()
+        for c in FEATURE_COLS:
+            if c in df_res.columns:
+                feat_df[c] = df_res[c].astype(float)
+            elif c == 'home_away_is_home':
+                feat_df[c] = (df_res.get('home_away', 'H') == 'H').astype(float)
+            elif c.startswith('pos_'):
+                pos_target = c.replace('pos_', '')
+                feat_df[c] = (df_res.get('position', 'MID') == pos_target).astype(float)
+            else:
+                feat_df[c] = 0.0
+
+        p_start = np.clip(self.m_start.predict_proba(feat_df)[:, 1], 0.0, 1.0)
+        raw_mins = self.m_mins.predict(feat_df)
+        exp_mins = np.clip(raw_mins, 0.0, 90.0)
+        p_60 = np.clip(self.m_60.predict_proba(feat_df)[:, 1], 0.0, 1.0)
+        p_0 = np.clip(self.m_0.predict_proba(feat_df)[:, 1], 0.0, 1.0)
+
+        df_res["expected_minutes_v1"] = np.round(exp_mins, 2)
+        df_res["p_start"] = np.round(p_start, 4)
+        df_res["p_60_plus"] = np.round(p_60, 4)
+        df_res["p_zero"] = np.round(p_0, 4)
+
+        return df_res

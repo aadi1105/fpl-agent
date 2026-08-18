@@ -64,3 +64,40 @@ The dataset contains **110,268 player-gameweek snapshot records** across four se
 | `target_minutes` | `int` | **TARGET** | Total actual minutes played in target GW |
 | `target_60_plus` | `int` | **TARGET** | 1 if `target_minutes` $\ge 60$, 0 otherwise |
 | `target_zero_minutes` | `int` | **TARGET** | 1 if `target_minutes` $== 0$, 0 otherwise |
+
+---
+
+## 2. Historical xG Dataset Schema (`data/ml/historical_xg_dataset.csv`)
+
+The dataset contains **113,592 per-fixture snapshot records** across four seasons (2022/23 – 2025/26).
+
+### A. Identifiers & Match Keys
+| Field Name | Data Type | Description | Pre-Deadline? |
+| :--- | :--- | :--- | :--- |
+| `season` | `str` | Season identifier (`2022-23`, `2023-24`, `2024-25`, `2025-26`) | Yes |
+| `gameweek` | `int` | Gameweek number ($1 \dots 38$) | Yes |
+| `fixture_id` | `int` | Unique FPL match fixture ID | Yes |
+| `player_id` | `int` | Unique FPL element ID | Yes |
+| `player_name` | `str` | Web name or full name of player | Yes |
+| `position` | `str` | Normalized position (`GKP`, `DEF`, `MID`, `FWD`) | Yes |
+
+### B. Pre-Deadline Attacking Rolling Features (GW $< N$)
+| Field Name | Data Type | Description | Pre-Deadline? |
+| :--- | :--- | :--- | :--- |
+| `expected_minutes_v1` | `float` | Production predicted expected minutes | Yes |
+| `p_start` | `float` | Production predicted starting probability | Yes |
+| `p_60_plus` | `float` | Production predicted 60+ minutes probability | Yes |
+| `p_zero` | `float` | Production predicted zero minutes probability | Yes |
+| `goals_last_1..10` | `float` | Rolling goals scored over prior match logs | Yes |
+| `xg_last_1..10` | `float` | Rolling expected goals (Opta xG) over prior match logs | Yes |
+| `threat_last_5..10` | `float` | Rolling ICT Threat metric over prior match logs | Yes |
+| `creativity_last_5` | `float` | Rolling ICT Creativity metric over prior match logs | Yes |
+| `goals_per_90_last_5` | `float` | Goals per 90 rate over prior 5 matches | Yes |
+| `xg_per_90_last_5` | `float` | xG per 90 rate over prior 5 matches | Yes |
+
+### C. Target Variable (Single Match Fixture)
+| Field Name | Data Type | Target? | Description |
+| :--- | :--- | :--- | :--- |
+| `target_goals` | `int` | **TARGET** | Actual goals scored by player in this single match fixture |
+| `actual_xg` | `float` | Reference | Actual Opta xG recorded in target fixture |
+
