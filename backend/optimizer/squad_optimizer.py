@@ -40,14 +40,20 @@ class SquadOptimizer:
         # Determine horizon weights based on mode
         if mode == "MAXIMUM_SQUAD":
             gw_weights = [0.25, 0.25, 0.25, 0.25][:len(horizon_gws)]
+        elif mode == "STRONG_XI_DUMP_BENCH":
+            gw_weights = [0.70, 0.15, 0.10, 0.05][:len(horizon_gws)]
+        elif mode == "BALANCED_BENCH":
+            gw_weights = [0.45, 0.25, 0.15, 0.15][:len(horizon_gws)]
         elif weights and len(weights) == len(horizon_gws):
             gw_weights = weights
-        else:
+        else: # CURRENT_GW_PLUS_3
             gw_weights = settings.DEFAULT_HORIZON_WEIGHTS[:len(horizon_gws)]
 
         # Normalize weights to sum to 1.0
         w_sum = sum(gw_weights)
         gw_weights = [round(w / w_sum, 3) for w in gw_weights]
+
+        logger.info(f"Configuring SquadOptimizer for mode={mode} | horizon_gws={horizon_gws} | weights={gw_weights}")
 
         players = self.db.query(Player).all()
         teams = self.db.query(Team).all()
@@ -59,7 +65,6 @@ class SquadOptimizer:
         ).all()
 
         # Map player per-GW expected points
-        # player_gw_xp[pid][gw] = xP
         player_gw_xp: Dict[int, Dict[int, float]] = {p.id: {} for p in players}
         for proj in projections:
             if proj.player_id in player_gw_xp:
@@ -113,16 +118,20 @@ class SquadOptimizer:
             team_players = [p for p in players if p.team_id == team.id]
             solver1.Add(solver1.Sum([x[p.id] for p in team_players]) <= max_players_per_team)
 
-        # Objective Step 1: Maximize Weighted Squad xP
+        # Objective Step 1: Mode-Specific Objective Formulations
         obj1 = solver1.Objective()
         for p in players:
             pid = p.id
             w_xp = player_weighted_xp.get(pid, 0.0)
             
             if mode == "STRONG_XI_DUMP_BENCH":
-                # Add penalty to bench expenditure so budget is concentrated on top starting XI
-                cost_penalty = 0.005 * p.now_cost
+                # Heavy cost penalty on enablers to dump bench cost into minimum enablers
+                cost_penalty = 0.025 * (p.now_cost / 10.0)
                 obj1.SetCoefficient(x[pid], w_xp - cost_penalty)
+            elif mode == "BALANCED_BENCH":
+                # Bonus for reliable playing minutes across entire 15-man squad
+                minutes_bonus = 0.015 * min(450.0, float(p.minutes))
+                obj1.SetCoefficient(x[pid], w_xp + minutes_bonus)
             else:
                 obj1.SetCoefficient(x[pid], w_xp)
 

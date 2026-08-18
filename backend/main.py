@@ -1,4 +1,5 @@
 import os
+import time
 import logging
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -193,6 +194,23 @@ def get_projection_diagnostics(
         entry["arithmetic_valid"] = abs(entry["total_xp"] - max(0.0, component_sum)) < 0.05
         report.append(entry)
 
+    # Compute Position-Relative Percentiles
+    pos_groups = {}
+    for entry in report:
+        pos = entry["position"]
+        if pos not in pos_groups: pos_groups[pos] = []
+        pos_groups[pos].append(entry)
+
+    for pos, group in pos_groups.items():
+        costs = [e["price"] for e in group]
+        xps = [e["total_xp"] for e in group]
+        vals = [e["xp_per_m"] for e in group]
+        n = len(group)
+        for e in group:
+            e["pos_price_percentile"] = round((sum(1 for c in costs if c <= e["price"]) / max(1, n)) * 100.0, 1)
+            e["pos_xp_percentile"] = round((sum(1 for x in xps if x <= e["total_xp"]) / max(1, n)) * 100.0, 1)
+            e["pos_value_percentile"] = round((sum(1 for v in vals if v <= e["xp_per_m"]) / max(1, n)) * 100.0, 1)
+
     if sort_by == "xp_per_m":
         report.sort(key=lambda x: x["xp_per_m"], reverse=True)
     elif sort_by == "price":
@@ -298,7 +316,7 @@ def list_players(
 
 @app.post("/api/v1/optimize/squad", response_model=OptimizationResponse, tags=["Optimization"])
 def optimize_squad(req: OptimizationRequest, db: Session = Depends(get_db)):
-    """Run MILP squad optimization for specified optimization mode."""
+    """Run synchronous MILP squad optimization for specified optimization mode."""
     try:
         current_gw = req.current_gw
         max_gw = min(38, current_gw + 3)
@@ -320,6 +338,124 @@ def optimize_squad(req: OptimizationRequest, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error optimizing squad: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+from backend.optimizer.progress_manager import progress_manager, OPTIMIZATION_STAGES
+import threading
+
+def _run_background_optimization(job_id: str, req: OptimizationRequest):
+    """Background worker for asynchronous optimization progress tracking."""
+    db_gen = get_db()
+    db = next(db_gen)
+    try:
+        progress_manager.update_stage(job_id, 0, "Loading FPL Data")
+        current_gw = req.current_gw
+        max_gw = min(38, current_gw + 3)
+
+        progress_manager.update_stage(job_id, 1, "Loading Model Artifacts")
+        proj_engine = ProjectionEngine(db)
+
+        progress_manager.update_stage(job_id, 2, "Generating Fixture-Aware Projections")
+        proj_engine.run_projections(start_gw=current_gw, end_gw=max_gw, source=req.projection_source)
+
+        progress_manager.update_stage(job_id, 3, "Calculating Expected Points (xP)")
+        optimizer = SquadOptimizer(db)
+
+        progress_manager.update_stage(job_id, 4, "Building MILP Optimizer Constraints")
+        progress_manager.update_stage(job_id, 5, "Solving 15-Man Squad Optimization")
+        
+        res = optimizer.solve_squad_selection(
+            mode=req.mode,
+            current_gw=current_gw,
+            total_budget=req.total_budget,
+            max_players_per_team=req.max_players_per_team,
+            projection_source=req.projection_source,
+            weights=req.weights,
+            banned_player_ids=req.banned_player_ids,
+            locked_player_ids=req.locked_player_ids
+        )
+
+        progress_manager.update_stage(job_id, 6, "Selecting Starting XI")
+        progress_manager.update_stage(job_id, 7, "Selecting Captain and Vice-Captain")
+        progress_manager.update_stage(job_id, 8, "Computing Position Value Diagnostics")
+        progress_manager.complete_job(job_id, res)
+    except Exception as e:
+        logger.error(f"Background optimization failed for job {job_id}: {e}", exc_info=True)
+        progress_manager.fail_job(job_id, str(e))
+    finally:
+        db.close()
+
+@app.post("/api/v1/optimize/job", tags=["Optimization"])
+def start_optimization_job(req: OptimizationRequest):
+    """Start asynchronous optimization job with stage-by-stage progress tracking."""
+    job_id = progress_manager.create_job(req.mode)
+    t = threading.Thread(target=_run_background_optimization, args=(job_id, req), daemon=True)
+    t.start()
+    return {"job_id": job_id, "status": "RUNNING", "message": "Optimization job started."}
+
+@app.get("/api/v1/optimize/status/{job_id}", tags=["Optimization"])
+def get_optimization_status(job_id: str):
+    """Get real-time stage progress status for an optimization job."""
+    status = progress_manager.get_status(job_id)
+    if not status:
+        raise HTTPException(status_code=404, detail="Job ID not found.")
+    return status
+
+@app.get("/api/v1/optimize/result/{job_id}", tags=["Optimization"])
+def get_optimization_result(job_id: str):
+    """Get final completed optimization result for a job."""
+    res = progress_manager.get_result(job_id)
+    if not res:
+        raise HTTPException(status_code=404, detail="Job ID not found.")
+    return res
+
+@app.post("/api/v1/optimize/compare_modes", tags=["Optimization"])
+def compare_optimization_modes(req: OptimizationRequest, db: Session = Depends(get_db)):
+    """
+    Side-by-side mode comparison evaluating all 4 optimization modes against EXACTLY THE SAME projection snapshot.
+    """
+    modes = ["CURRENT_GW_PLUS_3", "STRONG_XI_DUMP_BENCH", "BALANCED_BENCH", "MAXIMUM_SQUAD"]
+    
+    # 1. Freeze projection snapshot once
+    current_gw = req.current_gw
+    max_gw = min(38, current_gw + 3)
+    proj_engine = ProjectionEngine(db)
+    proj_engine.run_projections(start_gw=current_gw, end_gw=max_gw, source=req.projection_source)
+
+    optimizer = SquadOptimizer(db)
+    comparison_results = []
+
+    for m in modes:
+        t0 = time.time()
+        res = optimizer.solve_squad_selection(
+            mode=m,
+            current_gw=current_gw,
+            total_budget=req.total_budget,
+            max_players_per_team=req.max_players_per_team,
+            projection_source=req.projection_source
+        )
+        runtime = round(time.time() - t0, 3)
+
+        s11 = [p["web_name"] for p in res["starting_11"]]
+        bench = [p["web_name"] for p in res["bench"]]
+        c_name = res["captain"]["web_name"] if res.get("captain") else "N/A"
+
+        comparison_results.append({
+            "mode": m,
+            "total_cost_str": res["total_cost_str"],
+            "bank_str": res["bank_str"],
+            "current_gw_starting_xi_xp": res["current_gw_starting_xi_xp"],
+            "total_current_gw_xp": res["total_current_gw_xp"],
+            "weighted_horizon_xp": res["weighted_horizon_xp"],
+            "starting_11_names": s11,
+            "bench_names": bench,
+            "captain_name": c_name,
+            "solver_runtime_seconds": runtime
+        })
+
+    return {
+        "modes_compared": len(comparison_results),
+        "comparison": comparison_results
+    }
 
 # Static files for Frontend dashboard
 frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")

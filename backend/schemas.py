@@ -72,3 +72,27 @@ class OptimizationResponse(BaseModel):
     squad_count: int
     anomalies: List[str] = Field(default_factory=list)
     explanations: List[str] = Field(default_factory=list)
+
+class OptimizationJobStatusResponse(BaseModel):
+    job_id: str
+    status: str
+    mode: str
+    stage: str
+    stage_number: int
+    total_stages: int
+    progress_percent: int
+    message: str
+    elapsed_seconds: float
+    error: Optional[str] = None
+
+class ModeComparisonSummary(BaseModel):
+    mode: str
+    total_cost_str: str
+    bank_str: str
+    current_gw_starting_xi_xp: float
+    total_current_gw_xp: float
+    weighted_horizon_xp: float
+    starting_11_names: List[str]
+    bench_names: List[str]
+    captain_name: str
+    solver_runtime_seconds: float

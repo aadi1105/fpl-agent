@@ -251,7 +251,7 @@
     <main>
         <!-- Controls Bar -->
         <div class="card controls-card">
-            <div style="display:flex; align-items:center; gap:12px;">
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                 <span style="font-size:0.85rem; font-weight:600; color:var(--text-secondary);">Optimization Mode:</span>
                 <select id="mode-select" class="mode-select">
                     <option value="CURRENT_GW_PLUS_3" selected>Current GW + 3 (55/20/15/10%)</option>
@@ -259,12 +259,28 @@
                     <option value="BALANCED_BENCH">Balanced Bench</option>
                     <option value="MAXIMUM_SQUAD">Maximum Squad (Equal 4-GW)</option>
                 </select>
+                <button id="compare-modes-btn" class="btn" style="border:1px solid var(--accent-cyan); color:var(--accent-cyan); font-size:0.8rem; padding:6px 12px;">📊 Compare All 4 Modes</button>
             </div>
 
             <div style="display:flex; align-items:center; gap:10px;">
                 <span style="font-size:0.85rem; font-weight:600; color:var(--text-secondary);">Budget:</span>
                 <input type="range" id="budget-range" min="900" max="1050" step="5" value="1000" style="accent-color: var(--accent-cyan); cursor: pointer;">
                 <span id="budget-display" style="font-family:'Outfit', sans-serif; font-weight:700; color:var(--accent-cyan);">100.0m</span>
+            </div>
+        </div>
+
+        <!-- Progress Tracker Bar -->
+        <div id="progress-card" class="card" style="display:none; margin-bottom:20px; border:1px solid var(--accent-cyan);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span id="progress-stage-title" style="font-weight:700; font-size:0.85rem; color:var(--accent-cyan);">FPL AI OPTIMIZER PROGRESS</span>
+                <span id="progress-percent" style="font-weight:700; font-size:0.85rem; color:#fff;">0%</span>
+            </div>
+            <div style="width:100%; height:8px; background:rgba(255,255,255,0.1); border-radius:4px; overflow:hidden;">
+                <div id="progress-bar-inner" style="width:0%; height:100%; background:linear-gradient(90deg, var(--accent-cyan), #00ff88); transition:width 0.3s ease;"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:0.75rem; color:var(--text-muted);">
+                <span id="progress-message">Initializing optimizer pipeline...</span>
+                <span id="progress-timer">Elapsed: 0.0s</span>
             </div>
         </div>
 
@@ -507,8 +523,20 @@
         }
 
         async function runOptimization() {
+            const optBtn = document.getElementById('optimize-btn');
             const budgetVal = parseInt(document.getElementById('budget-range').value);
             const modeVal = document.getElementById('mode-select').value;
+            const progressCard = document.getElementById('progress-card');
+            const progressBar = document.getElementById('progress-bar-inner');
+            const progressPercent = document.getElementById('progress-percent');
+            const progressMsg = document.getElementById('progress-message');
+            const progressTimer = document.getElementById('progress-timer');
+
+            optBtn.disabled = true;
+            progressCard.style.display = 'block';
+            progressBar.style.width = '10%';
+            progressPercent.innerText = '10%';
+            progressMsg.innerText = 'Submitting optimization job...';
 
             const payload = {
                 mode: modeVal,
@@ -519,7 +547,66 @@
             };
 
             try {
-                const res = await fetch('/api/v1/optimize/squad', {
+                const jobRes = await fetch('/api/v1/optimize/job', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!jobRes.ok) throw new Error('Failed to start optimization job.');
+                const { job_id } = await jobRes.json();
+
+                // Poll job status until COMPLETED or FAILED
+                const pollInterval = setInterval(async () => {
+                    try {
+                        const statusRes = await fetch(`/api/v1/optimize/status/${job_id}`);
+                        if (statusRes.ok) {
+                            const status = await statusRes.json();
+                            progressBar.style.width = `${status.progress_percent}%`;
+                            progressPercent.innerText = `${status.progress_percent}%`;
+                            progressMsg.innerText = `Step ${status.stage_number}/${status.total_stages}: ${status.message}`;
+                            progressTimer.innerText = `Elapsed: ${status.elapsed_seconds}s`;
+
+                            if (status.status === 'COMPLETED') {
+                                clearInterval(pollInterval);
+                                const resultRes = await fetch(`/api/v1/optimize/result/${job_id}`);
+                                const finalJob = await resultRes.json();
+                                renderSquad(finalJob.result);
+                                progressMsg.innerText = `✓ Optimization Complete (Runtime: ${status.elapsed_seconds}s)`;
+                                optBtn.disabled = false;
+                                setTimeout(() => { progressCard.style.display = 'none'; }, 4000);
+                            } else if (status.status === 'FAILED') {
+                                clearInterval(pollInterval);
+                                progressMsg.innerText = `✕ Optimization Failed: ${status.error}`;
+                                optBtn.disabled = false;
+                            }
+                        }
+                    } catch (err) {
+                        clearInterval(pollInterval);
+                        optBtn.disabled = false;
+                    }
+                }, 400);
+
+            } catch (err) {
+                console.error('Optimization error:', err);
+                optBtn.disabled = false;
+                progressMsg.innerText = '✕ Optimization error occurred.';
+            }
+        }
+
+        async function compareModes() {
+            const budgetVal = parseInt(document.getElementById('budget-range').value);
+            const payload = {
+                mode: 'CURRENT_GW_PLUS_3',
+                current_gw: 1,
+                total_budget: budgetVal,
+                max_players_per_team: 3,
+                projection_source: 'internal'
+            };
+
+            alert('Running Side-by-Side 4-Mode Comparison on current snapshot... Please wait a few seconds.');
+            try {
+                const res = await fetch('/api/v1/optimize/compare_modes', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -527,10 +614,23 @@
 
                 if (res.ok) {
                     const data = await res.json();
-                    renderSquad(data);
+                    let msg = '📊 OPTIMIZATION MODE COMPARISON RESULTS:\n\n';
+                    data.comparison.forEach(c => {
+                        msg += `• Mode: ${c.mode}\n`;
+                        msg += `  Cost: ${c.total_cost_str} | Bank: ${c.bank_str}\n`;
+                        msg += `  GW0 XI xP: ${c.current_gw_starting_xi_xp} | Total GW0 xP: ${c.total_current_gw_xp} | 4-GW Weighted: ${c.weighted_horizon_xp}\n`;
+                        msg += `  Captain: ${c.captain_name} | Runtime: ${c.solver_runtime_seconds}s\n`;
+                        msg += `  Starting XI: ${c.starting_11_names.slice(0, 5).join(', ')}...\n\n`;
+                    });
+                    alert(msg);
                 }
-            } catch (err) { console.error('Optimization error:', err); }
+            } catch (err) { alert('Failed to compare modes.'); }
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const compBtn = document.getElementById('compare-modes-btn');
+            if (compBtn) compBtn.addEventListener('click', compareModes);
+        });
 
         function renderSquad(data) {
             document.getElementById('model-version-tag').innerText = data.model_version || "Baseline Projection Model v0.2";
