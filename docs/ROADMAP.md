@@ -14,7 +14,7 @@
 | **Phase 2B** | Expected Minutes ML Models ($P(\text{start})$, $E[\text{mins}]$, $P(60+)$, $P(0)$) | **COMPLETED (EVALUATED)** | August 2026 |
 | **Phase 2C** | Expected Minutes Validation & Production Integration | **COMPLETED (DEPLOYED)** | August 2026 |
 | **Phase 3A** | Expected Goals ($xG$) ML Model (`xg_v1_lgbm`) | **COMPLETED (DEPLOYED)** | August 2026 |
-| **Phase 3B** | Expected Assists ($xA$) ML Model | 🔴 **PLANNED** | Future |
+| **Phase 3B** | Expected Assists ($xA$) ML Model (`xa_v1_lgbm`) | **COMPLETED (DEPLOYED)** | August 2026 |
 | **Phase 4** | Clean Sheet & DEFCON ML Models | 🔴 **PLANNED** | Future |
 | **Phase 5** | Model Ensemble & Uncertainty Quantification | 🔴 **PLANNED** | Future |
 | **Phase 6** | News, RAG & Manager Presser Agent | 🔴 **PLANNED** | Future |
@@ -23,6 +23,19 @@
 ---
 
 ## 📑 Completed Phases Detail
+
+### Phase 3B: Expected Assists ($xA$) Machine Learning Model
+* Constructed leak-free per-fixture historical xA dataset (`data/ml/historical_xa_dataset.csv`) across 113,592 records (2022-2026).
+* Conducted xG Feature Ablation test: Retained pre-deadline `xg_v1_lgbm_pred` as a feature (+0.27% deviance gain).
+* Evaluated LightGBM Poisson, Tweedie, and L2 Regression on 2024/25 Validation Set.
+* Selected Poisson LightGBM (`xa_v1_lgbm`) and evaluated on untouched 2025/26 Test Set:
+  - **Poisson Deviance**: Baseline `0.1889` $\to$ ML **`0.1737`** (+8.05% improvement).
+  - **Rank Correlation (Spearman $\rho$)**: Baseline `0.1720` $\to$ ML **`0.2017`** (+17.27% improvement).
+  - **Linear Correlation (Pearson $r$)**: Baseline `0.2410` $\to$ ML **`0.2172`**.
+* Built production inference wrapper [`backend/ml/xa_predictor.py`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/backend/ml/xa_predictor.py) with automatic fallback to `xa_baseline_v1`.
+* Integrated into [`backend/projections/engine.py`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/backend/projections/engine.py) and exposed diagnostic fields (`xa_baseline`, `xa_ml`, `xa_model_version`, `used_xa_fallback`).
+* Complete details in [`docs/phases/PHASE_3B_EXPECTED_ASSISTS.md`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/docs/phases/PHASE_3B_EXPECTED_ASSISTS.md).
+* Full pytest test suite passing (43/43 tests).
 
 ### Phase 3A: Expected Goals ($xG$) Machine Learning Model
 * Constructed leak-free per-fixture historical xG dataset (`data/ml/historical_xg_dataset.csv`) across 113,592 records (2022-2026).

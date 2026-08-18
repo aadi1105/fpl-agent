@@ -143,3 +143,29 @@ class XGPredictor:
         except Exception as e:
             logger.error(f"Inference error for xG data: {e}. Utilizing fallback.")
             return self.get_fallback_prediction(pdata)
+
+    def predict_batch(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Vectorized batch prediction of expected goals (xG) for a DataFrame."""
+        if not self.is_loaded:
+            df_res = df.copy()
+            df_res["xg_v1_lgbm_pred"] = 0.20
+            return df_res
+
+        df_res = df.copy()
+        feat_df = pd.DataFrame()
+        for c in FEATURE_COLS:
+            if c in df_res.columns:
+                feat_df[c] = df_res[c].astype(float)
+            elif c == 'home_away_is_home':
+                feat_df[c] = (df_res.get('home_away', 'H') == 'H').astype(float)
+            elif c.startswith('pos_'):
+                pos_target = c.replace('pos_', '')
+                feat_df[c] = (df_res.get('position', 'MID') == pos_target).astype(float)
+            else:
+                feat_df[c] = 0.0
+
+        raw_xg = self.model.predict(feat_df)
+        exp_xg = np.clip(raw_xg, 0.0, 3.5)
+        df_res["xg_v1_lgbm_pred"] = np.round(exp_xg, 3)
+
+        return df_res

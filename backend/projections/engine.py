@@ -9,6 +9,7 @@ from backend.models import Player, Team, Fixture, Gameweek, PlayerProjection, El
 from backend.projections.team_ratings import TeamRatingCalculator
 from backend.ml.minutes_predictor import MinutesPredictor
 from backend.ml.xg_predictor import XGPredictor
+from backend.ml.xa_predictor import XAPredictor
 
 logger = logging.getLogger("projection_engine")
 logging.basicConfig(level=logging.INFO)
@@ -36,12 +37,14 @@ PRICE_TIER_DEFAULTS = {
 }
 
 class ProjectionEngine:
-    def __init__(self, db: Session, use_ml_minutes: bool = True, use_ml_xg: bool = True):
+    def __init__(self, db: Session, use_ml_minutes: bool = True, use_ml_xg: bool = True, use_ml_xa: bool = True):
         self.db = db
         self.use_ml_minutes = use_ml_minutes
         self.use_ml_xg = use_ml_xg
+        self.use_ml_xa = use_ml_xa
         self.minutes_predictor = MinutesPredictor()
         self.xg_predictor = XGPredictor()
+        self.xa_predictor = XAPredictor()
 
     def calculate_expected_minutes(self, player: Player) -> float:
         """Calculate deterministic baseline expected minutes."""
@@ -285,8 +288,49 @@ class ProjectionEngine:
             xg_match = xg_pred["expected_goals"] * att_multiplier
         else:
             xg_match = baseline_xg
+            
+        # Deterministic Baseline xA
+        baseline_xa = metrics["xa90"] * mins_ratio * att_multiplier
 
-        xa_match = metrics["xa90"] * mins_ratio * att_multiplier
+        # ML xA Prediction
+        xa_pdata = {
+            "price": player.now_cost / 10.0,
+            "fixture_difficulty": diff,
+            "team_attack_rating": team_att_rating,
+            "team_defence_rating": team_def_rating,
+            "opponent_attack_rating": opp_att_rating,
+            "opponent_defence_rating": opp_def_rating,
+            "expected_minutes_v1": x_mins,
+            "p_start": ml_pred["p_start"],
+            "p_60_plus": ml_pred["p_60_plus"],
+            "p_zero": ml_pred["p_zero"],
+            "minutes_last_1": float(min(90.0, player.minutes / est_games)),
+            "minutes_last_5": float(min(450.0, (player.minutes / est_games) * 5.0)),
+            "starts_last_5": float(min(5.0, 5.0 if player.minutes >= 180 else 1.0)),
+            "assists_last_1": float(min(2.0, a_per_game)),
+            "assists_last_3": float(min(6.0, a_per_game * 3.0)),
+            "assists_last_5": float(min(10.0, a_per_game * 5.0)),
+            "assists_last_10": float(min(20.0, a_per_game * 10.0)),
+            "xa_last_1": float(min(2.0, a_per_game * 0.75)),
+            "xa_last_3": float(min(6.0, a_per_game * 0.75 * 3.0)),
+            "xa_last_5": float(min(10.0, a_per_game * 0.75 * 5.0)),
+            "xa_last_10": float(min(20.0, a_per_game * 0.75 * 10.0)),
+            "creativity_last_5": float(min(500.0, a_per_game * 40.0 * 5.0)),
+            "creativity_last_10": float(min(1000.0, a_per_game * 40.0 * 10.0)),
+            "threat_last_5": float(min(500.0, g_per_game * 60.0 * 5.0)),
+            "assists_per_90_last_5": float(min(2.0, (a_per_game / max(30.0, player.minutes / est_games)) * 90.0)),
+            "xa_per_90_last_5": float(min(2.0, (a_per_game * 0.75 / max(30.0, player.minutes / est_games)) * 90.0)),
+            "creativity_per_90_last_5": float(min(100.0, (a_per_game * 40.0 / max(30.0, player.minutes / est_games)) * 90.0)),
+            "position": pos,
+            "home_away_is_home": 1.0 if is_home else 0.0,
+            "xg_v1_lgbm_pred": xg_pred["expected_goals"]
+        }
+
+        xa_pred = self.xa_predictor.predict(xa_pdata)
+        if self.use_ml_xa and not xa_pred["used_fallback"]:
+            xa_match = xa_pred["expected_assists"] * att_multiplier
+        else:
+            xa_match = baseline_xa
 
         goal_val = 6.0 if pos in [ElementType.DEF.value, ElementType.GKP.value] else (5.0 if pos == ElementType.MID.value else 4.0)
         assist_val = 3.0
@@ -354,6 +398,10 @@ class ProjectionEngine:
             "xg_ml": round(xg_pred["expected_goals"], 3),
             "xg_model_version": xg_pred["model_version"],
             "used_xg_fallback": xg_pred["used_fallback"],
+            "xa_baseline": round(baseline_xa, 3),
+            "xa_ml": round(xa_pred["expected_assists"], 3),
+            "xa_model_version": xa_pred["model_version"],
+            "used_xa_fallback": xa_pred["used_fallback"],
             "xMins": x_mins,
             "xg_match": round(xg_match, 3),
             "xa_match": round(xa_match, 3),

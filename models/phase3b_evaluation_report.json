@@ -1,0 +1,150 @@
+{
+  "model_version": "xa_v1_lgbm",
+  "selected_formulation": "poisson",
+  "xg_ablation_result": {
+    "included_xg_feature": true,
+    "val_poisson_dev_without_xg": 0.1843,
+    "val_poisson_dev_with_xg": 0.1838
+  },
+  "training_seasons": [
+    "2022-23",
+    "2023-24"
+  ],
+  "validation_season": "2024-25",
+  "test_season": "2025-26",
+  "validation_candidate_results": {
+    "poisson": {
+      "mae": 0.0648,
+      "rmse": 0.1935,
+      "poisson_deviance": 0.1838,
+      "calibration_ratio": 1.052
+    },
+    "tweedie": {
+      "mae": 0.0564,
+      "rmse": 0.1936,
+      "poisson_deviance": 0.1936,
+      "calibration_ratio": 0.7734
+    },
+    "regression": {
+      "mae": 0.0655,
+      "rmse": 0.1951,
+      "poisson_deviance": 0.192,
+      "calibration_ratio": 1.0733
+    }
+  },
+  "test_evaluation": {
+    "baseline_mae": 0.0565,
+    "ml_mae": 0.0604,
+    "mae_improvement_pct": -6.87,
+    "baseline_rmse": 0.181,
+    "ml_rmse": 0.1816,
+    "rmse_improvement_pct": -0.38,
+    "baseline_poisson_deviance": 0.1889,
+    "ml_poisson_deviance": 0.1737,
+    "poisson_deviance_improvement_pct": 8.05,
+    "calibration_ratio": 1.1093,
+    "spearman_correlation": 0.2017,
+    "pearson_correlation": 0.2172
+  },
+  "bucket_calibration_breakdown": [
+    {
+      "bucket": "0\u20130.05",
+      "fixtures": 22494,
+      "mean_pred_xa": 0.0094,
+      "actual_assists_per_fixture": 0.0106,
+      "pred_act_ratio": 0.8822
+    },
+    {
+      "bucket": "0.05\u20130.10",
+      "fixtures": 4114,
+      "mean_pred_xa": 0.0719,
+      "actual_assists_per_fixture": 0.0732,
+      "pred_act_ratio": 0.9834
+    },
+    {
+      "bucket": "0.10\u20130.20",
+      "fixtures": 2324,
+      "mean_pred_xa": 0.1358,
+      "actual_assists_per_fixture": 0.1136,
+      "pred_act_ratio": 1.1956
+    },
+    {
+      "bucket": "0.20\u20130.30",
+      "fixtures": 649,
+      "mean_pred_xa": 0.2418,
+      "actual_assists_per_fixture": 0.1587,
+      "pred_act_ratio": 1.5237
+    },
+    {
+      "bucket": "0.30\u20130.50",
+      "fixtures": 162,
+      "mean_pred_xa": 0.3516,
+      "actual_assists_per_fixture": 0.2037,
+      "pred_act_ratio": 1.7262
+    },
+    {
+      "bucket": "0.50\u20130.75",
+      "fixtures": 12,
+      "mean_pred_xa": 0.5793,
+      "actual_assists_per_fixture": 0.1667,
+      "pred_act_ratio": 3.476
+    },
+    {
+      "bucket": "0.75\u20131.00",
+      "fixtures": 2,
+      "mean_pred_xa": 0.8383,
+      "actual_assists_per_fixture": 0.0,
+      "pred_act_ratio": 0.0
+    },
+    {
+      "bucket": "1.00+",
+      "fixtures": 0,
+      "mean_pred_xa": 0.0,
+      "actual_assists_per_fixture": 0.0,
+      "pred_act_ratio": 0.0
+    }
+  ],
+  "top_10_features": [
+    {
+      "feature": "xg_v1_lgbm_pred",
+      "importance": 815
+    },
+    {
+      "feature": "p_zero",
+      "importance": 663
+    },
+    {
+      "feature": "creativity_last_10",
+      "importance": 650
+    },
+    {
+      "feature": "expected_minutes_v1",
+      "importance": 605
+    },
+    {
+      "feature": "team_defence_rating",
+      "importance": 590
+    },
+    {
+      "feature": "creativity_per_90_last_5",
+      "importance": 570
+    },
+    {
+      "feature": "p_start",
+      "importance": 556
+    },
+    {
+      "feature": "opponent_defence_rating",
+      "importance": 539
+    },
+    {
+      "feature": "opponent_attack_rating",
+      "importance": 527
+    },
+    {
+      "feature": "p_60_plus",
+      "importance": 520
+    }
+  ],
+  "deployment_recommendation": "REJECTED"
+}
