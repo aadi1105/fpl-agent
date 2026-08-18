@@ -235,13 +235,16 @@
     </header>
 
     <div class="health-banner">
-        <div style="display:flex; align-items:center; gap:12px;">
-            <span class="health-tag" id="model-version-tag">Baseline Projection Model v0.2</span>
-            <span style="color:var(--text-secondary);">Classification:</span>
-            <span style="color:var(--accent-green); font-weight:700;">Deterministic Statistical Baseline</span>
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <span class="health-tag" id="model-version-tag">Hybrid Statistical + ML Engine v1.0</span>
+            <span style="color:var(--text-secondary);">Architecture:</span>
+            <span style="color:var(--accent-green); font-weight:700;">Hybrid Statistical + ML Engine</span>
         </div>
-        <div style="color:var(--text-muted); font-size:0.8rem;">
-            No ML Trained Yet • Poisson DEFCON • Separate Starting XI & Horizon Optimization
+        <div style="color:var(--text-muted); font-size:0.82rem; margin-top:4px;">
+            Minutes: <strong style="color:#00ff88;">expected_minutes_v1 (ML DEPLOYED)</strong> • 
+            xG: <strong style="color:#00ff88;">xg_v1_lgbm (ML DEPLOYED)</strong> • 
+            xA: <strong style="color:#00ff88;">xa_v1_lgbm (ML DEPLOYED)</strong> • 
+            CS / DEFCON / Bonus: <span style="color:var(--text-secondary);">Statistical Baseline</span>
         </div>
     </div>
 

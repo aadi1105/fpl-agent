@@ -52,7 +52,7 @@ class PlayerSummary(BaseModel):
     is_vice_captain: bool
 
 class OptimizationResponse(BaseModel):
-    model_version: str = "Baseline Projection Model v0.2 (Deterministic / Statistical)"
+    model_version: str = "Hybrid Statistical + ML Engine v1.0"
     optimization_mode: str
     current_gw: int
     horizon_weights: List[float]

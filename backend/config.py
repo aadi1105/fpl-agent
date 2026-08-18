@@ -7,7 +7,7 @@ except ImportError:
 class Settings:
     PROJECT_NAME: str = "FPL 2026/27 Decision Engine"
     API_V1_STR: str = "/api/v1"
-    MODEL_VERSION: str = "Baseline Projection Model v0.2 (Deterministic / Statistical)"
+    MODEL_VERSION: str = "Hybrid Statistical + ML Engine v1.0"
     
     # FPL API Base URL
     FPL_API_BASE_URL: str = "https://fantasy.premierleague.com/api"

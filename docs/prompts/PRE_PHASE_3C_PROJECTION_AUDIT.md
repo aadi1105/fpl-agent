@@ -1,0 +1,539 @@
+FPL AI — PRE-PHASE 3C AUDIT
+PROJECTION PIPELINE + CURRENT ROSTER + FRONTEND RECONCILIATION
+
+Do NOT start Phase 3C.
+
+Do NOT train any new ML model.
+
+Do NOT modify xG or xA models.
+
+Do NOT modify the optimizer objective.
+
+This is a read-only diagnostic/audit phase, except for explicitly requested frontend/status fixes and clearly identified data-integrity fixes.
+
+We need to understand why the current frontend is producing several suspiciously high projections for cheap players and whether current-club / transfer context is being represented correctly.
+
+==================================================
+1. TRACE THE COMPLETE PROJECTION PIPELINE
+==================================================
+
+Audit the production path:
+
+raw player data
+→ current club
+→ fixture
+→ expected_minutes_v1
+→ xg_v1_lgbm
+→ xa_v1_lgbm
+→ deterministic CS/DEFCON/Bonus
+→ FPL scoring engine
+→ GW xP
+→ 4-GW weighted score
+→ optimizer
+→ frontend
+
+Do not change the pipeline yet.
+
+For three representative players:
+
+1. Haaland
+2. Reiss Nelson
+3. Reed
+
+produce a complete component-level audit for GW0–GW3.
+
+For each player and fixture report:
+
+Player
+Current club
+Fixture
+Opponent
+Home/Away
+
+Expected minutes
+P(start)
+P(60+)
+P(0)
+
+xG
+xA
+
+Clean Sheet probability
+DEFCON probability
+Bonus probability
+Card/negative-event probability
+
+Appearance xP
+Goal xP
+Assist xP
+Clean Sheet xP
+DEFCON xP
+Bonus xP
+Negative-event xP
+
+TOTAL xP
+
+Then show:
+
+GW0 xP
+GW1 xP
+GW2 xP
+GW3 xP
+Weighted 4-GW xP
+
+Also show exactly which model/version produced every component.
+
+==================================================
+2. INVESTIGATE THE £7.5M UNUSED BUDGET
+==================================================
+
+The current optimizer uses:
+
+£92.5m / £100m
+
+with £7.5m remaining.
+
+Do NOT change the optimizer.
+
+Determine why this is considered optimal.
+
+Report:
+
+- objective value
+- marginal value of replacing each cheap starting player with the best available upgrade
+- whether additional budget can increase current GW xP
+- whether additional budget can increase 4-GW weighted score
+- whether the optimizer is genuinely choosing to leave money unused or whether a projection/data issue is causing this
+
+Do not force budget spending.
+
+We only want to understand the result.
+
+==================================================
+3. CURRENT-CLUB / TRANSFER AUDIT
+==================================================
+
+This is CRITICAL.
+
+Audit all players in the current 2026/27 database whose club changed during the historical observation period or during the transition into 2026/27.
+
+The system must distinguish:
+
+A. Player identity/history
+
+from
+
+B. Historical club context
+
+from
+
+C. Current club
+
+from
+
+D. Current expected role
+
+A player's historical statistics must NOT automatically imply that they have the same role at their current club.
+
+For each detected transfer/loan transition, verify:
+
+- previous club
+- new/current club
+- transfer/loan date
+- historical minutes at previous club
+- historical attacking/creative statistics at previous club
+- current club
+- current squad status
+- current expected minutes
+- current P(start)
+- current fixture context
+
+==================================================
+4. HISTORICAL FEATURES MUST RETAIN HISTORICAL CLUB CONTEXT
+==================================================
+
+When constructing historical features:
+
+If a player played for Club A in the past, statistics from Club A must retain Club A's context.
+
+Do NOT relabel historical appearances as belonging to the player's current club.
+
+Example:
+
+Player:
+Club A in 2025/26
+Club B in 2026/27
+
+Historical row:
+
+player = X
+team = Club A
+fixture = Club A vs Club C
+
+must remain Club A.
+
+Do not rewrite it as Club B merely because Club B is now the player's current club.
+
+==================================================
+5. CURRENT FIXTURE FEATURES MUST USE CURRENT CLUB
+==================================================
+
+For a 2026/27 fixture:
+
+Use the player's ACTUAL CURRENT TEAM for:
+
+- team attacking strength
+- team defensive strength
+- opponent
+- home/away
+- fixture difficulty
+- clean-sheet probability
+- team context
+
+Do not accidentally combine:
+
+OLD CLUB
++
+NEW CLUB FIXTURE
+
+inside one projection.
+
+Add automated tests for this.
+
+==================================================
+6. TRANSFERRED PLAYER MINUTES
+==================================================
+
+This is the most important issue.
+
+A player transferring between clubs should NOT receive high expected minutes merely because they had high historical minutes at their previous club.
+
+Expected minutes must reflect their CURRENT CLUB ROLE.
+
+Investigate whether expected_minutes_v1 currently accounts for:
+
+- current squad status
+- current club
+- current competition for position
+- recent appearances for current club
+- current-season starts
+- current-season bench appearances
+- transfer status
+- lack of current-club minutes
+
+If the current model cannot observe enough current-club evidence, the system should use an appropriate uncertainty/fallback mechanism rather than pretending the player is a nailed starter.
+
+Do NOT invent a new model during this audit.
+
+Document the limitation.
+
+==================================================
+7. REISS NELSON SPECIFIC CASE
+==================================================
+
+Use Reiss Nelson as a mandatory diagnostic example.
+
+Verify his current club in the 2026/27 database.
+
+Important distinction:
+
+Nelson is Arsenal-contracted and his Brentford loan ended on 30 June 2026.
+
+Do NOT assume:
+
+"Nelson = Arsenal = regular Arsenal starter."
+
+Instead inspect:
+
+- current Arsenal registration
+- 2025/26 club
+- 2025/26 minutes
+- current 2026/27 minutes
+- current starts
+- current bench appearances
+- expected_minutes_v1
+- P(start)
+- xG
+- xA
+- resulting xP
+
+The model should be able to represent a player as:
+
+Current club = Arsenal
+
+while simultaneously having:
+
+P(start) extremely low
+Expected minutes extremely low
+
+if the evidence indicates he is a fringe player.
+
+Do NOT hard-code Reiss Nelson as an exception.
+
+We want the GENERAL SYSTEM to correctly handle players like him.
+
+==================================================
+8. TRANSFER-AWARE FEATURE AUDIT
+==================================================
+
+For transferred players inspect whether the following features are contaminated by previous-club context:
+
+- team attack rating
+- team defence rating
+- opponent strength
+- expected minutes
+- starts_last_5
+- average_minutes_last_5
+- xG/90
+- xA/90
+- recent team performance
+- fixture difficulty
+
+Player-level statistics may legitimately carry over between clubs.
+
+Team-level statistics must NOT.
+
+Minutes require particular caution because role can change dramatically after a transfer.
+
+Document which features are:
+
+PLAYER-CONTEXT
+
+TEAM-CONTEXT
+
+ROLE/AVAILABILITY-CONTEXT
+
+==================================================
+9. LOW-MINUTE / FRINGE PLAYER SANITY CHECK
+==================================================
+
+Identify the top 20 players by current GW xP who cost <= £6.0m.
+
+For each show:
+
+Player
+Club
+Price
+Expected minutes
+P(start)
+xG
+xA
+GW0 xP
+
+Flag suspicious cases such as:
+
+- low-price player
+- low historical/current minutes
+- high xP
+
+Also identify players with:
+
+P(start) < 20%
+
+but high projected xP.
+
+These should be investigated.
+
+We are NOT assuming these players are wrong.
+
+We are determining whether the projection is being driven by attacking rates while ignoring realistic availability.
+
+==================================================
+10. FRONTEND STATUS FIX
+==================================================
+
+The current dashboard header incorrectly says:
+
+"Baseline Projection Model v0.2 (Deterministic / Statistical)"
+
+and:
+
+"No ML Trained Yet"
+
+This is now stale.
+
+The production system currently contains:
+
+expected_minutes_v1
+xg_v1_lgbm
+xa_v1_lgbm
+
+Update the frontend status to accurately reflect the actual production architecture.
+
+Use a clear classification such as:
+
+"Hybrid Statistical + ML"
+
+and show model status individually.
+
+For example:
+
+Minutes: ML v1 — DEPLOYED
+xG: ML v1 — DEPLOYED
+xA: ML v1 — DEPLOYED
+Clean Sheet: Statistical Baseline
+DEFCON: Statistical Baseline
+Bonus: Statistical Baseline
+
+Use the actual model registry/version names rather than inventing names.
+
+Do NOT claim a model is deployed unless the model registry confirms it.
+
+==================================================
+11. FRONTEND PROJECTION DISPLAY
+==================================================
+
+Ensure the 4-GW table clearly distinguishes:
+
+GW0
+GW1
+GW2
+GW3
+
+and the actual fixture/opponent for each.
+
+Each row should expose:
+
+Player
+Price
+GW0 fixture
+GW0 xP
+GW1 fixture
+GW1 xP
+GW2 fixture
+GW2 xP
+GW3 fixture
+GW3 xP
+Weighted 4-GW xP
+
+Do not show identical fixture labels or stale cached projections.
+
+If a player has a DGW, represent both fixtures correctly.
+
+==================================================
+12. FRONTEND MODEL TRANSPARENCY
+==================================================
+
+For the player diagnostic/detail view, expose:
+
+Expected Minutes
+P(start)
+P(60+)
+P(0)
+
+xG
+xA
+
+Clean Sheet
+DEFCON
+Bonus
+
+Final xP
+
+Model versions
+
+Fallback status
+
+This should make it possible to understand WHY a £5.5m player is projected above a £9m player.
+
+==================================================
+13. NO OPTIMIZER CHANGES
+==================================================
+
+Do NOT change:
+
+- squad objective
+- 55/20/15/10 weighting
+- starting XI objective
+- captaincy logic
+- bench modes
+- budget constraints
+
+If the audit discovers an optimizer issue, document it separately.
+
+Do not fix it in this phase.
+
+==================================================
+14. TESTS
+==================================================
+
+Add tests for any genuine data-integrity issue discovered.
+
+At minimum test:
+
+- current club assignment
+- historical club preservation
+- transfer boundary handling
+- team-context features
+- current fixture team identity
+- DGW representation
+- transferred-player minutes handling
+- frontend model-status consistency
+
+All existing tests must continue passing.
+
+Run:
+
+python -m pytest
+
+==================================================
+15. FINAL REPORT
+==================================================
+
+Return:
+
+1. Full projection trace for Haaland
+2. Full projection trace for Reiss Nelson
+3. Full projection trace for Reed
+4. Explanation for £7.5m unused budget
+5. Transfer audit findings
+6. Number of transferred players detected
+7. Number with suspicious current-role projections
+8. Whether historical club context is preserved correctly
+9. Whether current club context is correct
+10. Whether expected_minutes_v1 handles transfers appropriately
+11. Top 20 <=£6m projected players and suspicious cases
+12. Frontend fixes made
+13. Tests
+14. Any remaining issues
+15. Explicit recommendation on whether Phase 3C should begin
+
+==================================================
+DOCUMENTATION
+==================================================
+
+Update the documentation for this audit.
+
+Remember:
+
+EVERY FUTURE DEVELOPMENT PHASE MUST UPDATE THE DOCUMENTATION.
+
+Update the appropriate:
+
+docs/phases/
+docs/models/
+docs/data/
+docs/decisions/
+docs/ROADMAP.md
+
+Save this prompt as:
+
+docs/prompts/PRE_PHASE_3C_PROJECTION_AUDIT.md
+
+Clearly distinguish:
+
+- FINDING
+- FIXED
+- NOT FIXED
+- LIMITATION
+- RECOMMENDATION
+
+==================================================
+STOP CONDITION
+==================================================
+
+STOP after this audit.
+
+Do NOT start Phase 3C.
+
+Wait for review.
