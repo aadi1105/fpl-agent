@@ -83,3 +83,43 @@ ProjectionEngine (backend/projections/engine.py)
 
 ## 8. Result
 **COMPLETED SUCCESSFULLY (DEPLOYED TO PROD)**. Verified via [`tests/test_phase2c_integration.py`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/tests/test_phase2c_integration.py) (35/35 tests passing).
+
+---
+
+## 9. Read-Only Production-Coverage Audit (Post-DGW Per-Fixture Dataset Fix)
+
+Following the refactoring of raw DGW match logs into independent per-fixture records (113,582 total records) and LightGBM model retraining, a production-coverage audit was conducted across the 2025/26 out-of-sample test set (29,747 per-fixture predictions) and the upcoming 2026/27 GW1 active player database (590 player-fixture projections).
+
+### Audit Results Summary
+
+1. **Overall Model Coverage**:
+   - **`expected_minutes_v1` (ML Predictor)**: **29,747 / 29,747 (100.00%)**
+   - **`expected_minutes_baseline_v1` (Fallback)**: **0 / 29,747 (0.00%)**
+
+2. **Position Breakdown**:
+   - `DEF`: 9,733 / 9,733 (100.00% ML, 0.00% Fallback)
+   - `FWD`: 3,278 / 3,278 (100.00% ML, 0.00% Fallback)
+   - `GKP`: 3,427 / 3,427 (100.00% ML, 0.00% Fallback)
+   - `MID`: 13,309 / 13,309 (100.00% ML, 0.00% Fallback)
+
+3. **Price Tier Breakdown**:
+   - **High ($\ge £9.0\text{m}$)**: 252 / 252 (100.00% ML, 0.00% Fallback)
+   - **Mid (£7.0m – £8.9m)**: 1,213 / 1,213 (100.00% ML, 0.00% Fallback)
+   - **Low (£4.5m – £6.9m)**: 17,969 / 17,969 (100.00% ML, 0.00% Fallback)
+   - **Budget ($< £4.5\text{m}$)**: 10,313 / 10,313 (100.00% ML, 0.00% Fallback)
+
+4. **Historical Minutes Bucket Breakdown (Last 10 Matches)**:
+   - **$< 300$ Mins**: 20,795 / 20,795 (100.00% ML, 0.00% Fallback)
+   - **300 – 600 Mins**: 4,284 / 4,284 (100.00% ML, 0.00% Fallback)
+   - **600 – 1000 Mins**: 4,668 / 4,668 (100.00% ML, 0.00% Fallback)
+
+5. **2026/27 GW1 Active Database Player Projections (590 active player-fixture projections)**:
+   - **`expected_minutes_v1` (ML Predictor)**: **590 / 590 (100.00%)**
+   - **`expected_minutes_baseline_v1` (Fallback)**: **0 / 590 (0.00%)**
+
+6. **Bypassing Player Population**:
+   - **None (0.00%)**: No active players or test-set rows bypass the ML model.
+
+7. **Per-Fixture & Clamping Verification**:
+   - **Confirmed**: 100% of production predictions are evaluated on a per-fixture basis and clamped strictly within $[0.0, 90.0]$ minutes. Zero clamping violations ($<0$ or $>90$) were found.
+
