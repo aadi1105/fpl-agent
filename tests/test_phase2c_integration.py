@@ -61,7 +61,7 @@ def test_minutes_predictor_schema():
 def test_minutes_predictor_fallback_mode():
     # Pass empty dir to force fallback trigger
     predictor = MinutesPredictor(model_dir="non_existent_dir_123")
-    res = predictor.predict({"average_minutes_last_5": 75.0, "starts_last_5": 4.0})
+    res = predictor.predict({"average_minutes_last_5": 75.0, "starts_last_5": 4.0, "minutes_last_5": 375.0, "appearances_last_5": 5.0})
 
     assert res["used_fallback"] is True
     assert res["model_version"] == "expected_minutes_baseline_v1"

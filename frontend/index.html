@@ -467,7 +467,16 @@
             document.getElementById('modal-player-sub').innerText = `${p.position} • ${p.team_name} • ${p.price_str}`;
             const content = document.getElementById('modal-breakdown-content');
             content.innerHTML = `
-                <div class="breakdown-row"><span class="breakdown-label">Expected Minutes (xMins)</span><span class="breakdown-val">${p.xMins} mins</span></div>
+                <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--accent-cyan); margin-bottom:6px; font-weight:700;">Availability & Role Shrinkage Model</div>
+                <div class="breakdown-row"><span class="breakdown-label">Expected Minutes (xMins)</span><span class="breakdown-val">${p.xMins || p.expected_minutes_ml || 0} mins</span></div>
+                <div class="breakdown-row"><span class="breakdown-label">P(Start) / P(60+) / P(0)</span><span class="breakdown-val">${p.p_start !== undefined ? (p.p_start * 100).toFixed(1) + '%' : 'N/A'} / ${p.p_60_plus !== undefined ? (p.p_60_plus * 100).toFixed(1) + '%' : 'N/A'} / ${p.p_zero !== undefined ? (p.p_zero * 100).toFixed(1) + '%' : 'N/A'}</span></div>
+                <div class="breakdown-row"><span class="breakdown-label">Minutes Model Version</span><span class="breakdown-val" style="color:#00ff88;">${p.model_version || 'expected_minutes_v1'}</span></div>
+                
+                <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--accent-green); margin-top:12px; margin-bottom:6px; font-weight:700;">Attacking Projections (LightGBM ML)</div>
+                <div class="breakdown-row"><span class="breakdown-label">Expected Goals (xG)</span><span class="breakdown-val">${p.xg_ml !== undefined ? p.xg_ml : (p.xg || '0.00')}</span></div>
+                <div class="breakdown-row"><span class="breakdown-label">Expected Assists (xA)</span><span class="breakdown-val">${p.xa_ml !== undefined ? p.xa_ml : (p.xa || '0.00')}</span></div>
+                
+                <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-secondary); margin-top:12px; margin-bottom:6px; font-weight:700;">Itemized Points Breakdown</div>
                 <div class="breakdown-row"><span class="breakdown-label">Appearance Points</span><span class="breakdown-val">${p.appearance_xp}</span></div>
                 <div class="breakdown-row"><span class="breakdown-label">Goals Points</span><span class="breakdown-val">${p.goals_xp}</span></div>
                 <div class="breakdown-row"><span class="breakdown-label">Assists Points</span><span class="breakdown-val">${p.assists_xp}</span></div>

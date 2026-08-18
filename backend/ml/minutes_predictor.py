@@ -3,7 +3,7 @@ import pickle
 import logging
 import numpy as np
 import pandas as pd
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 
 logger = logging.getLogger("minutes_predictor")
 
@@ -59,15 +59,22 @@ class MinutesPredictor:
 
     def get_fallback_prediction(self, pdata: Dict[str, Any]) -> Dict[str, Any]:
         """Compute deterministic baseline availability predictions as fallback."""
-        avg_mins = float(pdata.get("average_minutes_last_5", pdata.get("minutes_last_1", 60.0)))
-        starts = float(pdata.get("starts_last_5", 3.0))
-        apps = float(pdata.get("appearances_last_5", 4.0))
-        bench_apps = float(pdata.get("bench_appearances_last_5", 1.0))
+        mins_last_5 = float(pdata.get("minutes_last_5", pdata.get("average_minutes_last_5", 0.0) * 5.0))
+        starts_last_5 = float(pdata.get("starts_last_5", 0.0))
+        apps_last_5 = float(pdata.get("appearances_last_5", pdata.get("starts_last_5", 0.0)))
         unused = float(pdata.get("unused_substitute_last_5", 0.0))
 
-        p_start = float(np.clip(starts / 5.0, 0.05, 0.95))
-        p_60 = float(np.clip((max(0, apps - bench_apps)) / 5.0, 0.05, 0.95))
-        p_0 = float(np.clip(unused / 5.0, 0.05, 0.95))
+        sample_games = min(5.0, max(apps_last_5, mins_last_5 / 90.0))
+        w_evidence = sample_games / 5.0
+
+        p_start = float(np.clip((w_evidence * (starts_last_5 / 5.0)) + ((1.0 - w_evidence) * 0.10), 0.05, 0.95))
+        p_60 = float(np.clip((w_evidence * (starts_last_5 / 5.0)) + ((1.0 - w_evidence) * 0.05), 0.05, 0.95))
+        p_0 = float(np.clip((w_evidence * (unused / 5.0)) + ((1.0 - w_evidence) * 0.70), 0.05, 0.95))
+        
+        if w_evidence <= 0.0 and "average_minutes_last_5" in pdata:
+            avg_mins = float(pdata["average_minutes_last_5"])
+        else:
+            avg_mins = (w_evidence * (mins_last_5 / max(1.0, apps_last_5))) + ((1.0 - w_evidence) * 15.0)
 
         return {
             "expected_minutes": round(avg_mins, 1),
@@ -78,25 +85,91 @@ class MinutesPredictor:
             "used_fallback": True
         }
 
+    def _apply_role_evidence_shrinkage(
+        self,
+        raw_mins: float,
+        raw_p_start: float,
+        raw_p_60: float,
+        raw_p_0: float,
+        pdata: Dict[str, Any]
+    ) -> Tuple[float, float, float, float]:
+        """
+        Empirical Role Evidence Shrinkage:
+        Shrinks raw ML predictions towards a conservative prior when recent current-club role evidence is sparse.
+        """
+        mins_last_5 = float(pdata.get("minutes_last_5", 0.0))
+        apps_last_5 = float(pdata.get("appearances_last_5", 0.0))
+        starts_last_5 = float(pdata.get("starts_last_5", 0.0))
+
+        # Sample weight w_evidence in [0.0, 1.0] based on actual recent playing sample
+        sample_games = min(5.0, max(apps_last_5, mins_last_5 / 90.0))
+        w_evidence = sample_games / 5.0
+
+        # Conservative Prior for unproven / low-sample role evidence:
+        prior_mins = 15.0
+        prior_p_start = 0.10
+        prior_p_60 = 0.05
+        prior_p_zero = 0.70
+
+        calibrated_mins = (w_evidence * raw_mins) + ((1.0 - w_evidence) * prior_mins)
+        calibrated_p_start = (w_evidence * raw_p_start) + ((1.0 - w_evidence) * prior_p_start)
+        calibrated_p_60 = (w_evidence * raw_p_60) + ((1.0 - w_evidence) * prior_p_60)
+        calibrated_p_zero = (w_evidence * raw_p_0) + ((1.0 - w_evidence) * prior_p_zero)
+
+        return calibrated_mins, calibrated_p_start, calibrated_p_60, calibrated_p_zero
+
     def predict(self, pdata: Dict[str, Any]) -> Dict[str, Any]:
         """Predict expected minutes and availability probabilities using ML models or fallback."""
         if not self.is_loaded:
             return self.get_fallback_prediction(pdata)
 
         try:
-            # Construct feature DataFrame
+            # Construct feature DataFrame with smart rolling feature imputation
+            mins_5 = float(pdata.get("minutes_last_5", pdata.get("average_minutes_last_5", 0.0) * 5.0))
+            starts_5 = float(pdata.get("starts_last_5", 0.0))
+            apps_5 = float(pdata.get("appearances_last_5", starts_5))
+
             feat_dict = {}
             for col in FEATURE_COLS:
-                feat_dict[col] = [float(pdata.get(col, 0.0))]
+                if col in pdata:
+                    feat_dict[col] = [float(pdata[col])]
+                elif col == 'minutes_last_1':
+                    feat_dict[col] = [float(min(90.0, pdata.get('average_minutes_last_5', mins_5 / max(1.0, apps_5))))]
+                elif col == 'minutes_last_3':
+                    feat_dict[col] = [float(min(270.0, mins_5 * 0.6))]
+                elif col == 'minutes_last_10':
+                    feat_dict[col] = [float(mins_5 * 2.0)]
+                elif col == 'starts_last_1':
+                    feat_dict[col] = [1.0 if starts_5 >= 1.0 else 0.0]
+                elif col == 'starts_last_3':
+                    feat_dict[col] = [float(min(3.0, starts_5 * 0.6))]
+                elif col == 'starts_last_10':
+                    feat_dict[col] = [float(starts_5 * 2.0)]
+                elif col == 'average_minutes_last_5':
+                    feat_dict[col] = [float(mins_5 / max(1.0, apps_5)) if apps_5 > 0 else 0.0]
+                elif col == 'average_minutes_last_10':
+                    feat_dict[col] = [float(mins_5 / max(1.0, apps_5)) if apps_5 > 0 else 0.0]
+                elif col == 'appearances_last_5':
+                    feat_dict[col] = [apps_5]
+                elif col == 'minutes_last_5':
+                    feat_dict[col] = [mins_5]
+                elif col == 'starts_last_5':
+                    feat_dict[col] = [starts_5]
+                else:
+                    feat_dict[col] = [0.0]
 
             df_feat = pd.DataFrame(feat_dict)
 
-            # Predict ML outcomes
-            p_start = float(np.clip(self.m_start.predict_proba(df_feat)[:, 1][0], 0.0, 1.0))
-            raw_mins = float(self.m_mins.predict(df_feat)[0])
-            exp_mins = float(np.clip(raw_mins, 0.0, 180.0))
-            p_60 = float(np.clip(self.m_60.predict_proba(df_feat)[:, 1][0], 0.0, 1.0))
-            p_0 = float(np.clip(self.m_0.predict_proba(df_feat)[:, 1][0], 0.0, 1.0))
+            # Predict raw ML outcomes
+            raw_p_start = float(np.clip(self.m_start.predict_proba(df_feat)[:, 1][0], 0.0, 1.0))
+            raw_mins = float(np.clip(self.m_mins.predict(df_feat)[0], 0.0, 90.0))
+            raw_p_60 = float(np.clip(self.m_60.predict_proba(df_feat)[:, 1][0], 0.0, 1.0))
+            raw_p_0 = float(np.clip(self.m_0.predict_proba(df_feat)[:, 1][0], 0.0, 1.0))
+
+            # Apply Empirical Role Evidence Shrinkage
+            exp_mins, p_start, p_60, p_0 = self._apply_role_evidence_shrinkage(
+                raw_mins, raw_p_start, raw_p_60, raw_p_0, pdata
+            )
 
             return {
                 "expected_minutes": round(exp_mins, 1),
@@ -126,18 +199,30 @@ class MinutesPredictor:
             if c in df_res.columns:
                 feat_df[c] = df_res[c].astype(float)
             elif c == 'home_away_is_home':
-                feat_df[c] = (df_res.get('home_away', 'H') == 'H').astype(float)
+                home_series = df_res['home_away'] if 'home_away' in df_res.columns else pd.Series(['H'] * len(df_res))
+                feat_df[c] = (home_series == 'H').astype(float)
             elif c.startswith('pos_'):
                 pos_target = c.replace('pos_', '')
-                feat_df[c] = (df_res.get('position', 'MID') == pos_target).astype(float)
+                pos_series = df_res['position'] if 'position' in df_res.columns else pd.Series(['MID'] * len(df_res))
+                feat_df[c] = (pos_series == pos_target).astype(float)
             else:
                 feat_df[c] = 0.0
 
-        p_start = np.clip(self.m_start.predict_proba(feat_df)[:, 1], 0.0, 1.0)
-        raw_mins = self.m_mins.predict(feat_df)
-        exp_mins = np.clip(raw_mins, 0.0, 90.0)
-        p_60 = np.clip(self.m_60.predict_proba(feat_df)[:, 1], 0.0, 1.0)
-        p_0 = np.clip(self.m_0.predict_proba(feat_df)[:, 1], 0.0, 1.0)
+        p_start_raw = np.clip(self.m_start.predict_proba(feat_df)[:, 1], 0.0, 1.0)
+        mins_raw = np.clip(self.m_mins.predict(feat_df), 0.0, 90.0)
+        p_60_raw = np.clip(self.m_60.predict_proba(feat_df)[:, 1], 0.0, 1.0)
+        p_0_raw = np.clip(self.m_0.predict_proba(feat_df)[:, 1], 0.0, 1.0)
+
+        # Apply Vectorized Role Evidence Shrinkage
+        apps_last_5 = df_res['appearances_last_5'].astype(float) if 'appearances_last_5' in df_res.columns else 0.0
+        mins_last_5 = df_res['minutes_last_5'].astype(float) if 'minutes_last_5' in df_res.columns else 0.0
+        sample_games = np.minimum(5.0, np.maximum(apps_last_5, mins_last_5 / 90.0))
+        w_evidence = sample_games / 5.0
+
+        exp_mins = (w_evidence * mins_raw) + ((1.0 - w_evidence) * 15.0)
+        p_start = (w_evidence * p_start_raw) + ((1.0 - w_evidence) * 0.10)
+        p_60 = (w_evidence * p_60_raw) + ((1.0 - w_evidence) * 0.05)
+        p_0 = (w_evidence * p_0_raw) + ((1.0 - w_evidence) * 0.70)
 
         df_res["expected_minutes_v1"] = np.round(exp_mins, 2)
         df_res["p_start"] = np.round(p_start, 4)

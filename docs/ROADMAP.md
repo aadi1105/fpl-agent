@@ -16,6 +16,7 @@
 | **Phase 3A** | Expected Goals ($xG$) ML Model (`xg_v1_lgbm`) | **COMPLETED (DEPLOYED)** | August 2026 |
 | **Phase 3B** | Expected Assists ($xA$) ML Model (`xa_v1_lgbm`) | **COMPLETED (DEPLOYED)** | August 2026 |
 | **Pre-Phase 3C Audit** | Projection Pipeline, Current Roster & Frontend Reconciliation | **COMPLETED** | August 2026 |
+| **Role Calibration** | Expected Minutes Role Evidence & Transfer Calibration | **COMPLETED (DEPLOYED)** | August 2026 |
 | **Phase 4** | Clean Sheet & DEFCON ML Models | 🔴 **PLANNED** | Future |
 | **Phase 5** | Model Ensemble & Uncertainty Quantification | 🔴 **PLANNED** | Future |
 | **Phase 6** | News, RAG & Manager Presser Agent | 🔴 **PLANNED** | Future |

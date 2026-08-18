@@ -158,6 +158,12 @@ class ProjectionEngine:
         opp_short_name = opp_team.short_name if opp_team else "OPP"
 
         # ML Minutes Prediction (with safe fallback)
+        tot_mins = float(player.minutes)
+        recent_mins_5 = float(min(450.0, tot_mins))
+        recent_apps_5 = float(min(5.0, tot_mins / 60.0)) if tot_mins > 0 else 0.0
+        recent_starts_5 = float(min(5.0, tot_mins / 80.0)) if tot_mins >= 80 else 0.0
+        avg_mins_5 = float(recent_mins_5 / max(1.0, recent_apps_5)) if recent_apps_5 > 0 else 0.0
+
         pdata = {
             'price': player.now_cost / 10.0,
             'fixture_difficulty': diff,
@@ -166,19 +172,19 @@ class ProjectionEngine:
             'opponent_attack_rating': opp_att_rating,
             'opponent_defence_rating': opp_def_rating,
             'home_away_is_home': 1.0 if is_home else 0.0,
-            'minutes_last_1': float(player.minutes / max(1.0, player.minutes / 75.0)) if player.minutes >= 180 else float(player.minutes),
-            'minutes_last_3': float(player.minutes),
-            'minutes_last_5': float(player.minutes),
-            'minutes_last_10': float(player.minutes),
-            'starts_last_1': 1.0 if player.minutes >= 60 else 0.0,
-            'starts_last_3': float(player.minutes / 75.0),
-            'starts_last_5': float(player.minutes / 75.0),
-            'starts_last_10': float(player.minutes / 75.0),
-            'appearances_last_5': 5.0 if player.minutes >= 180 else 1.0,
-            'bench_appearances_last_5': 0.0,
-            'unused_substitute_last_5': 0.0,
-            'average_minutes_last_5': float(player.minutes / max(1.0, player.minutes / 75.0)) if player.minutes >= 180 else float(player.minutes),
-            'average_minutes_last_10': float(player.minutes / max(1.0, player.minutes / 75.0)) if player.minutes >= 180 else float(player.minutes),
+            'minutes_last_1': float(min(90.0, avg_mins_5)),
+            'minutes_last_3': float(min(270.0, recent_mins_5 * 0.6)),
+            'minutes_last_5': recent_mins_5,
+            'minutes_last_10': float(min(900.0, tot_mins)),
+            'starts_last_1': 1.0 if recent_starts_5 >= 1.0 else 0.0,
+            'starts_last_3': float(min(3.0, recent_starts_5 * 0.6)),
+            'starts_last_5': recent_starts_5,
+            'starts_last_10': float(min(10.0, tot_mins / 80.0)),
+            'appearances_last_5': recent_apps_5,
+            'bench_appearances_last_5': float(max(0.0, recent_apps_5 - recent_starts_5)),
+            'unused_substitute_last_5': float(max(0.0, 5.0 - recent_apps_5)),
+            'average_minutes_last_5': avg_mins_5,
+            'average_minutes_last_10': avg_mins_5,
             'days_since_last_match': 7.0,
             'matches_in_previous_14_days': 2.0,
             'matches_in_previous_21_days': 3.0,
