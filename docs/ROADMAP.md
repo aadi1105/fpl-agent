@@ -18,6 +18,7 @@
 | **Pre-Phase 3C Audit** | Projection Pipeline, Current Roster & Frontend Reconciliation | **COMPLETED** | August 2026 |
 | **Role Calibration** | Expected Minutes Role Evidence & Transfer Calibration | **COMPLETED (DEPLOYED)** | August 2026 |
 | **Optimizer Audit** | Optimizer Modes, Progress Tracking & Positional Value Audit | **COMPLETED (DEPLOYED)** | August 2026 |
+| **Price Audit** | Full 2026/27 Player Price Data Integrity Audit & Scale Validation | **COMPLETED (VERIFIED)** | August 2026 |
 | **Phase 4** | Clean Sheet & DEFCON ML Models | 🔴 **PLANNED** | Future |
 | **Phase 5** | Model Ensemble & Uncertainty Quantification | 🔴 **PLANNED** | Future |
 | **Phase 6** | News, RAG & Manager Presser Agent | 🔴 **PLANNED** | Future |
