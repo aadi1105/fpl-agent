@@ -38,19 +38,30 @@ class MinutesPredictor:
 
     def _load_models(self):
         try:
+            v2_path = os.path.join(self.model_dir, "expected_minutes_v2.pkl")
             p_start_path = os.path.join(self.model_dir, "minutes_start_v1.pkl")
             p_mins_path = os.path.join(self.model_dir, "minutes_regression_v1.pkl")
             p_60_path = os.path.join(self.model_dir, "minutes_60plus_v1.pkl")
             p_0_path = os.path.join(self.model_dir, "minutes_zero_v1.pkl")
 
-            if (os.path.exists(p_start_path) and os.path.exists(p_mins_path) and
+            if os.path.exists(v2_path) and os.path.exists(p_start_path) and os.path.exists(p_mins_path):
+                with open(v2_path, "rb") as f: self.v2_cfg = pickle.load(f)
+                with open(p_start_path, "rb") as f: self.m_start = pickle.load(f)
+                with open(p_mins_path, "rb") as f: self.m_mins = pickle.load(f)
+                with open(p_60_path, "rb") as f: self.m_60 = pickle.load(f)
+                with open(p_0_path, "rb") as f: self.m_0 = pickle.load(f)
+                self.is_loaded = True
+                self.model_version = "expected_minutes_v2"
+                logger.info("Successfully loaded Expected Minutes v2 production model.")
+            elif (os.path.exists(p_start_path) and os.path.exists(p_mins_path) and
                 os.path.exists(p_60_path) and os.path.exists(p_0_path)):
                 with open(p_start_path, "rb") as f: self.m_start = pickle.load(f)
                 with open(p_mins_path, "rb") as f: self.m_mins = pickle.load(f)
                 with open(p_60_path, "rb") as f: self.m_60 = pickle.load(f)
                 with open(p_0_path, "rb") as f: self.m_0 = pickle.load(f)
                 self.is_loaded = True
-                logger.info("Successfully loaded expected minutes ML models.")
+                self.model_version = "expected_minutes_v1"
+                logger.info("Successfully loaded Expected Minutes v1 model.")
             else:
                 logger.warning("ML model pickle files missing. Fallback enabled.")
         except Exception as e:

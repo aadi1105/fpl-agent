@@ -1,0 +1,776 @@
+PHASE 3D — PRODUCTION MODEL VALIDATION, RETRAINING & DEPLOYMENT
+
+We are now moving from Phase 3C.8 into Phase 3D.
+
+Phase 3C.8 produced candidate v2 implementations for:
+
+- Expected Minutes
+- xG
+- xA
+
+The candidate models addressed:
+
+1. Synthetic recent-start / low-sample minutes errors.
+2. Current-club role evidence.
+3. Sample-size-aware xG shrinkage.
+4. Sample-size-aware xA shrinkage.
+5. Recency + long-term ability separation.
+6. Transfer-aware role handling.
+7. Per-fixture DGW handling.
+
+Phase 3C.8 demonstrated strong improvement on its 2025/26 out-of-sample evaluation.
+
+However, the candidate models have NOT yet replaced production models.
+
+Production currently remains:
+
+- expected_minutes_v1
+- xg_v1_lgbm
+- xa_v1_lgbm
+- existing statistical CS / DEFCON / Bonus components
+
+The objective of Phase 3D is to determine whether the candidate methodology is robust enough to become production.
+
+DO NOT modify the optimizer yet.
+
+DO NOT tune the optimizer to produce a particular FPL squad.
+
+DO NOT manually force Bruno Fernandes, João Pedro, Calvert-Lewin, Haaland or any other player into the team.
+
+The model must earn those selections through its projections.
+
+==================================================
+1. FREEZE THE CURRENT PRODUCTION BASELINE
+==================================================
+
+Before retraining anything:
+
+Freeze and version the current production artifacts:
+
+expected_minutes_v1
+xg_v1_lgbm
+xa_v1_lgbm
+
+Record:
+
+- model version
+- training data range
+- feature set
+- hyperparameters
+- evaluation metrics
+- artifact path/hash
+
+Do not overwrite them.
+
+Production v1 must remain reproducible for direct comparison.
+
+==================================================
+2. BUILD PROPER CHRONOLOGICAL WALK-FORWARD VALIDATION
+==================================================
+
+Do NOT rely on a single 2025/26 holdout.
+
+Build chronological walk-forward evaluation.
+
+Use multiple historical seasons where the required data exists.
+
+Every validation fold must obey the deadline rule:
+
+FEATURES MUST ONLY USE INFORMATION AVAILABLE BEFORE THE GAMEWEEK DEADLINE.
+
+No future matches.
+
+No future player minutes.
+
+No future goals/assists/xG/xA.
+
+No future transfers.
+
+No post-deadline information.
+
+No leakage through rolling features.
+
+No leakage through season-end statistics.
+
+Document every training/test boundary.
+
+Prefer folds similar to:
+
+Fold 1:
+Train older seasons → Test next season
+
+Fold 2:
+Train through season N → Test season N+1
+
+Fold 3:
+Train through 2024/25 → Test 2025/26
+
+Use every valid historical fold available in the dataset.
+
+==================================================
+3. EXPECTED MINUTES MODEL
+==================================================
+
+Compare:
+
+expected_minutes_v1
+
+against:
+
+expected_minutes_v2_candidate
+
+Evaluate:
+
+- MAE
+- RMSE
+- P(start) Brier score
+- P(60+) calibration
+- P(0) calibration
+- Expected Minutes calibration
+- error by position
+- error by sample-size bucket
+- error by current-club tenure
+- error for transferred players
+
+Break results into:
+
+<300 historical minutes
+300–600
+600–1000
+1000–2000
+2000+
+
+Also evaluate players with:
+
+- strong current-club evidence
+- weak current-club evidence
+- no current-club evidence
+
+The candidate model should demonstrate consistent improvement across folds, not just one lucky season.
+
+==================================================
+4. xG MODEL
+==================================================
+
+Compare:
+
+xg_v1_lgbm
+
+against:
+
+xG candidate v2.
+
+Evaluate:
+
+- MAE
+- RMSE
+- calibration
+- error by position
+- error by sample size
+- error by recency bucket
+- error for transferred players
+
+Specifically evaluate whether shrinkage reduces the overprediction of extreme small-sample xG/90.
+
+Create a diagnostic plot/table showing:
+
+Observed xG/90
+Predicted xG/90
+Sample minutes
+
+for different sample-size buckets.
+
+==================================================
+5. xA MODEL
+==================================================
+
+Perform the same evaluation for:
+
+xa_v1_lgbm
+
+vs
+
+xA candidate v2.
+
+Evaluate:
+
+- MAE
+- RMSE
+- calibration
+- sample-size behavior
+- recency behavior
+- position behavior
+- transfer behavior
+
+Do not assume xG and xA require identical shrinkage.
+
+==================================================
+6. TEMPORAL ROBUSTNESS
+==================================================
+
+This is critical.
+
+Phase 3C.7 found strong value in recent information.
+
+Verify that this remains true across multiple seasons.
+
+Compare:
+
+long-term only
+
+vs
+
+recent only
+
+vs
+
+multi-window temporal model
+
+vs
+
+multi-window + historical prior/shrinkage
+
+Do not deploy the most complicated model simply because it has the lowest error on one fold.
+
+Prefer the model with the strongest consistent out-of-sample performance.
+
+==================================================
+7. MODEL SELECTION RULE
+==================================================
+
+For each component:
+
+Expected Minutes
+xG
+xA
+
+select the candidate for production ONLY if it demonstrates meaningful and repeatable out-of-sample improvement over v1.
+
+A model does NOT pass merely because:
+
+- it improves one metric
+- it improves one season
+- it looks more realistic
+- it produces a more popular FPL squad
+
+It must demonstrate statistical improvement across chronological validation.
+
+If a candidate fails:
+
+KEEP V1 for that component.
+
+Do not force deployment.
+
+Document the reason.
+
+==================================================
+8. TRAIN FINAL PRODUCTION MODELS
+==================================================
+
+Only after validation:
+
+Train the winning production models using the appropriate historical data.
+
+Create explicit versions:
+
+expected_minutes_v2
+xg_v2
+xa_v2
+
+Do NOT use vague names such as:
+
+latest_model
+final_model
+new_model
+
+Every artifact must be versioned.
+
+Record:
+
+- training period
+- feature version
+- dataset hash
+- model type
+- hyperparameters
+- validation metrics
+- creation timestamp
+
+==================================================
+9. FINAL PRODUCTION xP PIPELINE
+==================================================
+
+After deployment, rebuild the production prediction pipeline:
+
+Expected Minutes
+        ↓
+xG / xA
+        ↓
+Clean Sheet
+        ↓
+DEFCON
+        ↓
+Bonus
+        ↓
+FPL scoring rules
+        ↓
+GW-specific xP
+
+For every player and every GW:
+
+Player
+GW0 xP
+GW1 xP
+GW2 xP
+GW3 xP
+
+The projections MUST remain genuinely gameweek-specific.
+
+Never copy a player's GW0 xP into GW1/GW2/GW3.
+
+Fixture-specific inputs must remain visible.
+
+==================================================
+10. FINAL PROJECTION DIAGNOSTICS
+==================================================
+
+For every player expose:
+
+- GW0 xP
+- GW1 xP
+- GW2 xP
+- GW3 xP
+- weighted 4GW xP
+- expected minutes GW0
+- expected minutes GW1
+- expected minutes GW2
+- expected minutes GW3
+- P(start)
+- xG
+- xA
+- clean-sheet probability
+- DEFCON probability
+- fixture
+- opponent
+- home/away
+- price
+
+Add a diagnostic comparison:
+
+v1 xP
+vs
+v2 xP
+
+so we can see why a player's projection changed.
+
+==================================================
+11. CRITICAL PLAYER SANITY AUDIT
+==================================================
+
+After production deployment, explicitly audit:
+
+Haaland
+Bruno Fernandes
+João Pedro
+Calvert-Lewin
+Awoniyi
+Osula
+Beto
+Marmoush
+Gabriel
+Semenyo
+Mbeumo
+Saka
+
+For each player show:
+
+- v1 xP
+- v2 xP
+- GW0 xP
+- GW1 xP
+- GW2 xP
+- GW3 xP
+- weighted 4GW xP
+- expected minutes
+- P(start)
+- xG
+- xA
+- price
+- ownership
+- explanation of major changes
+
+DO NOT change projections manually if a result looks surprising.
+
+Investigate the underlying features instead.
+
+==================================================
+12. BRUNO FERNANDES SPECIFIC DIAGNOSTIC
+==================================================
+
+This is NOT a request to force Bruno into the team.
+
+It is a sanity investigation because he is currently a major FPL asset and our production model has previously ranked him surprisingly low.
+
+Audit:
+
+- expected minutes
+- P(start)
+- xG
+- xA
+- recent xG/xA
+- historical xG/xA
+- penalties
+- set pieces if available
+- attacking position/role
+- current-club role
+- Manchester United attacking strength
+- opponent defensive strength
+- fixture difficulty
+- bonus probability
+- price
+- ownership
+
+Compare Bruno against:
+
+Haaland
+Semenyo
+Mbeumo
+Palmer
+Gibbs-White
+João Pedro
+Calvert-Lewin
+
+Determine WHY the model ranks Bruno where it does.
+
+If Bruno remains lower than consensus, classify the result:
+
+A. Model appears correct and consensus is overvaluing him
+B. Model is missing a relevant predictive feature
+C. Data quality issue
+D. Role/minutes issue
+E. Fixture/team-strength issue
+F. Other
+
+Do not alter the model simply to make Bruno rank higher.
+
+==================================================
+13. CONSENSUS IS A DIAGNOSTIC, NOT GROUND TRUTH
+==================================================
+
+Use official FPL ownership / selected_by_percent as an external diagnostic.
+
+Do NOT directly multiply xP by ownership.
+
+Do NOT force high-owned players into the optimizer.
+
+Instead calculate:
+
+Model Rank
+Consensus Rank
+Rank Difference
+Ownership
+
+Identify:
+
+- high model / low ownership
+- low model / high ownership
+
+Then investigate the largest discrepancies.
+
+The objective is to discover missing information or genuine market inefficiencies.
+
+==================================================
+14. RECENT FORM
+==================================================
+
+Ensure the production system can distinguish:
+
+LONG-TERM ABILITY
+
+from
+
+CURRENT FORM
+
+from
+
+CURRENT ROLE
+
+from
+
+FIXTURE QUALITY.
+
+A player who has historically been mediocre but has strong recent evidence should be allowed to rise.
+
+A player with excellent historical numbers but poor recent role/form should be allowed to fall.
+
+Do NOT use recency as a simplistic replacement for historical performance.
+
+==================================================
+15. TRANSFERS
+==================================================
+
+Verify production behavior for transferred players.
+
+Previous-club data may inform underlying ability.
+
+Previous-club data must NOT automatically imply current-club starting probability.
+
+Current-club role must be based on current-club evidence.
+
+Players with negligible probability of playing for their current registered club should not receive artificially high starting projections merely because of historical performance.
+
+Do not manually blacklist players.
+
+Build general transfer-aware logic.
+
+==================================================
+16. DOUBLE GAMEWEEKS
+==================================================
+
+Preserve per-fixture predictions.
+
+Every fixture gets:
+
+0–90 expected minutes.
+
+A DGW is:
+
+Fixture A prediction
++
+Fixture B prediction
+
+never one 0–180 prediction.
+
+Verify this after deployment.
+
+==================================================
+17. FINAL xP SANITY CHECKS
+==================================================
+
+Run automated tests for:
+
+- fixture-specific xP
+- different opponents → different projections where appropriate
+- home/away differences
+- DGW aggregation
+- transfer handling
+- current-club role handling
+- expected minutes bounds
+- xG/xA bounds
+- no future leakage
+- price integrity
+- FPL scoring arithmetic
+- GW0–GW3 projections not being identical when fixtures differ
+
+==================================================
+18. FRONTEND
+==================================================
+
+Update the frontend architecture banner to accurately show the deployed model versions.
+
+For example:
+
+Minutes: expected_minutes_v2 (ML DEPLOYED)
+xG: xg_v2 (ML DEPLOYED)
+xA: xa_v2 (ML DEPLOYED)
+
+Only display "ML DEPLOYED" after the model actually passes validation and is deployed.
+
+Add a model-health/validation indicator showing:
+
+Model
+Version
+Validation status
+Primary metric
+Baseline metric
+Improvement
+
+Also retain the existing 4-GW diagnostics.
+
+==================================================
+19. DO NOT TOUCH THE OPTIMIZER YET
+==================================================
+
+This is extremely important.
+
+Do NOT modify:
+
+- squad optimizer objective
+- formation constraints
+- budget constraints
+- club constraints
+- captain logic
+- bench modes
+- CURRENT_GW_PLUS_3 weights
+
+The optimizer must consume the new projections unchanged.
+
+We will evaluate the optimizer AFTER the production prediction pipeline is validated.
+
+==================================================
+20. RE-RUN THE 2026/27 PRODUCTION PROJECTIONS
+==================================================
+
+Once production models are deployed:
+
+Generate fresh 2026/27 projections.
+
+Do NOT optimize the squad immediately.
+
+First produce a complete ranked table:
+
+Player
+Position
+Price
+Ownership
+GW0 xP
+GW1 xP
+GW2 xP
+GW3 xP
+Weighted 4GW xP
+Expected Minutes
+P(start)
+xG
+xA
+
+Then inspect the output.
+
+==================================================
+21. OPTIMIZER GATE
+==================================================
+
+ONLY AFTER all of the above passes should the optimizer be run.
+
+The purpose is to see what the optimizer does with genuinely improved projections.
+
+If the resulting squad still looks surprising:
+
+DO NOT immediately change the optimizer.
+
+First identify which projection caused the player selection.
+
+==================================================
+22. TEST SUITE
+==================================================
+
+All existing tests must continue passing.
+
+Add tests for:
+
+- model artifact versioning
+- production model loading
+- walk-forward validation
+- no-leakage feature construction
+- per-GW projection variation
+- transfer handling
+- current-club role handling
+- DGW handling
+- xG/xA shrinkage
+- expected-minutes behavior
+- price integrity
+- FPL scoring arithmetic
+
+Do not delete tests merely because old assumptions are no longer correct.
+
+Update tests deliberately when behavior has intentionally changed.
+
+==================================================
+23. DOCUMENTATION
+==================================================
+
+EVERY PHASE MUST UPDATE THE DOCUMENTATION.
+
+Create:
+
+docs/phases/PHASE_3D_PRODUCTION_MODEL_VALIDATION.md
+
+Save this prompt:
+
+docs/prompts/PHASE_3D_PRODUCTION_MODEL_VALIDATION.md
+
+Update:
+
+docs/ROADMAP.md
+docs/DATA_PIPELINE.md
+relevant model documentation
+
+Document:
+
+- production baselines
+- candidate models
+- walk-forward methodology
+- train/test boundaries
+- leakage controls
+- model comparisons
+- validation metrics
+- model selection decisions
+- production versions
+- artifact hashes
+- projection changes
+- Bruno diagnostic
+- consensus diagnostics
+- transfer handling
+- DGW handling
+- limitations
+- next phase
+
+==================================================
+24. FINAL REPORT
+==================================================
+
+Return a concise but complete report containing:
+
+1. Production baseline versions
+2. Walk-forward folds
+3. Expected Minutes v1 vs v2
+4. xG v1 vs v2
+5. xA v1 vs v2
+6. Metrics for every fold
+7. Overall aggregate metrics
+8. Sample-size bucket performance
+9. Position performance
+10. Transfer-player performance
+11. Calibration results
+12. Leakage checks
+13. Final production model versions
+14. Artifact hashes
+15. 2026/27 projection changes
+16. Bruno Fernandes diagnostic
+17. Haaland diagnostic
+18. João Pedro diagnostic
+19. Calvert-Lewin diagnostic
+20. Awoniyi diagnostic
+21. Osula diagnostic
+22. Consensus/model disagreement analysis
+23. Test results
+24. Frontend status
+25. Whether the prediction pipeline is ready for optimizer evaluation
+
+==================================================
+25. STOP CONDITION
+==================================================
+
+After completing the production model validation and deployment:
+
+STOP.
+
+Do NOT redesign the optimizer.
+
+Do NOT tune the optimizer.
+
+Do NOT manually edit the resulting squad.
+
+Do NOT add ownership directly into xP.
+
+Do NOT claim that a player "should" be selected merely because FPL consensus likes them.
+
+The next phase will evaluate the optimizer against the newly validated production projections.
+
+MOST IMPORTANT:
+
+The goal of Phase 3D is NOT to produce the most popular FPL team.
+
+The goal is to produce the most statistically trustworthy gameweek-specific player projections we can build.
+
+Only after those projections are trustworthy should we ask the optimizer:
+
+"Given these predictions, what is the best squad?"

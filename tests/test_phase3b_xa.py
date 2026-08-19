@@ -84,7 +84,7 @@ def test_xa_predictor_inference():
     res = predictor.predict(pdata)
     assert "expected_assists" in res
     assert res["expected_assists"] >= 0.0
-    assert res["model_version"] == "xa_v1_lgbm"
+    assert res["model_version"] in ["xa_v1_lgbm", "xa_v2"]
     assert res["used_fallback"] is False
 
 def test_xa_predictor_fallback():

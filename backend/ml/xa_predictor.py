@@ -42,14 +42,22 @@ class XAPredictor:
 
     def _load_model(self):
         try:
-            model_path = os.path.join(self.model_dir, "xa_v1_lgbm.pkl")
-            if os.path.exists(model_path):
-                with open(model_path, "rb") as f:
+            model_path_v2 = os.path.join(self.model_dir, "xa_v2.pkl")
+            model_path_v1 = os.path.join(self.model_dir, "xa_v1_lgbm.pkl")
+            if os.path.exists(model_path_v2):
+                with open(model_path_v2, "rb") as f:
                     self.model = pickle.load(f)
                 self.is_loaded = True
-                logger.info("Successfully loaded Expected Assists (xA) ML model.")
+                self.model_version = "xa_v2"
+                logger.info("Successfully loaded Expected Assists xA v2 production model.")
+            elif os.path.exists(model_path_v1):
+                with open(model_path_v1, "rb") as f:
+                    self.model = pickle.load(f)
+                self.is_loaded = True
+                self.model_version = "xa_v1_lgbm"
+                logger.info("Successfully loaded xA ML model v1.")
             else:
-                logger.warning(f"xA ML model pickle file missing at {model_path}. Fallback enabled.")
+                logger.warning("xA ML model pickle file missing. Fallback enabled.")
         except Exception as e:
             logger.error(f"Failed to load xA ML model: {e}. Fallback enabled.")
             self.is_loaded = False
@@ -97,49 +105,68 @@ class XAPredictor:
             pos = str(pdata.get("position", "MID"))
             is_home = bool(pdata.get("home_away_is_home", 1.0 if pdata.get("home_away", "H") == "H" else 0.0))
 
-            feat_dict = {
-                "price": [float(pdata.get("price", pdata.get("now_cost", 50) / 10.0))],
-                "fixture_difficulty": [float(pdata.get("fixture_difficulty", 3))],
-                "team_attack_rating": [float(pdata.get("team_attack_rating", 1000.0))],
-                "team_defence_rating": [float(pdata.get("team_defence_rating", 1000.0))],
-                "opponent_attack_rating": [float(pdata.get("opponent_attack_rating", 1000.0))],
-                "opponent_defence_rating": [float(pdata.get("opponent_defence_rating", 1000.0))],
-                "expected_minutes_v1": [float(pdata.get("expected_minutes_v1", pdata.get("expected_minutes", 60.0)))],
-                "p_start": [float(pdata.get("p_start", 0.7))],
-                "p_60_plus": [float(pdata.get("p_60_plus", 0.6))],
-                "p_zero": [float(pdata.get("p_zero", 0.1))],
-                "minutes_last_1": [float(pdata.get("minutes_last_1", 60.0))],
-                "minutes_last_5": [float(pdata.get("minutes_last_5", 300.0))],
-                "starts_last_5": [float(pdata.get("starts_last_5", 3.0))],
-                "assists_last_1": [float(pdata.get("assists_last_1", 0.0))],
-                "assists_last_3": [float(pdata.get("assists_last_3", 0.0))],
-                "assists_last_5": [float(pdata.get("assists_last_5", 0.0))],
-                "assists_last_10": [float(pdata.get("assists_last_10", 0.0))],
-                "xa_last_1": [float(pdata.get("xa_last_1", 0.0))],
-                "xa_last_3": [float(pdata.get("xa_last_3", 0.0))],
-                "xa_last_5": [float(pdata.get("xa_last_5", 0.0))],
-                "xa_last_10": [float(pdata.get("xa_last_10", 0.0))],
-                "creativity_last_5": [float(pdata.get("creativity_last_5", 20.0))],
-                "creativity_last_10": [float(pdata.get("creativity_last_10", 40.0))],
-                "threat_last_5": [float(pdata.get("threat_last_5", 20.0))],
-                "assists_per_90_last_5": [float(pdata.get("assists_per_90_last_5", 0.0))],
-                "xa_per_90_last_5": [float(pdata.get("xa_per_90_last_5", 0.0))],
-                "creativity_per_90_last_5": [float(pdata.get("creativity_per_90_last_5", 6.0))],
-                "pos_GKP": [1.0 if pos == "GKP" else 0.0],
-                "pos_DEF": [1.0 if pos == "DEF" else 0.0],
-                "pos_MID": [1.0 if pos == "MID" else 0.0],
-                "pos_FWD": [1.0 if pos == "FWD" else 0.0],
-                "home_away_is_home": [1.0 if is_home else 0.0],
-                "xg_v1_lgbm_pred": [float(pdata.get("xg_v1_lgbm_pred", 0.20))]
-            }
+            if getattr(self, "model_version", "") == "xa_v2":
+                xa90_5 = float(pdata.get("xa_per_90_last_5", 0.15))
+                feat_dict = {
+                    "xa_90_3": [float(pdata.get("xa_90_3", xa90_5))],
+                    "xa_90_5": [xa90_5],
+                    "xa_90_10": [float(pdata.get("xa_90_10", xa90_5))],
+                    "xa_90_career": [float(pdata.get("xa_90_career", xa90_5))],
+                    "tot_mins_prior": [float(pdata.get("tot_mins_prior", pdata.get("minutes", 1000.0)))],
+                    "mins_last_5": [float(pdata.get("minutes_last_5", 300.0))],
+                    "starts_last_5": [float(pdata.get("starts_last_5", 3.0))]
+                }
+            else:
+                feat_dict = {
+                    "price": [float(pdata.get("price", pdata.get("now_cost", 50) / 10.0))],
+                    "fixture_difficulty": [float(pdata.get("fixture_difficulty", 3))],
+                    "team_attack_rating": [float(pdata.get("team_attack_rating", 1000.0))],
+                    "team_defence_rating": [float(pdata.get("team_defence_rating", 1000.0))],
+                    "opponent_attack_rating": [float(pdata.get("opponent_attack_rating", 1000.0))],
+                    "opponent_defence_rating": [float(pdata.get("opponent_defence_rating", 1000.0))],
+                    "expected_minutes_v1": [float(pdata.get("expected_minutes_v1", pdata.get("expected_minutes", 60.0)))],
+                    "p_start": [float(pdata.get("p_start", 0.7))],
+                    "p_60_plus": [float(pdata.get("p_60_plus", 0.6))],
+                    "p_zero": [float(pdata.get("p_zero", 0.1))],
+                    "minutes_last_1": [float(pdata.get("minutes_last_1", 60.0))],
+                    "minutes_last_5": [float(pdata.get("minutes_last_5", 300.0))],
+                    "starts_last_5": [float(pdata.get("starts_last_5", 3.0))],
+                    "assists_last_1": [float(pdata.get("assists_last_1", 0.0))],
+                    "assists_last_3": [float(pdata.get("assists_last_3", 0.0))],
+                    "assists_last_5": [float(pdata.get("assists_last_5", 0.0))],
+                    "assists_last_10": [float(pdata.get("assists_last_10", 0.0))],
+                    "xa_last_1": [float(pdata.get("xa_last_1", 0.0))],
+                    "xa_last_3": [float(pdata.get("xa_last_3", 0.0))],
+                    "xa_last_5": [float(pdata.get("xa_last_5", 0.0))],
+                    "xa_last_10": [float(pdata.get("xa_last_10", 0.0))],
+                    "creativity_last_5": [float(pdata.get("creativity_last_5", 20.0))],
+                    "creativity_last_10": [float(pdata.get("creativity_last_10", 40.0))],
+                    "threat_last_5": [float(pdata.get("threat_last_5", 20.0))],
+                    "assists_per_90_last_5": [float(pdata.get("assists_per_90_last_5", 0.0))],
+                    "xa_per_90_last_5": [float(pdata.get("xa_per_90_last_5", 0.0))],
+                    "creativity_per_90_last_5": [float(pdata.get("creativity_per_90_last_5", 6.0))],
+                    "pos_GKP": [1.0 if pos == "GKP" else 0.0],
+                    "pos_DEF": [1.0 if pos == "DEF" else 0.0],
+                    "pos_MID": [1.0 if pos == "MID" else 0.0],
+                    "pos_FWD": [1.0 if pos == "FWD" else 0.0],
+                    "home_away_is_home": [1.0 if is_home else 0.0],
+                    "xg_v1_lgbm_pred": [float(pdata.get("xg_v1_lgbm_pred", 0.20))]
+                }
 
             df_feat = pd.DataFrame(feat_dict)
+            if hasattr(self.model, "feature_name"):
+                model_cols = self.model.feature_name()
+                df_feat = df_feat[[c for c in model_cols if c in df_feat.columns]]
+            elif hasattr(self.model, "booster_") and hasattr(self.model.booster_, "feature_name"):
+                model_cols = self.model.booster_.feature_name()
+                df_feat = df_feat[[c for c in model_cols if c in df_feat.columns]]
+
             raw_xa = float(self.model.predict(df_feat)[0])
             exp_xa = float(np.clip(raw_xa, 0.0, 3.0))
 
             return {
                 "expected_assists": round(exp_xa, 3),
-                "model_version": "xa_v1_lgbm",
+                "model_version": getattr(self, "model_version", "xa_v2"),
                 "used_fallback": False
             }
         except Exception as e:

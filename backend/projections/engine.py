@@ -271,6 +271,9 @@ class ProjectionEngine:
         g_per_game = float(g_cnt) / est_games
         a_per_game = float(a_cnt) / est_games
 
+        xg90_val = metrics["xg90"]
+        xa90_val = metrics["xa90"]
+
         xg_pdata = {
             "price": player.now_cost / 10.0,
             "fixture_difficulty": diff,
@@ -299,6 +302,11 @@ class ProjectionEngine:
             "goals_per_90_last_5": float(min(2.0, (g_per_game / max(30.0, player.minutes / est_games)) * 90.0)),
             "xg_per_90_last_5": float(min(2.0, (g_per_game * 0.85 / max(30.0, player.minutes / est_games)) * 90.0)),
             "threat_per_90_last_5": float(min(100.0, (g_per_game * 60.0 / max(30.0, player.minutes / est_games)) * 90.0)),
+            "tot_mins_prior": float(player.minutes),
+            "xg_90_3": xg90_val,
+            "xg_90_5": xg90_val,
+            "xg_90_10": xg90_val,
+            "xg_90_career": xg90_val,
             "position": pos,
             "home_away_is_home": 1.0 if is_home else 0.0
         }
@@ -341,6 +349,11 @@ class ProjectionEngine:
             "assists_per_90_last_5": float(min(2.0, (a_per_game / max(30.0, player.minutes / est_games)) * 90.0)),
             "xa_per_90_last_5": float(min(2.0, (a_per_game * 0.75 / max(30.0, player.minutes / est_games)) * 90.0)),
             "creativity_per_90_last_5": float(min(100.0, (a_per_game * 40.0 / max(30.0, player.minutes / est_games)) * 90.0)),
+            "tot_mins_prior": float(player.minutes),
+            "xa_90_3": xa90_val,
+            "xa_90_5": xa90_val,
+            "xa_90_10": xa90_val,
+            "xa_90_career": xa90_val,
             "position": pos,
             "home_away_is_home": 1.0 if is_home else 0.0,
             "xg_v1_lgbm_pred": xg_pred["expected_goals"]

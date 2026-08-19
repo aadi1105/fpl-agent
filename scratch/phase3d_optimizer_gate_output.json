@@ -1,0 +1,106 @@
+{
+  "CURRENT_GW_PLUS_3": {
+    "total_cost": 100.0,
+    "bank": 0.0,
+    "gw0_xp": 73.06,
+    "weighted_xp": 79.51,
+    "captain": "Haaland",
+    "starters": [
+      "Kelleher",
+      "J.Timber",
+      "White",
+      "Calafiori",
+      "Hickey",
+      "Semenyo",
+      "Gibbs-White",
+      "Foden",
+      "Haaland",
+      "Awoniyi",
+      "Osula"
+    ],
+    "bench": [
+      "Verbruggen",
+      "Frimpong",
+      "Rayan",
+      "Okafor"
+    ]
+  },
+  "STRONG_XI_DUMP_BENCH": {
+    "total_cost": 100.0,
+    "bank": 0.0,
+    "gw0_xp": 73.06,
+    "weighted_xp": 80.65,
+    "captain": "Haaland",
+    "starters": [
+      "Kelleher",
+      "J.Timber",
+      "White",
+      "Calafiori",
+      "Hickey",
+      "Semenyo",
+      "Gibbs-White",
+      "Foden",
+      "Haaland",
+      "Awoniyi",
+      "Osula"
+    ],
+    "bench": [
+      "Verbruggen",
+      "Frimpong",
+      "Rayan",
+      "Okafor"
+    ]
+  },
+  "BALANCED_BENCH": {
+    "total_cost": 100.0,
+    "bank": 0.0,
+    "gw0_xp": 71.91,
+    "weighted_xp": 78.81,
+    "captain": "Haaland",
+    "starters": [
+      "Kelleher",
+      "J.Timber",
+      "White",
+      "Calafiori",
+      "Hickey",
+      "Frimpong",
+      "Semenyo",
+      "Kroupi.Jr",
+      "Haaland",
+      "Marmoush",
+      "Awoniyi"
+    ],
+    "bench": [
+      "Verbruggen",
+      "Rayan",
+      "Sarr",
+      "Okafor"
+    ]
+  },
+  "MAXIMUM_SQUAD": {
+    "total_cost": 100.0,
+    "bank": 0.0,
+    "gw0_xp": 71.4,
+    "weighted_xp": 77.96,
+    "captain": "Haaland",
+    "starters": [
+      "Verbruggen",
+      "J.Timber",
+      "White",
+      "Calafiori",
+      "Frimpong",
+      "James",
+      "Semenyo",
+      "Rayan",
+      "Haaland",
+      "Marmoush",
+      "Awoniyi"
+    ],
+    "bench": [
+      "A.Becker",
+      "Sarr",
+      "Ngumoha",
+      "Okafor"
+    ]
+  }
+}

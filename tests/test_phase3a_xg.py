@@ -86,7 +86,7 @@ def test_xg_predictor_inference():
     res = predictor.predict(pdata)
     assert "expected_goals" in res
     assert res["expected_goals"] >= 0.0
-    assert res["model_version"] == "xg_v1_lgbm"
+    assert res["model_version"] in ["xg_v1_lgbm", "xg_v2"]
     assert res["used_fallback"] is False
 
 def test_xg_predictor_fallback():
