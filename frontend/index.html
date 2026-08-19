@@ -365,6 +365,50 @@
                 </table>
             </div>
         </div>
+
+        <!-- Read-Only Model vs FPL Consensus Audit Card (DIAGNOSTIC ONLY) -->
+        <div class="card" style="grid-column: 1 / -1; margin-top: 24px; border: 1px solid var(--accent-cyan);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <div>
+                    <h2 style="font-size:1.1rem; font-weight:700; color:var(--text-primary);">MODEL vs FPL CONSENSUS AUDIT</h2>
+                    <span style="font-size:0.75rem; color:var(--text-muted);">Comparing Internal ML Model Rankings against FPL Ownership & Template Consensus</span>
+                </div>
+                <span class="badge" style="background:rgba(0,210,255,0.15); color:var(--accent-cyan); border:1px solid var(--accent-cyan); font-weight:700; padding:4px 10px; border-radius:4px; font-size:0.75rem;">
+                    DIAGNOSTIC ONLY
+                </span>
+            </div>
+
+            <div style="display:flex; gap:6px; margin-bottom:12px;">
+                <button class="consensus-filter-btn active" data-cpos="ALL" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; padding:4px 12px; border-radius:4px; font-size:0.75rem; cursor:pointer;">ALL</button>
+                <button class="consensus-filter-btn" data-cpos="FWD" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; padding:4px 12px; border-radius:4px; font-size:0.75rem; cursor:pointer;">FWD</button>
+                <button class="consensus-filter-btn" data-cpos="MID" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; padding:4px 12px; border-radius:4px; font-size:0.75rem; cursor:pointer;">MID</button>
+                <button class="consensus-filter-btn" data-cpos="DEF" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; padding:4px 12px; border-radius:4px; font-size:0.75rem; cursor:pointer;">DEF</button>
+                <button class="consensus-filter-btn" data-cpos="GKP" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; padding:4px 12px; border-radius:4px; font-size:0.75rem; cursor:pointer;">GKP</button>
+            </div>
+
+            <div style="max-height: 450px; overflow-y: auto;">
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th>Player</th>
+                            <th>Cost</th>
+                            <th>Model xP</th>
+                            <th>Model Rank</th>
+                            <th>Ownership %</th>
+                            <th>Consensus Rank</th>
+                            <th>Rank Gap</th>
+                            <th>xMins</th>
+                            <th>xG</th>
+                            <th>xA</th>
+                            <th>Audit Classification</th>
+                        </tr>
+                    </thead>
+                    <tbody id="consensus-table-body">
+                        <tr><td colspan="11" style="text-align:center; color:var(--text-muted);">Loading consensus audit comparison...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </main>
 
     <!-- Component Breakdown Modal -->
@@ -383,11 +427,14 @@
 
     <script>
         let currentPosFilter = 'ALL';
+        let currentCPosFilter = 'ALL';
         let diagnosticsCache = [];
+        let consensusCache = [];
 
         document.addEventListener('DOMContentLoaded', () => {
             initControls();
             fetchDiagnostics();
+            fetchConsensusAudit();
             runOptimization();
         });
 
@@ -407,6 +454,15 @@
                     e.target.classList.add('active');
                     currentPosFilter = e.target.getAttribute('data-pos');
                     renderDiagnosticsTable();
+                });
+            });
+
+            document.querySelectorAll('.consensus-filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.consensus-filter-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    currentCPosFilter = e.target.getAttribute('data-cpos');
+                    renderConsensusTable();
                 });
             });
 
@@ -474,6 +530,55 @@
                     <td>
                         <span style="color:var(--accent-cyan); font-weight:700; font-family:'Outfit', sans-serif;">${w_val}</span>
                     </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function fetchConsensusAudit() {
+            try {
+                const res = await fetch('/api/v1/projections/consensus_audit?target_gw=1');
+                if (res.ok) {
+                    consensusCache = await res.json();
+                    renderConsensusTable();
+                }
+            } catch (err) {
+                console.error("Failed to fetch consensus audit data:", err);
+            }
+        }
+
+        function renderConsensusTable() {
+            const tbody = document.getElementById('consensus-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            let filtered = consensusCache;
+            if (currentCPosFilter !== 'ALL') {
+                filtered = filtered.filter(p => p.position === currentCPosFilter);
+            }
+
+            filtered.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.addEventListener('click', () => openModal(p));
+                const gap = p.rank_gap || 0;
+                const gapStr = gap > 0 ? `+${gap}` : `${gap}`;
+                const gapColor = gap > 5 ? 'var(--accent-green)' : (gap < -5 ? 'var(--accent-pink)' : 'var(--text-secondary)');
+
+                tr.innerHTML = `
+                    <td>
+                        <div style="font-weight:700;">${p.web_name}</div>
+                        <div style="font-size:0.7rem; color:var(--text-muted);">${p.team_name} • ${p.position}</div>
+                    </td>
+                    <td style="font-weight:600;">${p.price_str}</td>
+                    <td style="font-weight:700; color:var(--accent-cyan);">${p.total_xp}</td>
+                    <td style="font-weight:700;">#${p.model_rank}</td>
+                    <td style="font-weight:600; color:#fff;">${p.ownership_pct ? p.ownership_pct.toFixed(1) + '%' : '0.0%'}</td>
+                    <td style="color:var(--text-secondary);">#${p.consensus_rank}</td>
+                    <td style="font-weight:700; color:${gapColor};">${gapStr}</td>
+                    <td>${p.xMins || 0}m</td>
+                    <td>${p.xg_match || 0}</td>
+                    <td>${p.xa_match || 0}</td>
+                    <td style="font-size:0.75rem; color:var(--text-muted);">${p.classification || 'A. Baseline'}</td>
                 `;
                 tbody.appendChild(tr);
             });

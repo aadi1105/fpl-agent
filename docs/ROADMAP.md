@@ -20,6 +20,7 @@
 | **Optimizer Audit** | Optimizer Modes, Progress Tracking & Positional Value Audit | **COMPLETED (DEPLOYED)** | August 2026 |
 | **Price Audit** | Full 2026/27 Player Price Data Integrity Audit & Scale Validation | **COMPLETED (VERIFIED)** | August 2026 |
 | **Phase 3C** | Clean Sheet (`cs_v1_lgbm`) & DEFCON (`defcon_v1_poisson`) ML Models | **COMPLETED (DEPLOYED)** | August 2026 |
+| **Phase 3C.5** | Model vs FPL Consensus Audit | **COMPLETED (AUDITED)** | August 2026 |
 | **Phase 4** | Model Ensemble & Uncertainty Quantification | 🔴 **PLANNED** | Future |
 | **Phase 5** | Model Ensemble & Uncertainty Quantification | 🔴 **PLANNED** | Future |
 | **Phase 6** | News, RAG & Manager Presser Agent | 🔴 **PLANNED** | Future |

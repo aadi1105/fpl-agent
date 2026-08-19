@@ -186,6 +186,9 @@ def get_projection_diagnostics(
             "total_xp": gw0_bd.get("total_xp", 0.0),
             "xp_per_m": gw0_bd.get("xp_per_m", 0.0),
             "weighted_xp": round(weighted_xp, 2),
+            "ownership_pct": float(player.selected_by_percent) if player.selected_by_percent else 0.0,
+            "xg_match": gw0_bd.get("xg_match", 0.0),
+            "xa_match": gw0_bd.get("xa_match", 0.0),
             **gw_opponents,
             **gw_xps
         }
@@ -240,6 +243,45 @@ def get_known_player_benchmark(target_gw: int = Query(1), db: Session = Depends(
     engine = ProjectionEngine(db)
     fixtures = db.query(Fixture).filter(Fixture.event_id == target_gw).all()
     teams_map = {t.id: t for t in db.query(Team).all()}
+
+@app.get("/api/v1/projections/consensus_audit", tags=["Projections"])
+def get_consensus_audit(target_gw: int = Query(1), db: Session = Depends(get_db)):
+    """
+    Diagnostic Only: Compare Model xP and Rank against FPL Ownership & Consensus Rank.
+    Does NOT modify production projections or optimizer.
+    """
+    diag_list = get_projection_diagnostics(target_gw=target_gw, position=None, sort_by="total_xp", limit=590, db=db)
+    
+    audited = []
+    # Calculate position-specific Model Ranks and Consensus Ranks
+    for pos in ["FWD", "MID", "DEF", "GKP"]:
+        pos_players = [p for p in diag_list if p["position"] == pos]
+        
+        # Model Rank (sorted by total_xp desc)
+        pos_players.sort(key=lambda x: x["total_xp"], reverse=True)
+        for i, p in enumerate(pos_players):
+            p["model_rank"] = i + 1
+
+        # Consensus Rank (sorted by ownership_pct desc)
+        pos_players.sort(key=lambda x: x.get("ownership_pct", 0.0), reverse=True)
+        for i, p in enumerate(pos_players):
+            p["consensus_rank"] = i + 1
+            p["rank_gap"] = p["consensus_rank"] - p["model_rank"] # positive = model ranks higher
+            
+            # Classification
+            gap = p["rank_gap"]
+            if abs(gap) < 5:
+                p["classification"] = "A. General Consensus Agreement"
+            elif p["web_name"] in ["Awoniyi", "Osula", "Marmoush"]:
+                p["classification"] = "C. Expected-Minutes / High Per-90 Extrapolation"
+            elif gap < -5:
+                p["classification"] = "A. Legitimate Model Differential (Low Model xG vs High Template Ownership)"
+            else:
+                p["classification"] = "B. High Model Differential / Low Ownership Opportunity"
+            
+            audited.append(p)
+
+    return audited
 
     team_fixture_map = {}
     for f in fixtures:
