@@ -407,7 +407,7 @@
                         <tr><td colspan="11" style="text-align:center; color:var(--text-muted);">Loading consensus audit comparison...</td></tr>
                     </tbody>
                 </table>
-            </div>
+        </div>
         <!-- Read-Only Role & Minutes Audit Card (DIAGNOSTIC ONLY) -->
         <div class="card" style="grid-column: 1 / -1; margin-top: 24px; border: 1px solid #ff9900;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
@@ -438,6 +438,60 @@
                     </thead>
                     <tbody id="role-audit-table-body">
                         <tr><td colspan="10" style="text-align:center; color:var(--text-muted);">Loading role & minutes diagnostic audit...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Read-Only Temporal / Recency & Form Audit Card (Phase 3C.7 DIAGNOSTIC ONLY) -->
+        <div class="card" style="grid-column: 1 / -1; margin-top: 24px; border: 1px solid #00f0ff;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <div>
+                    <h2 style="font-size:1.1rem; font-weight:700; color:var(--text-primary);">TEMPORAL & CURRENT-FORM AUDIT</h2>
+                    <span style="font-size:0.75rem; color:var(--text-muted);">Read-Only Out-of-Sample Recency Windows vs Historical Baseline Evaluation</span>
+                </div>
+                <span class="badge" style="background:rgba(0,240,255,0.15); color:#00f0ff; border:1px solid #00f0ff; font-weight:700; padding:4px 10px; border-radius:4px; font-size:0.75rem;">
+                    DIAGNOSTIC ONLY — DOES NOT AFFECT PROJECTIONS
+                </span>
+            </div>
+
+            <div style="max-height: 450px; overflow-y: auto;">
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th>Target Component</th>
+                            <th>Baseline Metric</th>
+                            <th>Multi-Window Recency</th>
+                            <th>Out-of-Sample Gain</th>
+                            <th>Optimal Window</th>
+                            <th>Recommended Recency Strategy</th>
+                        </tr>
+                    </thead>
+                    <tbody id="temporal-audit-table-body">
+                        <tr>
+                            <td style="font-weight:700; color:#fff;">Expected Minutes</td>
+                            <td>MAE 24.47m (Brier 0.1587)</td>
+                            <td>MAE 14.38m (Brier 0.0895)</td>
+                            <td><span class="badge" style="background:rgba(16,185,129,0.2); color:#10b981;">+41.24% MAE (+43.65% Brier)</span></td>
+                            <td>Last 3 / 5 Starts</td>
+                            <td><span class="badge" style="background:rgba(0,240,255,0.2); color:#00f0ff;">STRONG RECENCY</span></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:700; color:#fff;">Expected Goals (xG)</td>
+                            <td>Deviance 0.1681 (MAE 0.0775)</td>
+                            <td>Deviance 0.1036 (MAE 0.0477)</td>
+                            <td><span class="badge" style="background:rgba(16,185,129,0.2); color:#10b981;">+38.39% Deviance (+38.45% MAE)</span></td>
+                            <td>Multi-Window (xG/90 + Threat/5)</td>
+                            <td><span class="badge" style="background:rgba(245,158,11,0.2); color:#f59e0b;">HYBRID / SHRINKAGE</span></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:700; color:#fff;">Expected Assists (xA)</td>
+                            <td>Deviance 0.0954 (MAE 0.0460)</td>
+                            <td>Deviance 0.0729 (MAE 0.0355)</td>
+                            <td><span class="badge" style="background:rgba(16,185,129,0.2); color:#10b981;">+23.56% Deviance (+22.83% MAE)</span></td>
+                            <td>Last 5 / 10 xA/90</td>
+                            <td><span class="badge" style="background:rgba(245,158,11,0.2); color:#f59e0b;">HYBRID / SHRINKAGE</span></td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
