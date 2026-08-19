@@ -1,0 +1,696 @@
+FPL AI — PHASE 3C
+CLEAN SHEET & DEFENSIVE ML MODELS
+
+We are now beginning Phase 3C.
+
+Previous phases completed:
+
+- Fixture-aware projections
+- Team strength ratings
+- DGW per-fixture representation
+- Expected Minutes ML model
+- Expected Minutes role/transfer calibration
+- Current 2026/27 player-price integrity audit
+- Optimizer mode routing
+- Real optimization progress tracking
+- Position-aware price/value diagnostics
+
+The current system now has:
+
+Minutes: expected_minutes_v1 (ML DEPLOYED)
+xG: existing xG model (ML DEPLOYED)
+xA: existing xA model (ML DEPLOYED)
+
+Clean Sheet / DEFCON / Bonus remain statistical baselines.
+
+The goal of Phase 3C is to build and evaluate ML models for:
+
+1. Clean Sheet probability
+2. Defensive Contribution / DEFCON probability
+
+Do NOT modify the optimizer.
+
+Do NOT modify the expected-minutes model.
+
+Do NOT retrain xG or xA.
+
+Do NOT build a single giant FPL prediction model.
+
+==================================================
+0. 2026/27 FPL RULES — SOURCE OF TRUTH
+==================================================
+
+Use the official 2026/27 FPL rules and the project's existing scoring engine.
+
+IMPORTANT:
+
+Defensive Contribution remains in 2026/27.
+
+For defenders:
+10 combined CBIT in a single match → +2 FPL points.
+
+CBIT =
+- Clearances
+- Blocks
+- Interceptions
+- Tackles
+
+For midfielders and forwards:
+12 combined defensive contributions are required.
+
+Their defensive contribution total includes:
+- Clearances
+- Blocks
+- Interceptions
+- Tackles
+- Recoveries
+
+The +2 points are capped at one award per match.
+
+Do NOT assume:
+10 CBIT → 4 points
+20 CBIT → 4 points
+
+The threshold gives a single +2-point award.
+
+Also account for the 2026/27 BPS changes separately from DEFCON.
+
+Do NOT reuse an old BPS model without verifying compatibility with the 2026/27 scoring rules.
+
+Document the exact scoring assumptions.
+
+==================================================
+1. AUDIT THE EXISTING STATISTICAL BASELINES
+==================================================
+
+Before building anything, inspect the current:
+
+- Clean Sheet probability model
+- DEFCON probability model
+- Bonus model
+- Defensive action features
+- Team defensive strength features
+- Opponent attacking strength features
+- Player CBIT rates
+- Player recovery rates
+- Fixture difficulty features
+
+Document:
+
+- inputs
+- formulas
+- assumptions
+- fallback logic
+- data sources
+- known weaknesses
+
+Do NOT replace anything until the baseline is understood.
+
+==================================================
+2. BUILD A LEAK-FREE HISTORICAL CLEAN SHEET DATASET
+==================================================
+
+Create a historical per-fixture dataset.
+
+One row must represent:
+
+(season, gameweek, fixture_id, team_id)
+
+This is a TEAM-FIXTURE clean-sheet prediction problem.
+
+Target:
+
+clean_sheet = 1 if team conceded 0 goals
+clean_sheet = 0 otherwise
+
+Features must contain ONLY information available before the fixture.
+
+Potential features:
+
+TEAM DEFENSIVE STRENGTH
+- goals conceded per 90
+- shots conceded
+- shots on target conceded
+- xGA if available
+- clean sheets in recent matches
+- home/away defensive performance
+- recent defensive form
+- opponent-adjusted defensive strength
+
+OPPONENT ATTACK
+- goals scored per 90
+- shots
+- shots on target
+- xG if available
+- recent attacking form
+- home/away attacking performance
+
+FIXTURE
+- home/away
+- opponent defensive strength where relevant
+- opponent attacking strength
+- fixture difficulty
+- team strength ratings
+
+MINUTES / PLAYER AVAILABILITY
+Do not make clean-sheet probability dependent on one specific defender.
+
+This is primarily a TEAM-level prediction.
+
+No future match statistics.
+
+No post-match data.
+
+No leakage.
+
+==================================================
+3. TRAIN CLEAN SHEET MODELS
+==================================================
+
+Build at least:
+
+Baseline:
+existing deterministic/statistical clean-sheet model.
+
+ML candidate:
+a suitable probabilistic classifier such as LightGBM/XGBoost/logistic regression depending on dataset size and existing infrastructure.
+
+The model should output:
+
+P(clean sheet)
+
+Evaluate using strict chronological out-of-sample testing.
+
+Use:
+
+- LogLoss
+- Brier score
+- calibration
+- ROC-AUC as secondary metric
+- MAE if useful
+
+Calibration is especially important.
+
+A model predicting:
+
+0.70
+
+should approximately produce clean sheets 70% of the time in comparable out-of-sample cases.
+
+Do NOT deploy the ML model merely because its raw accuracy is higher.
+
+It must produce better calibrated probabilities and demonstrate improvement over the baseline.
+
+==================================================
+4. CLEAN SHEET HOME/AWAY CALIBRATION
+==================================================
+
+Explicitly evaluate:
+
+- home fixtures
+- away fixtures
+- strong defenses
+- weak defenses
+- strong opponents
+- weak opponents
+- promoted teams
+- low-sample teams
+
+Check whether the model systematically overpredicts clean sheets for:
+
+- elite teams
+- newly promoted teams
+- teams with limited historical data
+
+Use shrinkage/fallbacks where appropriate.
+
+==================================================
+5. BUILD A LEAK-FREE DEFCON DATASET
+==================================================
+
+Create a historical per-player-fixture dataset.
+
+One row:
+
+(season, gameweek, fixture_id, player_id)
+
+Target:
+
+DEFCON = 1
+if player reached the FPL defensive-contribution threshold in that match.
+
+DEFCON = 0 otherwise.
+
+For defenders:
+
+CBIT >= 10
+
+For midfielders/forwards:
+
+CBIRT >= 12
+
+where recoveries are included for MID/FWD according to 2026/27 rules.
+
+The target must represent the actual FPL award, not a continuous number of points.
+
+==================================================
+6. DEFCON FEATURES
+==================================================
+
+Construct only pre-fixture features.
+
+PLAYER DEFENSIVE PROFILE:
+
+- CBIT per 90
+- clearances per 90
+- blocks per 90
+- interceptions per 90
+- tackles per 90
+- recoveries per 90 where applicable
+- DEFCON frequency
+- DEFCON frequency over recent matches
+- position
+- expected minutes
+
+ROLE:
+
+- starts
+- expected minutes
+- recent minutes
+- current-club evidence
+
+FIXTURE:
+
+- opponent attacking strength
+- team defensive strength
+- home/away
+- expected game state if available
+- fixture difficulty
+
+IMPORTANT:
+
+DEFCON probability should be conditional on expected opportunity to play.
+
+Do not give a benched player a high DEFCON probability simply because his per-90 defensive statistics are high.
+
+==================================================
+7. DEFCON MODEL
+==================================================
+
+Compare:
+
+Existing Poisson DEFCON model
+
+vs
+
+ML probability model.
+
+The current statistical model uses:
+
+P(CBIT >= threshold | λ)
+
+Retain it as the baseline.
+
+The ML model should learn nonlinear interactions such as:
+
+- player defensive role
+- opponent attack
+- expected minutes
+- team strength
+- game state proxies
+- home/away
+
+Evaluate:
+
+- LogLoss
+- Brier score
+- calibration
+- subgroup calibration
+- precision/recall as secondary diagnostics
+
+Do NOT optimize purely for classification accuracy.
+
+We care about accurate probabilities because these probabilities feed directly into expected FPL points.
+
+==================================================
+8. POSITION-SPECIFIC DEFCON
+==================================================
+
+Do not assume defenders, midfielders and forwards behave identically.
+
+Evaluate separately:
+
+DEF
+MID
+FWD
+
+For example:
+
+DEF:
+threshold = 10 CBIT
+
+MID/FWD:
+threshold = 12 CBIRT
+
+Check whether separate models outperform a single model.
+
+If sample size does not justify separate models, use a shared model with position as an explicit feature.
+
+Make the decision based on out-of-sample evidence.
+
+==================================================
+9. DOUBLE GAMEWEEK HANDLING
+==================================================
+
+Maintain the existing per-fixture architecture.
+
+For a DGW:
+
+fixture A → independent prediction
+fixture B → independent prediction
+
+Then:
+
+GW DEFCON expected points
+=
+sum of fixture-level expected DEFCON points
+
+Do NOT aggregate both fixtures before prediction.
+
+Do NOT allow the first DGW fixture's future outcome to influence the second fixture's pre-match prediction.
+
+==================================================
+10. LOW-SAMPLE / TRANSFER HANDLING
+==================================================
+
+Reuse the lessons from the expected-minutes calibration.
+
+Do not treat:
+
+previous-club defensive statistics
+
+as automatically equivalent to:
+
+current-club defensive role.
+
+Use current-club evidence where available.
+
+For low-sample players use statistically defensible shrinkage/fallbacks.
+
+Do not hard-code individual players.
+
+==================================================
+11. INTEGRATE EXPECTED MINUTES
+==================================================
+
+Use the deployed expected_minutes_v1 model as an input.
+
+Do not modify it.
+
+The pipeline should conceptually become:
+
+Expected Minutes ML
+        ↓
+Clean Sheet Model
+        ↓
+DEFCON Model
+        ↓
+FPL Scoring Engine
+        ↓
+GW-specific xP
+
+Ensure no circular dependency is created.
+
+==================================================
+12. FPL SCORING ENGINE
+==================================================
+
+Keep the scoring engine deterministic.
+
+ML models predict probabilities/rates.
+
+The scoring engine converts them into expected FPL points.
+
+For example:
+
+Expected CS points =
+P(clean sheet) × position-specific CS points × probability player plays enough minutes
+
+Expected DEFCON points =
+P(DEFCON) × 2
+
+subject to the correct FPL rules.
+
+Do not double-count minutes.
+
+Do not double-count clean sheets.
+
+Do not double-count DEFCON.
+
+Document the exact expected-value equations.
+
+==================================================
+13. 2026/27 BPS
+==================================================
+
+Audit the existing Bonus model against the official 2026/27 BPS changes.
+
+The 2026/27 BPS changes include:
+
+- players are no longer penalized for being tackled
+- CBI contribution to BPS changed from 1 BPS per 2 CBI to 1 BPS per 3 CBI
+- changes were made to reduce overlap between defensive contribution points and bonus points
+- changes aim to improve bonus potential for goalkeepers, full-backs and attacking players
+
+Do NOT blindly train/deploy a new Bonus ML model in Phase 3C.
+
+Instead:
+
+1. audit current Bonus assumptions
+2. verify compatibility with 2026/27
+3. document required changes
+4. leave Bonus ML for the dedicated future phase unless the existing architecture makes a small compatibility fix necessary.
+
+==================================================
+14. DEPLOYMENT CRITERIA
+==================================================
+
+Do NOT label the system ML-powered simply because candidate models exist.
+
+For each model report:
+
+Baseline
+ML Candidate
+Out-of-sample metrics
+Calibration
+Improvement
+Deployment decision
+
+Only deploy if ML demonstrably improves over the existing baseline.
+
+Possible outcomes:
+
+DEPLOY ML
+KEEP BASELINE
+HYBRID / ENSEMBLE
+INSUFFICIENT EVIDENCE
+
+If ML does not beat the baseline, keep the baseline.
+
+That is a successful result.
+
+==================================================
+15. FINAL PROJECTION OUTPUT
+==================================================
+
+After validated models are selected, regenerate GW-specific projections.
+
+For every player show:
+
+Player
+Position
+Price
+GW0 xP
+GW1 xP
+GW2 xP
+GW3 xP
+Weighted 4-GW xP
+Expected minutes
+P(start)
+P(60+)
+P(0)
+P(clean sheet)
+P(DEFCON)
+
+Ensure GW0–GW3 projections are genuinely fixture-specific.
+
+Do not copy projections across gameweeks.
+
+==================================================
+16. BACKTEST THE COMPLETE PIPELINE
+==================================================
+
+Run a chronological end-to-end backtest:
+
+Historical information available before GW
+        ↓
+Minutes
+        ↓
+xG
+        ↓
+xA
+        ↓
+Clean Sheet
+        ↓
+DEFCON
+        ↓
+FPL xP
+        ↓
+Actual FPL points
+
+Do not use future information.
+
+Compare:
+
+Old statistical pipeline
+vs
+Hybrid ML pipeline
+
+Report:
+
+- per-component performance
+- final xP error
+- calibration
+- performance by position
+- performance by price tier
+- performance by minutes tier
+- performance on transfers
+- performance on DGWs
+
+==================================================
+17. FRONTEND
+==================================================
+
+Update diagnostics to show:
+
+Clean Sheet probability
+DEFCON probability
+Expected Clean Sheet points
+Expected DEFCON points
+
+For detailed player diagnostics show the component breakdown:
+
+Minutes
+Goals
+Assists
+Clean Sheet
+DEFCON
+Bonus
+Cards/negative events
+Total xP
+
+Also show which model produced each component:
+
+ML
+Statistical Baseline
+Hybrid
+
+Do not clutter the main pitch.
+
+==================================================
+18. TESTS
+==================================================
+
+Add tests for:
+
+- clean-sheet dataset temporal integrity
+- DEFCON dataset temporal integrity
+- per-fixture representation
+- DGW independence
+- defender threshold = 10 CBIT
+- MID/FWD threshold = 12 CBIRT
+- DEFCON cap = +2
+- expected minutes integration
+- no future leakage
+- probability bounds [0,1]
+- scoring-engine arithmetic
+- position-specific clean-sheet scoring
+- current-club/transfer handling
+- model fallback behavior
+- model versioning
+
+Run the complete test suite.
+
+==================================================
+19. DOCUMENTATION
+==================================================
+
+EVERY DEVELOPMENT PHASE MUST UPDATE THE DOCUMENTATION.
+
+Update:
+
+docs/phases/
+docs/models/
+docs/data/
+docs/decisions/
+docs/ROADMAP.md
+
+Create:
+
+docs/phases/PHASE_3C_CLEAN_SHEET_DEFCON.md
+
+Document:
+
+- baseline models
+- dataset construction
+- features
+- targets
+- mathematical formulations
+- ML candidates
+- backtesting methodology
+- metrics
+- calibration
+- deployment decisions
+- 2026/27 rule assumptions
+- limitations
+- known future work
+
+Save this prompt as:
+
+docs/prompts/PHASE_3C_CLEAN_SHEET_DEFCON.md
+
+==================================================
+20. STOP CONDITION
+==================================================
+
+Do NOT modify the optimizer.
+
+Do NOT begin Phase 3D.
+
+Do NOT build a Bonus ML model unless explicitly required for 2026/27 compatibility.
+
+Do NOT declare ML superiority without out-of-sample evidence.
+
+At the end return:
+
+1. Existing baseline audit
+2. Clean-sheet dataset statistics
+3. Clean-sheet baseline performance
+4. Clean-sheet ML performance
+5. Clean-sheet deployment decision
+6. DEFCON dataset statistics
+7. DEFCON baseline performance
+8. DEFCON ML performance
+9. DEFCON deployment decision
+10. Calibration results
+11. DGW validation
+12. Transfer/low-sample validation
+13. Complete pipeline backtest
+14. Before/after xP performance
+15. Frontend changes
+16. Tests
+17. Documentation updates
+18. Remaining limitations
+19. Recommendation for Phase 3D
+
+STOP and wait for review.

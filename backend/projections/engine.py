@@ -10,6 +10,8 @@ from backend.projections.team_ratings import TeamRatingCalculator
 from backend.ml.minutes_predictor import MinutesPredictor
 from backend.ml.xg_predictor import XGPredictor
 from backend.ml.xa_predictor import XAPredictor
+from backend.ml.cs_predictor import CSPredictor
+from backend.ml.defcon_predictor import DEFCONPredictor
 
 logger = logging.getLogger("projection_engine")
 logging.basicConfig(level=logging.INFO)
@@ -37,14 +39,26 @@ PRICE_TIER_DEFAULTS = {
 }
 
 class ProjectionEngine:
-    def __init__(self, db: Session, use_ml_minutes: bool = True, use_ml_xg: bool = True, use_ml_xa: bool = True):
+    def __init__(
+        self,
+        db: Session,
+        use_ml_minutes: bool = True,
+        use_ml_xg: bool = True,
+        use_ml_xa: bool = True,
+        use_ml_cs: bool = True,
+        use_ml_defcon: bool = True
+    ):
         self.db = db
         self.use_ml_minutes = use_ml_minutes
         self.use_ml_xg = use_ml_xg
         self.use_ml_xa = use_ml_xa
+        self.use_ml_cs = use_ml_cs
+        self.use_ml_defcon = use_ml_defcon
         self.minutes_predictor = MinutesPredictor()
         self.xg_predictor = XGPredictor()
         self.xa_predictor = XAPredictor()
+        self.cs_predictor = CSPredictor()
+        self.defcon_predictor = DEFCONPredictor()
 
     def calculate_expected_minutes(self, player: Player) -> float:
         """Calculate deterministic baseline expected minutes."""
@@ -338,13 +352,36 @@ class ProjectionEngine:
         else:
             xa_match = baseline_xa
 
+        # ML Clean Sheet Prediction
+        cs_pdata = {
+            "is_home": 1.0 if is_home else 0.0,
+            "fixture_difficulty": diff,
+            "team_defence_rating": team_def_rating,
+            "opponent_attack_rating": opp_att_rating,
+            "team_cs_last_5": 1.5,
+            "team_gc_avg_last_5": 1.2,
+            "opp_goals_last_5": 1.3
+        }
+        cs_pred = self.cs_predictor.predict(cs_pdata)
+        cs_prob = cs_pred["clean_sheet_probability"]
+
+        # ML / Poisson DEFCON Prediction (2026/27 Rules)
+        defcon_pdata = {
+            "position": pos,
+            "expected_minutes_v1": x_mins,
+            "cbit90": metrics.get("cbit90", 4.0),
+            "opponent_attack_rating": opp_att_rating
+        }
+        defcon_pred = self.defcon_predictor.predict(defcon_pdata)
+        defcon_prob = defcon_pred["defcon_probability"]
+
         goal_val = 6.0 if pos in [ElementType.DEF.value, ElementType.GKP.value] else (5.0 if pos == ElementType.MID.value else 4.0)
         assist_val = 3.0
 
         goals_xp = xg_match * goal_val
         assists_xp = xa_match * assist_val
 
-        # Clean Sheet Points
+        # Clean Sheet Points (2026/27 FPL Rules)
         if pos in [ElementType.GKP.value, ElementType.DEF.value]:
             cs_xp = cs_prob * 4.0 * mins_ratio
         elif pos == ElementType.MID.value:
@@ -352,14 +389,8 @@ class ProjectionEngine:
         else:
             cs_xp = 0.0
 
-        # DEFCON Points
-        defcon_xp = 0.0
-        defcon_prob = 0.0
-        if pos == ElementType.DEF.value:
-            cbit_multiplier = min(1.80, max(0.50, opp_att_rating / 1000.0))
-            cbit_match = metrics["cbit90"] * mins_ratio * cbit_multiplier
-            defcon_prob = self.calculate_defcon_probability(cbit_match)
-            defcon_xp = defcon_prob * settings.DEFCON_POINTS * mins_ratio
+        # DEFCON Points (2026/27 FPL Rules: +2 points capped per match)
+        defcon_xp = defcon_prob * settings.DEFCON_POINTS * mins_ratio
 
         # Saves Points
         saves_xp = 0.0
@@ -368,7 +399,7 @@ class ProjectionEngine:
             saves_match = metrics["saves90"] * mins_ratio * save_multiplier
             saves_xp = (saves_match / 3.0) * 1.0
 
-        # Bonus Points
+        # Bonus Points (2026/27 Baseline BPS Rules)
         bonus_prob = max(0.0, (metrics["bps90"] - 14.0) / 22.0)
         bonus_xp = min(1.2, bonus_prob) * mins_ratio
 
@@ -408,12 +439,19 @@ class ProjectionEngine:
             "xa_ml": round(xa_pred["expected_assists"], 3),
             "xa_model_version": xa_pred["model_version"],
             "used_xa_fallback": xa_pred["used_fallback"],
+            "cs_model_version": cs_pred["model_version"],
+            "used_cs_fallback": cs_pred.get("used_fallback", False),
+            "defcon_model_version": defcon_pred["model_version"],
             "xMins": x_mins,
             "xg_match": round(xg_match, 3),
             "xa_match": round(xa_match, 3),
             "cs_prob": cs_prob,
             "defcon_prob": defcon_prob,
             "appearance_xp": round(appearance_xp, 2),
+            "goals_xp": round(goals_xp, 2),
+            "assists_xp": round(assists_xp, 2),
+            "cs_xp": round(cs_xp, 2),
+            "defcon_xp": round(defcon_xp, 2),
             "goals_xp": round(goals_xp, 2),
             "assists_xp": round(assists_xp, 2),
             "cs_xp": round(cs_xp, 2),
