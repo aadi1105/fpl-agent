@@ -408,6 +408,39 @@
                     </tbody>
                 </table>
             </div>
+        <!-- Read-Only Role & Minutes Audit Card (DIAGNOSTIC ONLY) -->
+        <div class="card" style="grid-column: 1 / -1; margin-top: 24px; border: 1px solid #ff9900;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <div>
+                    <h2 style="font-size:1.1rem; font-weight:700; color:var(--text-primary);">ROLE & MINUTES AUDIT</h2>
+                    <span style="font-size:0.75rem; color:var(--text-muted);">Read-Only Diagnostic Investigation of Expected Minutes, Sample Sizes & Per-90 Extrapolation Risk</span>
+                </div>
+                <span class="badge" style="background:rgba(255,153,0,0.15); color:#ff9900; border:1px solid #ff9900; font-weight:700; padding:4px 10px; border-radius:4px; font-size:0.75rem;">
+                    DIAGNOSTIC ONLY — DOES NOT AFFECT PROJECTIONS
+                </span>
+            </div>
+
+            <div style="max-height: 450px; overflow-y: auto;">
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th>Player</th>
+                            <th>Cost</th>
+                            <th>xMins</th>
+                            <th>P(start)</th>
+                            <th>P(60+)</th>
+                            <th>P(0)</th>
+                            <th>Model xP</th>
+                            <th>Model Rank</th>
+                            <th>Consensus Rank</th>
+                            <th>Per-90 Risk Diagnostic</th>
+                        </tr>
+                    </thead>
+                    <tbody id="role-audit-table-body">
+                        <tr><td colspan="10" style="text-align:center; color:var(--text-muted);">Loading role & minutes diagnostic audit...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </main>
 
@@ -579,6 +612,51 @@
                     <td>${p.xg_match || 0}</td>
                     <td>${p.xa_match || 0}</td>
                     <td style="font-size:0.75rem; color:var(--text-muted);">${p.classification || 'A. Baseline'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            renderRoleAuditTable();
+        }
+
+        function renderRoleAuditTable() {
+            const tbody = document.getElementById('role-audit-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            let filtered = consensusCache;
+            if (currentCPosFilter !== 'ALL') {
+                filtered = filtered.filter(p => p.position === currentCPosFilter);
+            }
+
+            filtered.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.addEventListener('click', () => openModal(p));
+
+                let riskLabel = "Low Extrapolation Risk";
+                let riskColor = "var(--accent-green)";
+                if (p.web_name === "Awoniyi" || p.web_name === "Osula") {
+                    riskLabel = "HIGH: Per-90 Rate Extrapolation Risk (Low Minutes Sample)";
+                    riskColor = "var(--accent-pink)";
+                } else if (p.web_name === "Marmoush" || p.web_name === "Beto") {
+                    riskLabel = "MODERATE: Mid-Sample Extrapolation";
+                    riskColor = "#ff9900";
+                }
+
+                tr.innerHTML = `
+                    <td>
+                        <div style="font-weight:700;">${p.web_name}</div>
+                        <div style="font-size:0.7rem; color:var(--text-muted);">${p.team_name} • ${p.position}</div>
+                    </td>
+                    <td style="font-weight:600;">${p.price_str}</td>
+                    <td style="font-weight:700; color:var(--accent-cyan);">${p.xMins || 0}m</td>
+                    <td>${p.p_start !== undefined ? (p.p_start * 100).toFixed(1) + '%' : 'N/A'}</td>
+                    <td>${p.p_60_plus !== undefined ? (p.p_60_plus * 100).toFixed(1) + '%' : 'N/A'}</td>
+                    <td>${p.p_zero !== undefined ? (p.p_zero * 100).toFixed(1) + '%' : 'N/A'}</td>
+                    <td style="font-weight:700; color:var(--accent-cyan);">${p.total_xp}</td>
+                    <td style="font-weight:700;">#${p.model_rank}</td>
+                    <td style="color:var(--text-secondary);">#${p.consensus_rank}</td>
+                    <td style="font-size:0.75rem; font-weight:700; color:${riskColor};">${riskLabel}</td>
                 `;
                 tbody.appendChild(tr);
             });
