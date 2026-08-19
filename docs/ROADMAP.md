@@ -23,7 +23,8 @@
 | **Phase 3C.5** | Model vs FPL Consensus Audit | **COMPLETED (AUDITED)** | August 2026 |
 | **Phase 3C.6** | Expected Minutes, Role & Sample-Size Sanity Audit | **COMPLETED (AUDITED)** | August 2026 |
 | **Phase 3C.7** | Temporal / Recency & Current-Form Audit | **COMPLETED (AUDITED)** | August 2026 |
-| **Phase 4** | Model Ensemble & Uncertainty Quantification | 🔴 **PLANNED** | Future |
+| **Phase 3C.8** | Low-Sample Minutes & Per-90 Shrinkage Implementation | **COMPLETED (VALIDATED)** | August 2026 |
+| **Phase 3D** | Production Retraining & End-to-End Recency Deployment | 🔴 **PLANNED** | Next Phase |
 | **Phase 5** | Model Ensemble & Uncertainty Quantification | 🔴 **PLANNED** | Future |
 | **Phase 6** | News, RAG & Manager Presser Agent | 🔴 **PLANNED** | Future |
 | **Phase 7** | Mini-League Game Theory & Ownership Optimization | 🔴 **PLANNED** | Future |
