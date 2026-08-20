@@ -97,3 +97,54 @@ def test_diagnostics_positional_price_percentiles():
     for p in diag:
         assert "pos_price_percentile" in p
         assert 0.0 <= p["pos_price_percentile"] <= 100.0
+
+def test_bruno_fernandes_canonical_price_and_ownership():
+    """Phase 3D.1 Regression: Verify Bruno Fernandes (ID 426) has now_cost=120 (£12.0m) and selected_by_percent=48.6."""
+    db = SessionLocal()
+    bruno = db.query(Player).filter(Player.id == 426).first()
+    assert bruno is not None, "Bruno Fernandes (ID 426) missing from database!"
+    assert bruno.web_name == "B.Fernandes"
+    assert bruno.now_cost == 120, f"Bruno Fernandes now_cost is {bruno.now_cost}, expected 120 (£12.0m)"
+    assert bruno.selected_by_percent == 48.6, f"Bruno Fernandes selected_by_percent is {bruno.selected_by_percent}, expected 48.6%"
+
+def test_all_590_players_exact_single_canonical_price():
+    """Phase 3D.1 Regression: Verify all 590 active players have exactly one canonical price in DB."""
+    db = SessionLocal()
+    players = db.query(Player).all()
+    assert len(players) == 590, f"Expected 590 active players in DB, found {len(players)}"
+    for p in players:
+        assert p.now_cost is not None
+        assert p.now_cost >= 40 and p.now_cost <= 200
+
+def test_api_payload_price_matches_canonical_now_cost():
+    """Phase 3D.1 Regression: Verify API payload prices match canonical Player.now_cost for all active players."""
+    res = client.get("/api/v1/projections/diagnostics?target_gw=1&limit=590")
+    assert res.status_code == 200
+    projs = res.json()
+    assert len(projs) > 0
+
+    db = SessionLocal()
+    db_players = {p.id: p for p in db.query(Player).all()}
+
+    for item in projs:
+        p_id = item["id"]
+        assert p_id in db_players
+        canonical_cost_m = db_players[p_id].now_cost / 10.0
+        assert abs(item["price"] - canonical_cost_m) < 1e-4
+
+def test_optimizer_and_frontend_payload_price_integrity():
+    """Phase 3D.1 Regression: Verify optimizer payload player costs match canonical DB Player.now_cost."""
+    db = SessionLocal()
+    optimizer = SquadOptimizer(db)
+    res = optimizer.solve_squad_selection(mode="CURRENT_GW_PLUS_3")
+
+    squad = res["starting_11"] + res["bench"]
+    db_players = {p.id: p for p in db.query(Player).all()}
+
+    for item in squad:
+        p_id = item["id"]
+        assert p_id in db_players
+        canonical = db_players[p_id]
+        assert item["now_cost"] == canonical.now_cost
+        assert item["now_cost_str"] == f"£{canonical.now_cost / 10.0:.1f}m"
+

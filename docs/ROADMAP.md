@@ -25,6 +25,7 @@
 | **Phase 3C.7** | Temporal / Recency & Current-Form Audit | **COMPLETED (AUDITED)** | August 2026 |
 | **Phase 3C.8** | Low-Sample Minutes & Per-90 Shrinkage Implementation | **COMPLETED (VALIDATED)** | August 2026 |
 | **Phase 3D** | Production Model Validation, Retraining & Deployment | **COMPLETED (DEPLOYED)** | August 2026 |
+| **Phase 3D.1** | Post-Deployment Player Price Integrity Audit & Fix | **COMPLETED (AUDITED)** | August 2026 |
 | **Phase 5** | Model Ensemble & Uncertainty Quantification | 🔴 **PLANNED** | Future |
 | **Phase 6** | News, RAG & Manager Presser Agent | 🔴 **PLANNED** | Future |
 | **Phase 7** | Mini-League Game Theory & Ownership Optimization | 🔴 **PLANNED** | Future |

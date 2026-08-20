@@ -121,19 +121,35 @@ print("\n=== 2. CRITICAL PLAYER AUDIT TABLE (V1 vs V2 PROJECTIONS) ===")
 print(f"{'Player':<22} | {'Pos':<4} | {'Price':<5} | {'Own%':<5} | {'V1 xP':<6} | {'V2 xP':<6} | {'V2 Rank':<7} | {'xMins':<6} | {'P(start)':<8} | {'xG':<6} | {'xA':<6}")
 print("-" * 115)
 
+target_player_ids = [
+    (411, 'Erling Haaland'),
+    (426, 'Bruno Fernandes'),
+    (154, 'Cole Palmer'),
+    (12, 'Bukayo Saka'),
+    (4, 'Gabriel Magalhães'),
+    (427, 'Bryan Mbeumo'),
+    (397, 'Antoine Semenyo'),
+    (401, 'Omar Marmoush'),
+    (492, 'Taiwo Awoniyi'),
+    (465, 'William Osula'),
+    (165, 'João Pedro'),
+    (346, 'Dominic Calvert-Lewin')
+]
+
 critical_list = []
-for name_sub in target_players:
-    match = df_res[df_res['web_name'].str.contains(name_sub, case=False, na=False)]
+for pid, label in target_player_ids:
+    match = df_res[df_res['id'] == pid]
     if not match.empty:
-        row = match.iloc[0]
-        critical_list.append(row.to_dict())
+        row = match.iloc[0].to_dict()
+        row['display_label'] = label
+        critical_list.append(row)
         print(f"{row['web_name']:<22} | {row['position']:<4} | £{row['price']:<4.1f} | {row['ownership']:<4.1f}% | {row['v1_weighted_xp']:<6.2f} | {row['v2_weighted_xp']:<6.2f} | #{row['v2_rank']:<6} | {row['gw0_xMins_v2']:<6.1f} | {row['gw0_pstart_v2']*100:<7.1f}% | {row['gw0_xg_v2']:<6.3f} | {row['gw0_xa_v2']:<6.3f}")
 
 print("\n=== 3. BRUNO FERNANDES SPECIFIC DIAGNOSTIC INVESTIGATION ===")
-bruno_match = df_res[df_res['web_name'].str.contains('Bruno', case=False, na=False)]
+bruno_match = df_res[df_res['id'] == 426]
 if not bruno_match.empty:
     b = bruno_match.iloc[0]
-    print(f"Name              : {b['web_name']}")
+    print(f"Name              : {b['web_name']} (ID {b['id']})")
     print(f"Price / Ownership : £{b['price']}m | {b['ownership']}% (Consensus Rank #{b['consensus_rank']})")
     print(f"V1 Weighted xP    : {b['v1_weighted_xp']} | V2 Weighted xP: {b['v2_weighted_xp']} (Model V2 Rank #{b['v2_rank']})")
     print(f"GW0 xMins         : {b['gw0_xMins_v2']}m | P(start): {b['gw0_pstart_v2']*100:.1f}%")

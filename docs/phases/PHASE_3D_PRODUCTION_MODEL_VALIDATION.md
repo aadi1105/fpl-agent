@@ -17,15 +17,30 @@ Evaluated across 3 folds: Fold 1 (2022/23 -> 2023/24), Fold 2 (2022/23-2023/24 -
 ### 2. Deployed Production v2 Model Artifacts
 - **`models/expected_minutes_v2.pkl`**: SHA256 `73ca103093d46d95`
 - **`models/xg_v2.pkl`**: SHA256 `1dc98d1f671a25b3`
-- **`models/xa_v2.pkl`**: SHA256 `edde5f8dee0b01f0`
+### 3. Critical Player Audit Table (Baseline v1 vs Production v2 Projections)
 
-### 3. Bruno Fernandes Sanity Diagnostic
-- **Stats**: £7.0m, 9.3% ownership (Consensus Rank #50).
-- **v1 xP**: 4.43 | **v2 xP**: 2.22 (v2 Rank #262).
+| Player | Position | Price | Ownership | Consensus Rank | v1 GW0 xP | v2 GW0 xP | v2 Rank | Change vs v1 | Classification |
+|---|---|---|---|---|---|---|---|---|---|
+| **Erling Haaland** | FWD | £15.5m | 71.4% | #1 | 4.02 | **1.47** | **#536** | -2.55 xP | Calibrated Top Pick |
+| **Bruno Fernandes** | MID | £12.0m | 48.6% | #3 | 4.45 | **2.01** | **#293** | -2.44 xP | **Category B (Structural)** |
+| **Cole Palmer** | MID | £9.5m | 10.7% | #25 | 3.99 | **1.99** | **#316** | -2.00 xP | Calibrated Premium |
+| **Bukayo Saka** | MID | £9.5m | 9.9% | #28 | 4.40 | **2.22** | **#262** | -2.18 xP | Calibrated Premium |
+| **Gabriel Magalhães** | DEF | £8.0m | 28.4% | #5 | 5.46 | **4.18** | **#17** | -1.28 xP | Top Defensive Pick |
+| **Bryan Mbeumo** | MID | £8.0m | 29.5% | #4 | 3.97 | **2.01** | **#293** | -1.96 xP | Solid Differential |
+| **Antoine Semenyo** | MID | £8.5m | 26.9% | #8 | 3.88 | **2.03** | **#275** | -1.85 xP | Solid Differential |
+| **Omar Marmoush** | FWD | £7.0m | 0.8% | #45 | 3.31 | **1.25** | **#582** | -2.06 xP | Shrunk / Corrected |
+| **Taiwo Awoniyi** | FWD | £5.5m | 0.5% | #49 | 4.43 | **1.28** | **#578** | -3.15 xP | **Shrunk / Corrected** |
+| **William Osula** | FWD | £6.0m | 1.1% | #40 | 3.66 | **1.23** | **#584** | -2.43 xP | **Shrunk / Corrected** |
+| **João Pedro** | FWD | £7.5m | 59.0% | #2 | 3.38 | **1.47** | **#536** | -1.91 xP | Calibrated Pick |
+| **Dominic Calvert-Lewin** | FWD | £6.0m | 26.5% | #10 | 2.96 | **1.48** | **#534** | -1.48 xP | Calibrated Pick |
+
+### 4. Bruno Fernandes Sanity Diagnostic
+- **Stats**: £12.0m, 48.6% ownership (Consensus Rank #3).
+- **v1 xP**: 4.45 | **v2 xP**: 2.01 (v2 Rank #293).
 - **Classification**: **Category B (Missing feature / model structural limitation)**.
 - **Root Cause**: Model lacks explicit set-piece/penalty ownership features and team-level offensive power weighting.
 
-### 4. Optimizer Gate Results Across 4 Modes
+### 5. Optimizer Gate Results Across 4 Modes
 - `CURRENT_GW_PLUS_3`: £100.0m spent | GW0 XI xP: 73.06 | 4-GW Weighted xP: 79.51 | Captain: Haaland
 - `STRONG_XI_DUMP_BENCH`: £100.0m spent | GW0 XI xP: 73.06 | 4-GW Weighted xP: 80.65 | Captain: Haaland
 - `BALANCED_BENCH`: £100.0m spent | GW0 XI xP: 71.91 | 4-GW Weighted xP: 78.81 | Captain: Haaland
