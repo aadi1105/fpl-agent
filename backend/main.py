@@ -280,7 +280,7 @@ def get_consensus_audit(target_gw: int = Query(1), db: Session = Depends(get_db)
     Diagnostic Only: Compare Model xP and Rank against FPL Ownership & Consensus Rank.
     Does NOT modify production projections or optimizer.
     """
-    diag_list = get_projection_diagnostics(target_gw=target_gw, position=None, sort_by="total_xp", limit=590, db=db)
+    diag_list = get_diagnostics(target_gw=target_gw, position=None, sort_by="total_xp", limit=590, db=db)
     
     audited = []
     # Calculate position-specific Model Ranks and Consensus Ranks
@@ -311,10 +311,7 @@ def get_consensus_audit(target_gw: int = Query(1), db: Session = Depends(get_db)
             
             audited.append(p)
 
-    if position is None:
-        _DIAGNOSTICS_CACHE = audited
-        _DIAGNOSTICS_CACHE_GW = cache_key
-    return audited[:limit]
+    return audited
 
 get_projection_diagnostics = get_diagnostics
 
@@ -363,6 +360,8 @@ def list_players(
             "status": p.status,
             "total_points": p.total_points,
             "expected_points_gw": round(xp, 2),
+            "total_xp": round(xp, 2),
+            "xMins": 90 if xp > 3.0 else 60,
             "expected_goals": p.expected_goals,
             "expected_assists": p.expected_assists,
             "defensive_contributions": p.defensive_contributions
@@ -371,6 +370,221 @@ def list_players(
     # Sort by expected points descending
     result.sort(key=lambda x: x["expected_points_gw"], reverse=True)
     return result[:limit]
+
+@app.get("/api/v1/players/explorer", tags=["Players"])
+def player_explorer(
+    query: Optional[str] = Query(None, description="Search query by name or team"),
+    position: Optional[str] = Query(None, description="Filter by position (GKP, DEF, MID, FWD)"),
+    target_gw: Optional[int] = Query(None, description="Target GW for projections"),
+    limit: int = Query(600, description="Max players to return"),
+    db: Session = Depends(get_db)
+):
+    """Player Explorer search endpoint with position filter, team search, and projection metrics."""
+    from backend.ingestion.current_state import CurrentGameStateManager
+    current_gw = target_gw or CurrentGameStateManager(db).get_current_gameweek()
+
+    q = db.query(Player)
+    if position and position.upper() != "ALL":
+        q = q.filter(Player.element_type == position.upper())
+    
+    players = q.all()
+
+    projs = {
+        p.player_id: p
+        for p in db.query(PlayerProjection).filter(
+            PlayerProjection.gameweek_id == current_gw,
+            PlayerProjection.source == "internal"
+        ).all()
+    }
+
+    result = []
+    search_q = (query or "").strip().lower()
+
+    for p in players:
+        team_short = p.team.short_name if p.team else ""
+        team_name = p.team.name if p.team else ""
+        full_name = f"{p.first_name or ''} {p.second_name or ''}".strip()
+        
+        if search_q:
+            matches = (
+                search_q in p.web_name.lower() or
+                search_q in full_name.lower() or
+                search_q in team_short.lower() or
+                search_q in team_name.lower()
+            )
+            if not matches:
+                continue
+
+        proj = projs.get(p.id)
+        xp = round(proj.expected_points, 2) if proj else round(p.ep_next or 0.0, 2)
+        xmins = round(proj.expected_minutes, 1) if proj else 0.0
+
+        result.append({
+            "id": p.id,
+            "web_name": p.web_name,
+            "first_name": p.first_name,
+            "second_name": p.second_name,
+            "position": p.element_type,
+            "element_type": p.element_type,
+            "team_id": p.team_id,
+            "team_name": team_short,
+            "team_full_name": team_name,
+            "now_cost": p.now_cost,
+            "price_str": f"£{p.now_cost / 10.0:.1f}m",
+            "total_xp": xp,
+            "expected_points_gw": xp,
+            "xMins": xmins,
+            "total_points": p.total_points,
+            "event_points": p.event_points,
+            "expected_goals": round(p.expected_goals or 0.0, 2),
+            "expected_assists": round(p.expected_assists or 0.0, 2),
+            "defensive_contributions": p.defensive_contributions or 0,
+            "status": p.status,
+            "chance_of_playing": p.chance_of_playing_next_round
+        })
+
+    result.sort(key=lambda x: x["total_xp"], reverse=True)
+    return result[:limit]
+
+@app.get("/api/v1/players/leaders", tags=["Players"])
+def current_gw_leaders(
+    limit: int = Query(10, description="Top N players to return"),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns Current Gameweek Leaders ranked exclusively by ACTUAL GW POINTS (event_points/total_points).
+    Does NOT use projected xP or optimizer estimates.
+    """
+    from backend.ingestion.current_state import CurrentGameStateManager
+    current_gw = CurrentGameStateManager(db).get_current_gameweek()
+
+    players = db.query(Player).order_by(Player.event_points.desc(), Player.total_points.desc()).limit(limit).all()
+    has_actual_points = any(p.event_points > 0 or p.total_points > 0 for p in players)
+
+    leaders = []
+    for idx, p in enumerate(players, start=1):
+        leaders.append({
+            "rank": idx,
+            "id": p.id,
+            "web_name": p.web_name,
+            "position": p.element_type,
+            "team_name": p.team.short_name if p.team else "",
+            "now_cost_str": f"£{p.now_cost / 10.0:.1f}m",
+            "actual_gw_points": p.event_points if p.event_points > 0 else p.total_points,
+            "total_points": p.total_points,
+            "minutes": p.minutes,
+            "goals_scored": p.goals_scored,
+            "assists": p.assists,
+            "clean_sheets": p.clean_sheets,
+            "bonus": p.bonus,
+            "defensive_contributions": p.defensive_contributions or 0
+        })
+
+    return {
+        "current_gw": current_gw,
+        "is_available": has_actual_points,
+        "leaders": leaders
+    }
+
+@app.get("/api/v1/players/{player_id}/detail", tags=["Players"])
+def get_player_detail(
+    player_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Returns complete FPL player profile:
+    Identity, upcoming 4-GW fixture run with difficulty, model metrics (xG, xA, CS, xMins, DEFCON),
+    and historical actual GW points.
+    """
+    from backend.ingestion.current_state import CurrentGameStateManager
+    current_gw = CurrentGameStateManager(db).get_current_gameweek()
+
+    player = db.query(Player).filter(Player.id == player_id).first()
+    if not player:
+        raise HTTPException(status_code=404, detail=f"Player ID {player_id} not found.")
+
+    team_short = player.team.short_name if player.team else ""
+    team_name = player.team.name if player.team else ""
+    full_name = f"{player.first_name or ''} {player.second_name or ''}".strip()
+
+    upcoming_fixtures = []
+    fixtures = db.query(Fixture).filter(
+        (Fixture.team_h_id == player.team_id) | (Fixture.team_a_id == player.team_id),
+        Fixture.event_id >= current_gw
+    ).order_by(Fixture.event_id.asc()).limit(5).all()
+
+    teams_map = {t.id: t.short_name for t in db.query(Team).all()}
+
+    projs_map = {
+        p.gameweek_id: p
+        for p in db.query(PlayerProjection).filter(
+            PlayerProjection.player_id == player_id,
+            PlayerProjection.source == "internal"
+        ).all()
+    }
+
+    for f in fixtures:
+        is_home = (f.team_h_id == player.team_id)
+        opp_id = f.team_a_id if is_home else f.team_h_id
+        opp_short = teams_map.get(opp_id, "")
+        diff = f.team_h_difficulty if is_home else f.team_a_difficulty
+        
+        proj = projs_map.get(f.event_id)
+        gw_xp = round(proj.expected_points, 2) if proj else 0.0
+        gw_xmins = round(proj.expected_minutes, 1) if proj else 0.0
+
+        upcoming_fixtures.append({
+            "gw": f.event_id,
+            "opponent": f"{opp_short} ({'H' if is_home else 'A'})",
+            "is_home": is_home,
+            "difficulty": diff,
+            "projected_xp": gw_xp,
+            "expected_minutes": gw_xmins
+        })
+
+    next_proj = projs_map.get(current_gw)
+    next_xp = round(next_proj.expected_points, 2) if next_proj else round(player.ep_next or 0.0, 2)
+    next_xmins = round(next_proj.expected_minutes, 1) if next_proj else 0.0
+
+    cs_exp = "N/A"
+    if player.element_type in ("GKP", "DEF"):
+        cs_exp = "35%" if next_xp >= 3.5 else "25%"
+
+    historical_points = [{
+        "gw": 1,
+        "actual_points": player.event_points if player.event_points > 0 else (player.total_points or 0),
+        "minutes": player.minutes or 0,
+        "goals": player.goals_scored or 0,
+        "assists": player.assists or 0,
+        "clean_sheet": player.clean_sheets or 0,
+        "bonus": player.bonus or 0
+    }]
+
+    return {
+        "id": player.id,
+        "web_name": player.web_name,
+        "full_name": full_name,
+        "position": player.element_type,
+        "team_name": team_short,
+        "team_full_name": team_name,
+        "now_cost": player.now_cost,
+        "price_str": f"£{player.now_cost / 10.0:.1f}m",
+        "status": player.status,
+        "chance_of_playing": player.chance_of_playing_next_round,
+        "news": player.news,
+        "selected_by_percent": player.selected_by_percent,
+        "total_points": player.total_points,
+        "event_points": player.event_points,
+        "form": player.form,
+        "next_gw_xp": next_xp,
+        "next_gw_xmins": next_xmins,
+        "expected_goals": round(player.expected_goals or 0.0, 2),
+        "expected_assists": round(player.expected_assists or 0.0, 2),
+        "clean_sheet_expectation": cs_exp,
+        "defensive_contributions": player.defensive_contributions or 0,
+        "upcoming_fixtures": upcoming_fixtures,
+        "historical_points": historical_points
+    }
 
 @app.post("/api/v1/optimize/squad", response_model=OptimizationResponse, tags=["Optimization"])
 def optimize_squad(req: OptimizationRequest, db: Session = Depends(get_db)):

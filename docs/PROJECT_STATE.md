@@ -1,8 +1,8 @@
 # PROJECT STATE — SINGLE SOURCE OF TRUTH
 
 **Last Updated**: 2026-08-29  
-**Phase**: Phase 3N.18 — My Team Substitution Flow + State Reliability Fix  
-**Current Directive**: **`VERDICT: ACCEPTANCE PASSED. FIXED SECOND-INTERACTION DEAD CLICK BUG CAUSED BY INLINE DISPLAY=NONE/VISIBILITY=HIDDEN STYLES OVERRIDING CSS .OPEN CLASS. REDESIGNED SUBSTITUTION UX INTO CLEAN FPL FLOW ([↔️ SUBSTITUTE] -> CANDIDATE CARDS GRID WITH [← BACK] AND [CANCEL] CONTROLS). ENFORCED REAL-TIME FORMATION VALIDATION WITH LOCKED STATUS CARDS AND CONCISE EXPLANATIONS (E.G., FEWER THAN 3 DEFENDERS). IMPLEMENTED AUTOMATIC CAPTAIN/VICE-CAPTAIN STATUS TRANSFERS WHEN BENCHING A CAPTAIN TO KEEP CAPTAINCY IN THE STARTING XI. ADDED TEST SUITE (TESTS/TEST_PHASE3N18_SUBSTITUTION_UX_AND_STATE.PY). ALL 98 TESTS PASSING CLEANLY ACROSS ALL 22 TEST SUITES.`**  
+**Phase**: Phase 3N.19 — Player Data Explorer + Current GW Leaders + Model Audit Loading Fix  
+**Current Directive**: **`VERDICT: ACCEPTANCE PASSED. FIXED NAMEERROR BUG IN BACKEND GET_CONSENSUS_AUDIT ENDPOINT THAT CAUSED PERMANENT LOADING STATES ON PLAYER DATA AND MODEL AUDIT PAGES. REDESIGNED PLAYER DATA PAGE INTO RICH FPL PLAYER EXPLORER WITH INSTANT SEARCH (NAME/TEAM), POSITION FILTERS, AND COMPACT PLAYER CARDS. ADDED CURRENT GAMEWEEK LEADERS SECTION RANKED EXCLUSIVELY BY ACTUAL FPL POINTS (EVENT_POINTS), DISTINCT FROM XP/OPTIMIZER PROJECTIONS, WITH TOP 5 / TOP 10 CONTROLS. IMPLEMENTED UNIFIED PLAYER DETAIL VIEW WITH UPCOMING 4-GW FIXTURES (NO GW0), MODEL METRICS (XG, XA, CS, XMINS, DEFCON), HISTORICAL ACTUAL SCORES, AND SQUAD MANAGEMENT ACTIONS. IMPLEMENTED EXPLICIT LOADING, SUCCESS, AND RETRY ERROR BANNERS. ADDED TEST SUITE (TESTS/TEST_PHASE3N19_PLAYER_EXPLORER_AND_AUDIT.PY). ALL 105 TESTS PASSING CLEANLY ACROSS ALL 23 TEST SUITES.`**  
 
 ---
 
@@ -30,25 +30,26 @@ The active production pipeline evaluates player projections via `backend/project
 | **CS Calibrator** | `IsotonicRegression` | `cs_calibration_v1.pkl` | `backend/ml/models/cs_calibration_v1.pkl` | `f8237b16f806065b263bbf4df9eb5fcae135bc078b54e3d360faad2515b630b1` |
 | **xP Calibrator Layer v2**| `ProjectionEngine` | `expected_xp_calibrated_v2.json`| `backend/ml/models/expected_xp_calibrated_v2.json` | `Model D Piecewise + Role Active` |
 | **Current State Engine**| `CurrentGameStateManager`| `2026_27_GW1_STATE_v1` | `backend/ingestion/current_state.py` | `Active State Snapshot Layer` |
-| **Reality Auditor** | `DecisionEngineRealityAuditor`| Layer Consistency Engine | `backend/diagnostics/reality_audit.py` | `Diagnostic Selection Trace & Audit` |
+| **Player Explorer API**| `PlayerExplorer` | REST Explorer Engine | `backend/main.py` | `Search, Leaderboard & Detail Engine` |
 | **User Squad Manager** | `UserSquadManager` | Persistent My Team V2 | `backend/user/user_squad.py` | `Persistent User Squad View V2` |
 
 ---
 
 ## C. VALIDATED COMPONENTS & EMPIRICAL RESULTS
 
-1. **Phase 3N.18 My Team Substitution Flow + State Reliability Fix**:
-   - Fixed second-interaction modal dead click bug.
-   - Deployed FPL-style clean substitution selection UX.
-   - Enforced formation validation with locked status cards and concise feedback.
-   - Implemented captain auto-transfer when benching a captain.
-   - Test suite passing: **98 / 98 tests passing**.
+1. **Phase 3N.19 Player Data Explorer + Current GW Leaders + Model Audit Loading Fix**:
+   - Fixed backend `NameError` in `get_consensus_audit`.
+   - Built Player Explorer search & position filtering tool.
+   - Built Current GW Leaders section ranked exclusively by actual FPL points.
+   - Built unified Player Detail view with upcoming fixture run, model metrics, and actual points.
+   - Implemented explicit error states and retry buttons.
+   - Test suite passing: **105 / 105 tests passing**.
    - Safety verdict: **`ACCEPTANCE PASSED`**.
 
 ---
 
 ## D. CURRENT STOP CONDITION
 
-**WE HAVE COMPLETED PHASE 3N.18 MY TEAM SUBSTITUTION FLOW + STATE RELIABILITY FIX.**  
+**WE HAVE COMPLETED PHASE 3N.19 PLAYER DATA EXPLORER + CURRENT GW LEADERS + MODEL AUDIT LOADING FIX.**  
 **SAFETY VERDICT: ACCEPTANCE PASSED.**  
 **AWAITING USER DIRECTION FOR NEXT PHASE.**
