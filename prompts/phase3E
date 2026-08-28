@@ -1,0 +1,487 @@
+PHASE 3E — 2026/27 CURRENT-STATE PLAYER, TRANSFER & FIXTURE AUDIT
+
+STOP MODEL DEVELOPMENT AND STOP OPTIMIZER DEVELOPMENT.
+
+We have completed the Prediction Reality Check and established that the
+historical production models contain useful predictive signal.
+
+However, the current 2026/27 production snapshot contains a critical
+data-integrity problem:
+
+Taiwo Awoniyi is still represented as a Nottingham Forest player with a
+Forest fixture, despite having transferred to Coventry City.
+
+This proves that our current-season player/team/fixture state cannot yet be
+trusted.
+
+This phase is ONLY about establishing a correct current representation of
+the 2026/27 FPL world.
+
+DO NOT:
+
+- retrain ML models
+- modify xG/xA models
+- modify minutes models
+- modify clean-sheet models
+- modify DEFCON
+- modify the optimizer
+- modify xP formulas
+- add ownership adjustments
+- manually blacklist players
+- manually boost players
+
+==================================================
+1. CANONICAL CURRENT DATA SOURCE
+==================================================
+
+Determine the authoritative current 2026/27 FPL data source.
+
+Use the official FPL API/bootstrap data as the canonical source for:
+
+- player ID
+- web_name
+- first name
+- second name
+- team ID
+- element type
+- now_cost
+- status
+- chance_of_playing
+- news
+- selected_by_percent
+- current FPL team
+
+Use the current FPL fixture feed as the canonical source for:
+
+- fixture ID
+- gameweek
+- team_h
+- team_a
+- difficulty
+- kickoff
+
+Do not use historical ML datasets as the current player/team source.
+
+Do not use static CSVs as the current player/team source.
+
+==================================================
+2. AUDIT ALL 2026/27 PLAYERS
+==================================================
+
+Audit all active players in the current database.
+
+For every player verify:
+
+Player ID
+FPL name
+Current FPL team ID
+Current FPL team
+Position
+Price
+Status
+Availability
+Ownership
+
+Compare database values against the current official FPL API.
+
+Report:
+
+- matching records
+- mismatches
+- missing records
+- stale records
+- duplicate records
+
+==================================================
+3. TRANSFER AUDIT
+==================================================
+
+Identify EVERY player whose club changed during the observable period
+leading into 2026/27.
+
+Do not only check obvious players.
+
+Create:
+
+docs/data/TRANSFERS_2026_27.csv
+
+with:
+
+player_id
+player_name
+previous_club
+current_club
+transfer_date
+transfer_type
+current_fpl_team
+database_team
+team_match
+current_registration_status
+
+Specifically verify recent transfers including:
+
+Taiwo Awoniyi
+Reiss Nelson
+and every other relevant 2026/27 transfer.
+
+Use current authoritative data to determine the current club.
+
+==================================================
+4. AWONIYI TEST CASE
+==================================================
+
+Awoniyi is our mandatory regression test.
+
+The current system previously reported:
+
+Taiwo Awoniyi
+Nottingham Forest
+LEE (H)
+83.9 expected minutes
+4.65 GW1 xP
+
+This is invalid because Awoniyi transferred from Nottingham Forest to
+Coventry City on 17 August 2026.
+
+After the current-state fix, verify that:
+
+Awoniyi → Coventry City
+
+and his fixtures come from Coventry's current fixture list.
+
+Do NOT simply manually change Awoniyi's team.
+
+Fix the general data pipeline that caused this stale assignment.
+
+Add a regression test so this class of error cannot silently return.
+
+==================================================
+5. FIXTURE CONSISTENCY
+==================================================
+
+For every player verify:
+
+player.team_id == fixture.team_h
+OR
+player.team_id == fixture.team_a
+
+for every assigned fixture.
+
+For GW1-GW4 verify:
+
+- fixture exists
+- correct gameweek
+- correct home/away
+- correct opponent
+- correct team ID
+- correct season
+
+Reject any fixture assignment where the player's current team does not
+participate in the fixture.
+
+This must be a hard validation failure, not a warning.
+
+==================================================
+6. CURRENT-CLUB VALIDATION
+==================================================
+
+Before the prediction engine generates projections:
+
+Every player must pass:
+
+player.current_team == fixture.participating_team
+
+If not:
+
+DO NOT generate a normal fixture projection.
+
+Mark the record invalid and surface it in diagnostics.
+
+Never allow a player to receive an opponent fixture from their previous
+club.
+
+==================================================
+7. HISTORICAL DATA VS CURRENT STATE
+==================================================
+
+Do NOT throw away historical player statistics after a transfer.
+
+Historical data is still valuable for modelling underlying ability.
+
+But separate:
+
+HISTORICAL PERFORMANCE
+
+from
+
+CURRENT CLUB
+
+from
+
+CURRENT ROLE
+
+from
+
+CURRENT FIXTURES
+
+from
+
+CURRENT AVAILABILITY.
+
+A transferred player's historical performance may remain in the model.
+
+His previous club must NOT determine his current fixtures.
+
+His previous club must NOT determine his current starting probability
+unless explicitly justified by transferable evidence.
+
+==================================================
+8. PLAYER AVAILABILITY
+==================================================
+
+Audit:
+
+status
+chance_of_playing
+news
+injury/suspension indicators
+current-club registration
+
+Do not infer availability solely from historical minutes.
+
+A player who has left a club must not retain that club's starting
+probability.
+
+A player with no realistic current-club role should not receive a high
+starting probability simply because of old statistics.
+
+Do not manually assign probabilities.
+
+Fix the general feature pipeline.
+
+==================================================
+9. PRICE INTEGRITY
+==================================================
+
+Verify current prices for every player.
+
+Canonical source:
+
+Player.now_cost
+
+Specifically verify:
+
+Haaland £15.5m
+Bruno Fernandes £12.0m
+Gabriel £8.0m
+Saka £9.5m
+Palmer £9.5m
+João Pedro £7.5m
+Calvert-Lewin £6.0m
+Awoniyi current FPL price
+Osula £6.0m
+
+Database, projection engine, optimizer and frontend must all consume the
+same canonical current price.
+
+==================================================
+10. CURRENT FIXTURE SNAPSHOT
+==================================================
+
+Create a current fixture snapshot for GW1-GW4.
+
+For every Premier League club show:
+
+GW1 opponent
+GW2 opponent
+GW3 opponent
+GW4 opponent
+
+Then verify player fixture assignment against this snapshot.
+
+Do not generate projections until this validation passes.
+
+==================================================
+11. CRITICAL PLAYER SANITY CHECK
+==================================================
+
+After fixing the current-state data, print:
+
+Player
+Current Club
+Price
+GW1 Fixture
+GW2 Fixture
+GW3 Fixture
+GW4 Fixture
+Status
+Chance of Playing
+
+for:
+
+Haaland
+Bruno Fernandes
+Saka
+Palmer
+Gabriel
+João Pedro
+Calvert-Lewin
+Awoniyi
+Osula
+Marmoush
+Beto
+Reiss Nelson
+
+This is a DATA audit only.
+
+Do not calculate xP yet.
+
+==================================================
+12. FRONTEND
+==================================================
+
+The frontend must consume the same canonical player/team/fixture state.
+
+Verify:
+
+backend player club == frontend club
+backend fixture == frontend fixture
+backend price == frontend price
+backend status == frontend status
+
+A player must never appear under their previous club in the frontend.
+
+Add a visible data timestamp:
+
+"FPL data last synced: <timestamp>"
+
+==================================================
+13. TESTS
+==================================================
+
+Add regression tests for:
+
+- current player/team consistency
+- transfer handling
+- fixture/team consistency
+- GW assignment
+- current price consistency
+- stale-player detection
+- previous-club fixture rejection
+- missing fixture rejection
+- duplicate fixture detection
+
+Mandatory test:
+
+Awoniyi must not be assigned a Nottingham Forest fixture.
+
+Also create a generic test:
+
+For every player-fixture record:
+
+player.team_id must equal fixture.team_h or fixture.team_a.
+
+==================================================
+14. ONLY AFTER DATA AUDIT PASSES
+==================================================
+
+Re-run the current 2026/27 projection generation.
+
+Do NOT change model formulas.
+
+Do NOT retrain models.
+
+Do NOT change optimizer logic.
+
+The only change should be that the models now receive correct current-season
+player/team/fixture state.
+
+Then regenerate:
+
+GW1 xP
+GW2 xP
+GW3 xP
+GW4 xP
+
+for all active players.
+
+==================================================
+15. BEFORE OPTIMIZATION
+==================================================
+
+Produce a ranked current GW1 table containing:
+
+Player
+Club
+Position
+Price
+GW1 fixture
+Expected Minutes
+P(start)
+xG
+xA
+CS probability
+GW1 xP
+
+Do NOT run the optimizer.
+
+We want to inspect whether the corrected current-state data changes the
+player projections before optimization.
+
+==================================================
+16. DOCUMENTATION
+==================================================
+
+Create:
+
+docs/phases/PHASE_3E_CURRENT_STATE_DATA_AUDIT.md
+
+Save this prompt:
+
+docs/prompts/PHASE_3E_CURRENT_STATE_DATA_AUDIT.md
+
+Update:
+
+docs/PROJECT_STATE.md
+docs/ROADMAP.md
+docs/DATA_PIPELINE.md
+
+Record:
+
+- data sources
+- sync timestamp
+- transfer handling
+- current-state validation
+- fixture validation
+- stale records found
+- fixes
+- tests
+- limitations
+
+Continue updating documentation in every future phase.
+
+==================================================
+STOP CONDITION
+==================================================
+
+STOP after:
+
+1. Current-state audit
+2. Transfer audit
+3. Fixture audit
+4. Fixes
+5. Regression tests
+6. Regenerated GW1-GW4 projections
+
+DO NOT run the optimizer.
+
+DO NOT tune the models.
+
+DO NOT manually alter player rankings.
+
+We will inspect the corrected projections first.
+
+The immediate objective is:
+
+MAKE SURE THE MODEL IS PREDICTING THE ACTUAL 2026/27 WORLD,
+NOT A STALE VERSION OF IT.

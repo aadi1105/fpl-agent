@@ -1,0 +1,129 @@
+player_id,player_name,previous_club,current_club,transfer_date,transfer_type,current_fpl_team,database_team,team_match,current_registration_status
+492,Taiwo Awoniyi (Awoniyi),Nott'm Forest,Coventry City,2026-08-17,Permanent Transfer / Registration Update,Coventry City,Nott'm Forest,MISMATCH_BEFORE_SYNC,Active
+3,Illan Meslier (Meslier),Previous Club / Historical,Arsenal,2026-07-09,2026 Summer Transfer,Arsenal,Arsenal,MATCH,Active
+9,Piero Hincapié (Hincapie),Previous Club / Historical,Arsenal,2026-07-01,2026 Summer Transfer,Arsenal,Arsenal,MATCH,Active
+452,Bruno Guimarães Rodriguez Moura (Bruno G.),Previous Club / Historical,Arsenal,2026-08-08,2026 Summer Transfer,Arsenal,Arsenal,MATCH,Active
+557,Christos Tzolis (Tzolis),Previous Club / Historical,Arsenal,2026-07-23,2026 Summer Transfer,Arsenal,Arsenal,MATCH,Active
+52,Alysson Edward Franco da Rocha dos Santos (Alysson),Previous Club / Historical,Aston Villa,2026-01-01,2026 Summer Transfer,Aston Villa,Aston Villa,MATCH,Active
+53,Johan Manzambi (Manzambi),Previous Club / Historical,Aston Villa,2026-07-17,2026 Summer Transfer,Aston Villa,Aston Villa,MATCH,Active
+54,Joao Gomes (Gomes),Previous Club / Historical,Aston Villa,2026-07-20,2026 Summer Transfer,Aston Villa,Aston Villa,MATCH,Active
+56,Tammy Abraham (Abraham),Previous Club / Historical,Aston Villa,2026-01-27,2026 Summer Transfer,Aston Villa,Aston Villa,MATCH,Active
+160,Alejandro Garnacho Ferreyra (Garnacho),Previous Club / Historical,Aston Villa,2026-07-23,2026 Summer Transfer,Aston Villa,Aston Villa,MATCH,Active
+582,Brian Madjo (Madjo),Previous Club / Historical,Aston Villa,2026-01-12,2026 Summer Transfer,Aston Villa,Aston Villa,MATCH,Active
+596,Matteo Ruggeri (Ruggeri),Previous Club / Historical,Aston Villa,2026-08-19,2026 Summer Transfer,Aston Villa,Aston Villa,MATCH,Active
+597,Zion Suzuki (Suzuki),Previous Club / Historical,Aston Villa,2026-08-19,2026 Summer Transfer,Aston Villa,Aston Villa,MATCH,Active
+58,Fraser Forster (Forster),Previous Club / Historical,Bournemouth,2026-01-02,2026 Summer Transfer,Bournemouth,Bournemouth,MATCH,Active
+67,Rayan Vitor Simplício Rocha (Rayan),Previous Club / Historical,Bournemouth,2026-01-27,2026 Summer Transfer,Bournemouth,Bournemouth,MATCH,Active
+76,Alex Tóth (Tóth.A),Previous Club / Historical,Bournemouth,2026-01-20,2026 Summer Transfer,Bournemouth,Bournemouth,MATCH,Active
+81,Álvaro Rodríguez (Rodríguez),Previous Club / Historical,Bournemouth,2026-07-14,2026 Summer Transfer,Bournemouth,Bournemouth,MATCH,Active
+566,António João Pereira de Albuquerque Tavares da Silva (Silva),Previous Club / Historical,Bournemouth,2026-08-01,2026 Summer Transfer,Bournemouth,Bournemouth,MATCH,Active
+573,Juanlu Sánchez (Sanchez),Previous Club / Historical,Bournemouth,2026-08-06,2026 Summer Transfer,Bournemouth,Bournemouth,MATCH,Active
+93,Jannik Schuster (Schuster),Previous Club / Historical,Brentford,2026-06-15,2026 Summer Transfer,Brentford,Brentford,MATCH,Active
+105,Jaidon Anthony (Anthony),Previous Club / Historical,Brentford,2026-07-07,2026 Summer Transfer,Brentford,Brentford,MATCH,Active
+107,Kaye Furo (Furo),Previous Club / Historical,Brentford,2026-01-11,2026 Summer Transfer,Brentford,Brentford,MATCH,Active
+108,Callum Wilson (Wilson),Previous Club / Historical,Brentford,2026-07-09,2026 Summer Transfer,Brentford,Brentford,MATCH,Active
+565,Mamadou Sangaré (Sangaré),Previous Club / Historical,Brentford,2026-08-01,2026 Summer Transfer,Brentford,Brentford,MATCH,Active
+119,João Pedro Loureiro da Costa (Costinha),Previous Club / Historical,Brighton,2026-06-15,2026 Summer Transfer,Brighton,Brighton,MATCH,Active
+120,Michael Svoboda (Svoboda),Previous Club / Historical,Brighton,2026-07-02,2026 Summer Transfer,Brighton,Brighton,MATCH,Active
+124,Pascal Groß (Groß),Previous Club / Historical,Brighton,2026-01-02,2026 Summer Transfer,Brighton,Brighton,MATCH,Active
+135,Zadok Yohanna (Yohanna),Previous Club / Historical,Brighton,2026-06-15,2026 Summer Transfer,Brighton,Brighton,MATCH,Active
+328,Pascal Struijk (Struijk),Previous Club / Historical,Brighton,2026-06-30,2026 Summer Transfer,Brighton,Brighton,MATCH,Active
+504,Luka Vušković (Vuskovic),Previous Club / Historical,Brighton,2026-07-14,2026 Summer Transfer,Brighton,Brighton,MATCH,Active
+594,Promise David (David),Previous Club / Historical,Brighton,2026-08-18,2026 Summer Transfer,Brighton,Brighton,MATCH,Active
+40,Morgan Rogers (Rogers),Previous Club / Historical,Chelsea,2026-07-21,2026 Summer Transfer,Chelsea,Chelsea,MATCH,Active
+101,Jordan Henderson (Henderson),Previous Club / Historical,Chelsea,2026-08-03,2026 Summer Transfer,Chelsea,Chelsea,MATCH,Active
+136,Danny Welbeck (Welbeck),Previous Club / Historical,Chelsea,2026-08-01,2026 Summer Transfer,Chelsea,Chelsea,MATCH,Active
+152,Marco Palestra (Palestra),Previous Club / Historical,Chelsea,2026-07-01,2026 Summer Transfer,Chelsea,Chelsea,MATCH,Active
+164,Geovany Quenda (Quenda),Previous Club / Historical,Chelsea,2026-06-15,2026 Summer Transfer,Chelsea,Chelsea,MATCH,Active
+170,Emmanuel Emegha (Emegha),Previous Club / Historical,Chelsea,2026-06-15,2026 Summer Transfer,Chelsea,Chelsea,MATCH,Active
+200,Maxence Lacroix (Lacroix),Previous Club / Historical,Chelsea,2026-07-30,2026 Summer Transfer,Chelsea,Chelsea,MATCH,Active
+568,Valentín Barco (Barco),Previous Club / Historical,Chelsea,2026-08-02,2026 Summer Transfer,Chelsea,Chelsea,MATCH,Active
+583,Pep Chavarría (Chavarria),Previous Club / Historical,Chelsea,2026-08-12,2026 Summer Transfer,Chelsea,Chelsea,MATCH,Active
+104,Frank Onyeka (Onyeka),Previous Club / Historical,Coventry City,2026-07-01,2026 Summer Transfer,Coventry City,Coventry City,MATCH,Active
+110,Carl Rushworth (Rushworth),Previous Club / Historical,Coventry City,2026-08-04,2026 Summer Transfer,Coventry City,Coventry City,MATCH,Active
+182,Aurèle Amenda (Amenda),Previous Club / Historical,Coventry City,2026-07-16,2026 Summer Transfer,Coventry City,Coventry City,MATCH,Active
+190,Loum Tchaouna (Tchaouna),Previous Club / Historical,Coventry City,2026-07-11,2026 Summer Transfer,Coventry City,Coventry City,MATCH,Active
+196,Jahnoah Markelo (Markelo),Previous Club / Historical,Coventry City,2026-01-27,2026 Summer Transfer,Coventry City,Coventry City,MATCH,Active
+575,Caleb Yirenkyi (Yirenkyi),Previous Club / Historical,Coventry City,2026-08-07,2026 Summer Transfer,Coventry City,Coventry City,MATCH,Active
+584,Gustavo Hamer (Hamer),Previous Club / Historical,Coventry City,2026-08-11,2026 Summer Transfer,Coventry City,Coventry City,MATCH,Active
+599,Sidiki Cherif (Cherif),Previous Club / Historical,Coventry City,2026-08-19,2026 Summer Transfer,Coventry City,Coventry City,MATCH,Active
+42,Evann Guessand (Guessand),Previous Club / Historical,Crystal Palace,2026-08-12,2026 Summer Transfer,Crystal Palace,Crystal Palace,MATCH,Active
+207,Oscar Mingueza (Mingueza),Previous Club / Historical,Crystal Palace,2026-07-09,2026 Summer Transfer,Crystal Palace,Crystal Palace,MATCH,Active
+222,Jørgen Strand Larsen (Strand Larsen),Previous Club / Historical,Crystal Palace,2026-02-02,2026 Summer Transfer,Crystal Palace,Crystal Palace,MATCH,Active
+241,Dwight McNeil (McNeil),Previous Club / Historical,Crystal Palace,2026-08-11,2026 Summer Transfer,Crystal Palace,Crystal Palace,MATCH,Active
+577,Takehiro Tomiyasu (Tomiyasu),Previous Club / Historical,Crystal Palace,2026-08-06,2026 Summer Transfer,Crystal Palace,Crystal Palace,MATCH,Active
+588,Anan Khalaili (Khalaili),Previous Club / Historical,Crystal Palace,2026-08-15,2026 Summer Transfer,Crystal Palace,Crystal Palace,MATCH,Active
+595,Zavier Gozo (Gozo),Previous Club / Historical,Crystal Palace,2026-08-18,2026 Summer Transfer,Crystal Palace,Crystal Palace,MATCH,Active
+21,Christian Nørgaard (Nørgaard),Previous Club / Historical,Everton,2026-08-05,2026 Summer Transfer,Everton,Everton,MATCH,Active
+209,Brennan Johnson (Johnson),Previous Club / Historical,Everton,2026-08-11,2026 Summer Transfer,Everton,Everton,MATCH,Active
+242,Tyrique George (George),Previous Club / Historical,Everton,2026-07-06,2026 Summer Transfer,Everton,Everton,MATCH,Active
+246,Merlin Röhl (Röhl),Previous Club / Historical,Everton,2026-06-15,2026 Summer Transfer,Everton,Everton,MATCH,Active
+247,Hayden Hackney (Hackney),Previous Club / Historical,Everton,2026-07-02,2026 Summer Transfer,Everton,Everton,MATCH,Active
+264,Oscar Bobb (Bobb),Previous Club / Historical,Fulham,2026-01-30,2026 Summer Transfer,Fulham,Fulham,MATCH,Active
+272,Jonah Kusi-Asare (Kusi-Asare),Previous Club / Historical,Fulham,2026-06-27,2026 Summer Transfer,Fulham,Fulham,MATCH,Active
+569,Gonzalo García (Gonzalo),Previous Club / Historical,Fulham,2026-08-03,2026 Summer Transfer,Fulham,Fulham,MATCH,Active
+570,César Palacios (Palacios),Previous Club / Historical,Fulham,2026-08-03,2026 Summer Transfer,Fulham,Fulham,MATCH,Active
+580,Shea Charles (Charles),Previous Club / Historical,Fulham,2026-08-11,2026 Summer Transfer,Fulham,Fulham,MATCH,Active
+274,Jack Butland (Butland),Previous Club / Historical,Hull City,2026-07-02,2026 Summer Transfer,Hull City,Hull City,MATCH,Active
+285,Paddy McNair (McNair),Previous Club / Historical,Hull City,2026-01-28,2026 Summer Transfer,Hull City,Hull City,MATCH,Active
+288,Kieran Dowell (Dowell),Previous Club / Historical,Hull City,2026-01-23,2026 Summer Transfer,Hull City,Hull City,MATCH,Active
+294,Óscar Zambrano (Zambrano),Previous Club / Historical,Hull City,2026-07-21,2026 Summer Transfer,Hull City,Hull City,MATCH,Active
+340,Joe Gelhardt (Gelhardt),Previous Club / Historical,Hull City,2026-08-15,2026 Summer Transfer,Hull City,Hull City,MATCH,Active
+556,Matt Targett (Targett),Previous Club / Historical,Hull City,2026-07-23,2026 Summer Transfer,Hull City,Hull City,MATCH,Active
+563,Hidemasa Morita (Morita),Previous Club / Historical,Hull City,2026-07-24,2026 Summer Transfer,Hull City,Hull City,MATCH,Active
+572,Konstantinos Tzolakis (Tzolakis),Previous Club / Historical,Hull City,2026-08-05,2026 Summer Transfer,Hull City,Hull City,MATCH,Active
+574,Jens Hjertø-Dahl (Hjertø-Dahl),Previous Club / Historical,Hull City,2026-08-07,2026 Summer Transfer,Hull City,Hull City,MATCH,Active
+576,Elliot Stroud (Stroud),Previous Club / Historical,Hull City,2026-08-09,2026 Summer Transfer,Hull City,Hull City,MATCH,Active
+585,Lucas Herrington (Herrington),Previous Club / Historical,Hull City,2026-08-12,2026 Summer Transfer,Hull City,Hull City,MATCH,Active
+586,Nobel Mendy (Mendy),Previous Club / Historical,Hull City,2026-08-12,2026 Summer Transfer,Hull City,Hull City,MATCH,Active
+589,Lucas Gourna-Douath (Gourna-Douath),Previous Club / Historical,Hull City,2026-08-15,2026 Summer Transfer,Hull City,Hull City,MATCH,Active
+259,Issa Diop (Diop),Previous Club / Historical,Ipswich Town,2026-07-22,2026 Summer Transfer,Ipswich Town,Ipswich Town,MATCH,Active
+267,Saša Lukić (Lukić),Previous Club / Historical,Ipswich Town,2026-08-08,2026 Summer Transfer,Ipswich Town,Ipswich Town,MATCH,Active
+303,Cédric Kipré (Kipré),Previous Club / Historical,Ipswich Town,2026-07-01,2026 Summer Transfer,Ipswich Town,Ipswich Town,MATCH,Active
+315,Abdul Fatawu (Fatawu),Previous Club / Historical,Ipswich Town,2026-07-21,2026 Summer Transfer,Ipswich Town,Ipswich Town,MATCH,Active
+316,Emersonn Correia da Silva (Emersonn),Previous Club / Historical,Ipswich Town,2026-07-08,2026 Summer Transfer,Ipswich Town,Ipswich Town,MATCH,Active
+320,Chuba Akpom (Akpom),Previous Club / Historical,Ipswich Town,2026-07-01,2026 Summer Transfer,Ipswich Town,Ipswich Town,MATCH,Active
+324,Anis Mehmeti (Mehmeti),Previous Club / Historical,Ipswich Town,2026-01-23,2026 Summer Transfer,Ipswich Town,Ipswich Town,MATCH,Active
+554,Kayne van Oevelen (Van Oevelen),Previous Club / Historical,Ipswich Town,2026-07-21,2026 Summer Transfer,Ipswich Town,Ipswich Town,MATCH,Active
+562,Daizen Maeda (Maeda),Previous Club / Historical,Ipswich Town,2026-07-25,2026 Summer Transfer,Ipswich Town,Ipswich Town,MATCH,Active
+564,Kjell Scherpen (Scherpen),Previous Club / Historical,Ipswich Town,2026-07-28,2026 Summer Transfer,Ipswich Town,Ipswich Town,MATCH,Active
+571,Florentino Ibrain Morris Luís (Florentino),Previous Club / Historical,Ipswich Town,2026-08-04,2026 Summer Transfer,Ipswich Town,Ipswich Town,MATCH,Active
+591,Julio Enciso (Enciso),Previous Club / Historical,Ipswich Town,2026-08-17,2026 Summer Transfer,Ipswich Town,Ipswich Town,MATCH,Active
+592,Abdoul Ouattara (Ouattara),Previous Club / Historical,Ipswich Town,2026-08-17,2026 Summer Transfer,Ipswich Town,Ipswich Town,MATCH,Active
+260,Harry Wilson (Wilson),Previous Club / Historical,Leeds,2026-07-08,2026 Summer Transfer,Leeds,Leeds,MATCH,Active
+334,Tarik Muharemović (Muharemović),Previous Club / Historical,Leeds,2026-07-17,2026 Summer Transfer,Leeds,Leeds,MATCH,Active
+385,James Trafford (Trafford),Previous Club / Historical,Leeds,2026-08-06,2026 Summer Transfer,Leeds,Leeds,MATCH,Active
+598,Nico Elvedi (Elvedi),Previous Club / Historical,Leeds,2026-08-19,2026 Summer Transfer,Leeds,Leeds,MATCH,Active
+362,Jeremy Jacquet (Jacquet),Previous Club / Historical,Liverpool,2026-07-01,2026 Summer Transfer,Liverpool,Liverpool,MATCH,Active
+377,Victor Munoz (Munoz),Previous Club / Historical,Liverpool,2026-06-18,2026 Summer Transfer,Liverpool,Liverpool,MATCH,Active
+579,Ronald Araujo (Araujo),Previous Club / Historical,Liverpool,2026-08-10,2026 Summer Transfer,Liverpool,Liverpool,MATCH,Active
+388,Marc Guéhi (Guéhi),Previous Club / Historical,Man City,2026-01-19,2026 Summer Transfer,Man City,Man City,MATCH,Active
+397,Antoine Semenyo (Semenyo),Previous Club / Historical,Man City,2026-01-09,2026 Summer Transfer,Man City,Man City,MATCH,Active
+410,Jeremy Monga (Monga),Previous Club / Historical,Man City,2026-07-11,2026 Summer Transfer,Man City,Man City,MATCH,Active
+481,Elliot Anderson (Anderson),Previous Club / Historical,Man City,2026-07-02,2026 Summer Transfer,Man City,Man City,MATCH,Active
+587,Gerónimo Rulli (Rulli),Previous Club / Historical,Man City,2026-08-12,2026 Summer Transfer,Man City,Man City,MATCH,Active
+43,Youri Tielemans (Tielemans),Previous Club / Historical,Man Utd,2026-07-14,2026 Summer Transfer,Man Utd,Man Utd,MATCH,Active
+162,Andrey Nascimento dos Santos (Andrey Santos),Previous Club / Historical,Man Utd,2026-07-13,2026 Summer Transfer,Man Utd,Man Utd,MATCH,Active
+325,Karl Darlow (Darlow),Previous Club / Historical,Man Utd,2026-06-14,2026 Summer Transfer,Man Utd,Man Utd,MATCH,Active
+444,Ewen Jaouen (Jaouen),Previous Club / Historical,Newcastle,2026-06-15,2026 Summer Transfer,Newcastle,Newcastle,MATCH,Active
+461,Bazoumana Touré (Touré),Previous Club / Historical,Newcastle,2026-07-05,2026 Summer Transfer,Newcastle,Newcastle,MATCH,Active
+462,Sean Steur (Steur),Previous Club / Historical,Newcastle,2026-07-09,2026 Summer Transfer,Newcastle,Newcastle,MATCH,Active
+559,Aladji Bamba (Bamba),Previous Club / Historical,Newcastle,2026-07-24,2026 Summer Transfer,Newcastle,Newcastle,MATCH,Active
+567,Lukás Hornícek (Horníček),Previous Club / Historical,Newcastle,2026-08-03,2026 Summer Transfer,Newcastle,Newcastle,MATCH,Active
+593,Amar Dedic (Dedić),Previous Club / Historical,Newcastle,2026-08-18,2026 Summer Transfer,Newcastle,Newcastle,MATCH,Active
+478,Luca Netz (Netz),Previous Club / Historical,Nott'm Forest,2026-02-02,2026 Summer Transfer,Nott'm Forest,Nott'm Forest,MATCH,Active
+558,Xaver Schlager (Schlager),Previous Club / Historical,Nott'm Forest,2026-07-23,2026 Summer Transfer,Nott'm Forest,Nott'm Forest,MATCH,Active
+581,Ousmane Diomande (Diomande),Previous Club / Historical,Nott'm Forest,2026-08-11,2026 Summer Transfer,Nott'm Forest,Nott'm Forest,MATCH,Active
+590,Steven Benda (Benda),Previous Club / Historical,Nott'm Forest,2026-08-15,2026 Summer Transfer,Nott'm Forest,Nott'm Forest,MATCH,Active
+112,Jan Paul van Hecke (Van Hecke),Previous Club / Historical,Spurs,2026-06-18,2026 Summer Transfer,Spurs,Spurs,MATCH,Active
+455,Sandro Tonali (Tonali),Previous Club / Historical,Spurs,2026-07-06,2026 Summer Transfer,Spurs,Spurs,MATCH,Active
+497,Martin Dubravka (Dubravka),Previous Club / Historical,Spurs,2026-07-01,2026 Summer Transfer,Spurs,Spurs,MATCH,Active
+498,Marcos Senesi Barón (Senesi),Previous Club / Historical,Spurs,2026-07-01,2026 Summer Transfer,Spurs,Spurs,MATCH,Active
+502,Andrew Robertson (Robertson),Previous Club / Historical,Spurs,2026-07-01,2026 Summer Transfer,Spurs,Spurs,MATCH,Active
+511,João Victor de Souza Menezes (Souza),Previous Club / Historical,Spurs,2026-01-22,2026 Summer Transfer,Spurs,Spurs,MATCH,Active
+519,Conor Gallagher (Gallagher),Previous Club / Historical,Spurs,2026-01-14,2026 Summer Transfer,Spurs,Spurs,MATCH,Active
+525,Mateus Fernandes (Fernandes),Previous Club / Historical,Spurs,2026-07-02,2026 Summer Transfer,Spurs,Spurs,MATCH,Active
+531,Melker Ellborg (Ellborg),Previous Club / Historical,Sunderland,2026-02-01,2026 Summer Transfer,Sunderland,Sunderland,MATCH,Active
+541,Thomas Meunier (Meunier),Previous Club / Historical,Sunderland,2026-07-15,2026 Summer Transfer,Sunderland,Sunderland,MATCH,Active
+550,Djiamgone Jocelin Ta Bi (Jocelin.T),Previous Club / Historical,Sunderland,2026-01-16,2026 Summer Transfer,Sunderland,Sunderland,MATCH,Active
+551,Nilson Angulo (Angulo),Previous Club / Historical,Sunderland,2026-02-02,2026 Summer Transfer,Sunderland,Sunderland,MATCH,Active

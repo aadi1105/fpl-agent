@@ -67,4 +67,4 @@ def test_arithmetic_component_breakdown(db_session):
     bd = engine.calculate_player_xp_breakdown(player, fixture, True, team)
     component_sum = bd["appearance_xp"] + bd["goals_xp"] + bd["assists_xp"] + bd["cs_xp"] + bd["defcon_xp"] + bd["saves_xp"] + bd["bonus_xp"] + bd["cards_xp"]
     
-    assert abs(bd["total_xp"] - max(0.0, round(component_sum, 2))) < 0.05
+    assert abs(bd.get("raw_xp", bd["total_xp"]) - max(0.0, round(component_sum, 2))) < 0.05

@@ -1,0 +1,681 @@
+PHASE 3L — OPTIMIZER INTEGRATION & PROJECTION CONSUMPTION AUDIT
+
+OBJECTIVE:
+
+Verify that the FPL squad optimizer is correctly consuming the newly
+validated production projection:
+
+expected_xp_calibrated_v2
+
+before we allow it to generate the actual GW1 squad.
+
+This is primarily an integration and read-only diagnostic phase.
+
+DO NOT redesign the optimizer.
+DO NOT change optimizer objectives.
+DO NOT change formation constraints.
+DO NOT add ownership/consensus.
+DO NOT manually boost or penalize players.
+DO NOT produce a final GW1 squad recommendation.
+
+The optimizer remains frozen from a modelling perspective.
+
+==================================================
+BACKGROUND
+==================================================
+
+Phase 3K.1 verified that:
+
+expected_xp_calibrated_v2
+
+is empirically superior to Phase 3H/v1 on the untouched chronological
+2025/26 test set across:
+
+- RMSE
+- Spearman rank correlation
+- Pearson correlation
+- mean model bias
+- £6–8m attacker calibration
+- £8–10m attacker calibration
+- premium attacker calibration
+
+The exact test population was:
+
+15,967 identical player-GW observations
+683 unique players
+38 gameweeks
+2025/26 untouched test set
+
+Phase 3K.1 also confirmed:
+
+- zero leakage
+- no calibration coefficients changed during verification
+- optimizer remained frozen
+- Model D / v2 is the validated production projection
+
+The next question is therefore:
+
+IS THE OPTIMIZER ACTUALLY USING expected_xp_calibrated_v2?
+
+==================================================
+1. TRACE THE COMPLETE DATA FLOW
+==================================================
+
+Trace the projection value from:
+
+expected_xp_calibrated_v2
+
+through every layer until it reaches the optimizer objective.
+
+Document the exact flow:
+
+calibration artifact
+        ↓
+projection engine
+        ↓
+player projection object
+        ↓
+API/service layer if applicable
+        ↓
+optimizer input
+        ↓
+MILP objective function
+
+Identify:
+
+- exact file
+- exact function
+- exact variable/field
+- exact transformation
+- exact optimizer objective coefficient
+
+Do not infer.
+
+Verify from the actual code.
+
+==================================================
+2. IDENTIFY THE EXACT OPTIMIZER OBJECTIVE
+==================================================
+
+Find the optimizer objective function.
+
+Report exactly what quantity is maximized.
+
+For example, determine whether it is:
+
+sum(expected_xp)
+
+or:
+
+sum(calibrated_xP)
+
+or:
+
+sum(raw_xP)
+
+or:
+
+some other transformed value.
+
+Show the relevant implementation and explain the data flow.
+
+DO NOT change it.
+
+==================================================
+3. PROVE WHICH xP VERSION IS USED
+==================================================
+
+For a fixed diagnostic player set, expose:
+
+Player
+Raw xP
+Phase 3H xP
+Phase 3K/v2 xP
+Value passed to optimizer
+
+Use at minimum:
+
+Haaland
+Bruno Fernandes
+Saka
+Palmer
+João Pedro
+Calvert-Lewin
+Marmoush
+O'Reilly
+Calafiori
+Gabriel
+Raya
+Foden
+
+The optimizer input must match:
+
+expected_xp_calibrated_v2
+
+exactly, subject only to documented numeric transformations.
+
+If it does not, STOP and report the exact mismatch.
+
+==================================================
+4. PRICE INTEGRITY
+==================================================
+
+Verify the optimizer consumes the canonical current FPL price.
+
+Trace:
+
+FPL API
+→ Player.now_cost
+→ optimizer budget value
+
+Confirm:
+
+80 = £8.0m
+155 = £15.5m
+etc.
+
+Verify no stale price field is being used.
+
+Verify:
+
+Total budget ≤ £100.0m
+
+and that the optimizer's internal integer representation is correct.
+
+==================================================
+5. SQUAD STRUCTURAL CONSTRAINTS
+==================================================
+
+Verify, without changing them, that the optimizer enforces:
+
+15 total players
+
+2 GKP
+5 DEF
+5 MID
+3 FWD
+
+Maximum 3 players from one Premier League club.
+
+Total cost ≤ £100.0m.
+
+Verify all positional constraints are based on the current canonical
+player position.
+
+Do not assume.
+
+Trace the implementation.
+
+==================================================
+6. FIXTURE INTEGRATION
+==================================================
+
+This is critical.
+
+Verify whether and how the optimizer incorporates:
+
+GW1 fixture
+home/away
+opponent
+fixture difficulty
+expected minutes
+availability
+
+Determine whether fixture information enters:
+
+A. the underlying projection before optimization
+
+B. the optimizer objective directly
+
+C. both
+
+D. neither
+
+We expect fixture effects to be reflected in calibrated_xP before the
+optimizer receives the value.
+
+The optimizer itself does NOT need to independently modify xP unless
+the architecture explicitly requires it.
+
+Do not add fixture adjustments.
+
+==================================================
+7. CURRENT CLUB / TRANSFER INTEGRITY
+==================================================
+
+Verify that the optimizer sees current 2026/27 club assignments.
+
+Explicitly check:
+
+Taiwo Awoniyi
+Reiss Nelson
+and all other transferred players.
+
+For each:
+
+current club
+current fixture
+position
+price
+expected minutes
+calibrated xP
+optimizer input value
+
+Ensure the optimizer cannot select a player using stale previous-club
+fixture data.
+
+==================================================
+8. AVAILABILITY / MINUTES
+==================================================
+
+Determine how the optimizer handles:
+
+injured players
+suspended players
+unavailable players
+very low expected minutes
+zero expected minutes
+
+Verify whether these players:
+
+- remain eligible
+- are excluded
+- receive appropriately low projection
+- are constrained separately
+
+Do NOT change the behaviour.
+
+Document the existing logic.
+
+==================================================
+9. CAPTAIN / VICE-CAPTAIN LOGIC
+==================================================
+
+Trace how captain and vice-captain are determined.
+
+Determine whether captaincy uses:
+
+raw xP
+v1 xP
+v2 xP
+another metric
+
+Verify that captaincy, if part of the optimizer, uses the same
+validated projection or an explicitly documented objective.
+
+Do not change captaincy logic.
+
+==================================================
+10. BENCH LOGIC
+==================================================
+
+Determine how the optimizer distinguishes:
+
+starting XI
+bench
+
+Verify whether bench selection is based on:
+
+xP
+minutes
+position
+formation
+or another criterion.
+
+Do not modify it.
+
+==================================================
+11. RUN CONTROLLED DIAGNOSTIC OPTIMIZATIONS
+==================================================
+
+Run three controlled optimizer experiments using identical:
+
+- player pool
+- prices
+- fixtures
+- constraints
+- budget
+- formation rules
+
+The ONLY variable should be the projection input.
+
+RUN A:
+Raw xP
+
+RUN B:
+Phase 3H/v1 xP
+
+RUN C:
+Phase 3K/v2 xP
+
+These are diagnostic experiments only.
+
+Do NOT present any as the final GW1 squad.
+
+==================================================
+12. COMPARE THE THREE OPTIMIZATIONS
+==================================================
+
+For each run report:
+
+selected 15 players
+total cost
+remaining bank
+objective value
+starting XI
+bench
+captain
+vice-captain
+
+Then produce a comparison:
+
+Player | Raw selected? | v1 selected? | v2 selected?
+
+Identify:
+
+players entering
+players leaving
+players unchanged
+
+Explain changes ONLY through differences in projection values and
+constraints.
+
+Do not use ownership or consensus to explain them.
+
+==================================================
+13. CRITICAL PLAYER TESTS
+==================================================
+
+Explicitly inspect whether v2's corrected projections affect:
+
+Haaland
+Bruno
+João Pedro
+Calvert-Lewin
+Saka
+Palmer
+Marmoush
+O'Reilly
+Calafiori
+Gabriel
+Raya
+
+The purpose is NOT to force these players into the squad.
+
+The purpose is to verify that optimizer behaviour changes consistently
+with their actual v2 projection changes.
+
+==================================================
+14. FIXTURE SENSITIVITY TEST
+==================================================
+
+Select several comparable players with different GW1 fixtures.
+
+Verify:
+
+fixture changes → projection changes → optimizer input changes
+
+Do NOT allow the optimizer to independently invent fixture adjustments.
+
+The test should demonstrate that the fixture-aware calibrated xP
+actually reaches the objective.
+
+==================================================
+15. OBJECTIVE VALUE RECONCILIATION
+==================================================
+
+For the v2 diagnostic optimization:
+
+Calculate manually:
+
+sum(v2_xP for selected players)
+
+and compare it against:
+
+optimizer objective value
+
+If captaincy is included in the objective, reproduce the exact
+captaincy calculation.
+
+If there is any discrepancy:
+
+STOP and explain it.
+
+Do not assume rounding explains it until verified.
+
+==================================================
+16. CONSTRAINT VALIDATION
+==================================================
+
+For every v2 diagnostic squad automatically verify:
+
+total players = 15
+GKP = 2
+DEF = 5
+MID = 5
+FWD = 3
+clubs ≤ 3 each
+total cost ≤ £100m
+
+Also verify:
+
+all selected players exist in current 2026/27 pool
+all selected prices are current
+all selected positions are current
+all selected clubs are current
+
+==================================================
+17. OPTIMIZER OBJECTIVE SANITY
+==================================================
+
+Determine whether the optimizer is actually maximizing the quantity
+we intend.
+
+The intended objective is:
+
+MAXIMIZE EXPECTED FPL POINTS
+
+subject to:
+
+budget
+squad structure
+club limits
+availability
+and any existing explicitly documented constraints.
+
+If the optimizer is maximizing something else, DO NOT change it.
+
+Report the discrepancy.
+
+==================================================
+18. CHECK FOR HIDDEN HEURISTICS
+==================================================
+
+Search the optimizer code for:
+
+- player-specific bonuses
+- player-specific penalties
+- ownership bonuses
+- consensus bonuses
+- arbitrary price bonuses
+- positional bonuses
+- hard-coded player exclusions
+- hard-coded player inclusions
+- manual Haaland/Bruno handling
+- fixture overrides
+- hidden ranking adjustments
+
+Do not remove anything in this phase.
+
+Report every discovered heuristic.
+
+This is important because the optimizer must be explainable.
+
+==================================================
+19. API / FRONTEND INTEGRATION
+==================================================
+
+Verify that the API exposes the v2 calibrated projection.
+
+Verify frontend optimizer results display:
+
+current player
+current club
+current price
+current fixture
+v2 calibrated xP
+
+If raw/v1/v2 are all available diagnostically, label them clearly.
+
+Do not allow the frontend to silently display raw xP while the optimizer
+uses v2.
+
+==================================================
+20. FULL-POOL CONSISTENCY
+==================================================
+
+For all active 2026/27 players verify:
+
+projection value exists
+price exists
+position exists
+club exists
+fixture exists
+optimizer input exists
+
+Report:
+
+total active players
+players with valid v2 xP
+players missing v2 xP
+players missing price
+players missing fixture
+players missing club
+players missing position
+
+Expected missing-v2 count:
+
+0
+
+If non-zero:
+
+STOP and report.
+
+==================================================
+21. FINAL SAFETY GATE
+==================================================
+
+Answer explicitly:
+
+1. Is the optimizer consuming expected_xp_calibrated_v2?
+
+2. Is the optimizer objective maximizing expected FPL points?
+
+3. Are current prices being used?
+
+4. Are current clubs being used?
+
+5. Are current fixtures represented?
+
+6. Are current positions being used?
+
+7. Are budget constraints correct?
+
+8. Are squad structure constraints correct?
+
+9. Is max-3-per-club enforced?
+
+10. Is captaincy using the intended projection?
+
+11. Is bench logic using the intended projection?
+
+12. Are there hidden player-specific heuristics?
+
+13. Does the optimizer objective reconcile with the selected players'
+    v2 xP?
+
+14. Does the v2 optimizer output differ from v1 in ways explained by
+    the new projections?
+
+15. Is the optimizer safe to use for the actual GW1 squad?
+
+==================================================
+22. FINAL VERDICT
+==================================================
+
+Return exactly one:
+
+SAFE TO PROCEED TO 3M
+
+or
+
+NOT SAFE — BLOCKED
+
+If blocked:
+
+list the exact technical blockers.
+
+Do NOT fix them in this phase.
+
+If safe:
+
+DO NOT make a final squad recommendation.
+
+STOP and await approval.
+
+==================================================
+23. DOCUMENTATION
+==================================================
+
+Create:
+
+docs/phases/PHASE_3L_OPTIMIZER_INTEGRATION_AUDIT.md
+
+Save this prompt:
+
+docs/prompts/PHASE_3L_OPTIMIZER_INTEGRATION_AUDIT.md
+
+Update:
+
+docs/PROJECT_STATE.md
+docs/ROADMAP.md
+
+Document:
+
+- exact projection data flow
+- optimizer objective
+- constraint verification
+- price verification
+- fixture integration
+- transfer integrity
+- raw vs v1 vs v2 comparison
+- hidden heuristics
+- final safety verdict
+
+Continue updating PROJECT_STATE.md in every future phase.
+
+==================================================
+STOP CONDITION
+==================================================
+
+THIS IS AN INTEGRATION AUDIT.
+
+DO NOT:
+
+- modify the optimizer
+- modify projections
+- modify calibration
+- modify constraints
+- add heuristics
+- use ownership
+- use consensus
+- generate a final GW1 squad
+- make manual player selections
+
+The sole objective is to prove:
+
+THE OPTIMIZER ACTUALLY CONSUMES THE VALIDATED
+expected_xp_calibrated_v2 PROJECTION AND OPTIMIZES AGAINST IT
+CORRECTLY.
+
+If and only if that is verified, we proceed to Phase 3M.

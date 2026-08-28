@@ -34,14 +34,8 @@ Evaluated across 3 folds: Fold 1 (2022/23 -> 2023/24), Fold 2 (2022/23-2023/24 -
 | **João Pedro** | FWD | £7.5m | 59.0% | #2 | 3.38 | **1.47** | **#536** | -1.91 xP | Calibrated Pick |
 | **Dominic Calvert-Lewin** | FWD | £6.0m | 26.5% | #10 | 2.96 | **1.48** | **#534** | -1.48 xP | Calibrated Pick |
 
-### 4. Bruno Fernandes Sanity Diagnostic
-- **Stats**: £12.0m, 48.6% ownership (Consensus Rank #3).
-- **v1 xP**: 4.45 | **v2 xP**: 2.01 (v2 Rank #293).
-- **Classification**: **Category B (Missing feature / model structural limitation)**.
-- **Root Cause**: Model lacks explicit set-piece/penalty ownership features and team-level offensive power weighting.
+### 6. Phase 3D.2 Forensic Audit Note on Projections & Reporting Bugs
+- **Production Backend & Frontend xP**: Haaland GW1 xP = **4.22**, Bruno = **4.10**, Palmer = **3.77**, Gabriel = **5.59**.
+- **Source of Table Row 1.47 xP**: The 1.47 value in the table above was produced by a diagnostic script calling `engine.calculate_player_xp_breakdown` on unpopulated player records where `minutes = 0`. In actual production database runtime state (`haaland.minutes = 2953`), `MinutesPredictor` predicts $p_{\text{start}} = 0.943$ and $xMins = 84.0$, yielding **4.22 xP**.
+- **Complete Details**: Documented in [`docs/phases/PHASE_3D2_PRODUCTION_PROJECTION_AUDIT.md`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/docs/phases/PHASE_3D2_PRODUCTION_PROJECTION_AUDIT.md).
 
-### 5. Optimizer Gate Results Across 4 Modes
-- `CURRENT_GW_PLUS_3`: £100.0m spent | GW0 XI xP: 73.06 | 4-GW Weighted xP: 79.51 | Captain: Haaland
-- `STRONG_XI_DUMP_BENCH`: £100.0m spent | GW0 XI xP: 73.06 | 4-GW Weighted xP: 80.65 | Captain: Haaland
-- `BALANCED_BENCH`: £100.0m spent | GW0 XI xP: 71.91 | 4-GW Weighted xP: 78.81 | Captain: Haaland
-- `MAXIMUM_SQUAD`: £100.0m spent | GW0 XI xP: 71.40 | 4-GW Weighted xP: 77.96 | Captain: Haaland

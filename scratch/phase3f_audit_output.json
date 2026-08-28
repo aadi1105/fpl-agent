@@ -1,0 +1,176 @@
+{
+  "artifact_table": [
+    {
+      "component": "Expected Minutes",
+      "path": "models/expected_minutes_v2.pkl",
+      "filename": "expected_minutes_v2.pkl",
+      "sha256": "73ca103093d46d95b27048915e32c5916b96dadd78a94254f9c3e0421ac33758",
+      "used_fallback": false
+    },
+    {
+      "component": "Expected Goals (xG)",
+      "path": "models/xg_v2.pkl",
+      "filename": "xg_v2.pkl",
+      "sha256": "1dc98d1f671a25b3649df792d96415fac5cf3d2e245f639013b366215b6cd0cd",
+      "used_fallback": false
+    },
+    {
+      "component": "Expected Assists (xA)",
+      "path": "models/xa_v2.pkl",
+      "filename": "xa_v2.pkl",
+      "sha256": "edde5f8dee0b01f0b7456f92218b60128d307b49bb1ae5a428be304fc72020c3",
+      "used_fallback": false
+    },
+    {
+      "component": "Clean Sheet (CS)",
+      "path": "backend/ml/models/cs_v1_lgbm.pkl",
+      "filename": "cs_v1_lgbm.pkl",
+      "sha256": "2e16a5bed1b2cdf399353ba61471230806423226829ee8a835e6e9ea3c4a1c82",
+      "used_fallback": false
+    },
+    {
+      "component": "DEFCON",
+      "path": "Analytical Poisson Model",
+      "filename": "defcon_predictor.py",
+      "sha256": "N/A",
+      "used_fallback": false
+    }
+  ],
+  "mins_audit_table": [
+    {
+      "player_name": "O'Reilly",
+      "position": "DEF",
+      "p_start": 0.932,
+      "p_60_plus": 0.935,
+      "p_zero": 0.045,
+      "expected_minutes": 82.9,
+      "recent_starts_5": 5.0,
+      "recent_mins_5": 450.0,
+      "total_db_minutes": 2643.0,
+      "used_fallback": false,
+      "model_version": "expected_minutes_v1"
+    },
+    {
+      "player_name": "Calafiori",
+      "position": "DEF",
+      "p_start": 0.932,
+      "p_60_plus": 0.935,
+      "p_zero": 0.045,
+      "expected_minutes": 82.9,
+      "recent_starts_5": 5.0,
+      "recent_mins_5": 450.0,
+      "total_db_minutes": 1697.0,
+      "used_fallback": false,
+      "model_version": "expected_minutes_v1"
+    },
+    {
+      "player_name": "De Cuyper",
+      "position": "DEF",
+      "p_start": 0.932,
+      "p_60_plus": 0.935,
+      "p_zero": 0.046,
+      "expected_minutes": 82.9,
+      "recent_starts_5": 5.0,
+      "recent_mins_5": 450.0,
+      "total_db_minutes": 1404.0,
+      "used_fallback": false,
+      "model_version": "expected_minutes_v1"
+    },
+    {
+      "player_name": "Raya",
+      "position": "GKP",
+      "p_start": 0.932,
+      "p_60_plus": 0.935,
+      "p_zero": 0.045,
+      "expected_minutes": 82.9,
+      "recent_starts_5": 5.0,
+      "recent_mins_5": 450.0,
+      "total_db_minutes": 3330.0,
+      "used_fallback": false,
+      "model_version": "expected_minutes_v1"
+    },
+    {
+      "player_name": "Gabriel",
+      "position": "DEF",
+      "p_start": 0.932,
+      "p_60_plus": 0.919,
+      "p_zero": 0.044,
+      "expected_minutes": 81.8,
+      "recent_starts_5": 5.0,
+      "recent_mins_5": 450.0,
+      "total_db_minutes": 2750.0,
+      "used_fallback": false,
+      "model_version": "expected_minutes_v1"
+    },
+    {
+      "player_name": "Haaland",
+      "position": "FWD",
+      "p_start": 0.932,
+      "p_60_plus": 0.921,
+      "p_zero": 0.044,
+      "expected_minutes": 81.8,
+      "recent_starts_5": 5.0,
+      "recent_mins_5": 450.0,
+      "total_db_minutes": 2953.0,
+      "used_fallback": false,
+      "model_version": "expected_minutes_v1"
+    },
+    {
+      "player_name": "B.Fernandes",
+      "position": "MID",
+      "p_start": 0.932,
+      "p_60_plus": 0.921,
+      "p_zero": 0.044,
+      "expected_minutes": 81.8,
+      "recent_starts_5": 5.0,
+      "recent_mins_5": 450.0,
+      "total_db_minutes": 3065.0,
+      "used_fallback": false,
+      "model_version": "expected_minutes_v1"
+    }
+  ],
+  "arithmetic_results": [
+    {
+      "player": "Haaland",
+      "unrounded_sum": 4.22,
+      "final_xp": 4.22,
+      "discrepancy": 0.0,
+      "is_exact": true
+    },
+    {
+      "player": "O'Reilly",
+      "unrounded_sum": 5.31,
+      "final_xp": 5.3,
+      "discrepancy": 0.01,
+      "is_exact": true
+    },
+    {
+      "player": "Calafiori",
+      "unrounded_sum": 5.88,
+      "final_xp": 5.88,
+      "discrepancy": 0.0,
+      "is_exact": true
+    },
+    {
+      "player": "B.Fernandes",
+      "unrounded_sum": 4.11,
+      "final_xp": 4.1,
+      "discrepancy": 0.01,
+      "is_exact": false
+    },
+    {
+      "player": "Saka",
+      "unrounded_sum": 4.52,
+      "final_xp": 4.51,
+      "discrepancy": 0.01,
+      "is_exact": true
+    },
+    {
+      "player": "Gabriel",
+      "unrounded_sum": 5.59,
+      "final_xp": 5.59,
+      "discrepancy": 0.0,
+      "is_exact": true
+    }
+  ]
+}

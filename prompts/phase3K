@@ -1,0 +1,799 @@
+PHASE 3K — PIECEWISE PRICE-TIER & ROLE-AWARE ATTACKING CALIBRATION
+
+OBJECTIVE:
+Fix the empirically demonstrated underprediction of established
+mid-price and sub-premium attackers while preserving the successful
+Phase 3H premium-attacker calibration.
+
+IMPORTANT:
+This is an IMPLEMENTATION + BACKTEST phase.
+
+The new calibration must earn deployment through chronological
+out-of-sample validation.
+
+DO NOT manually boost individual players.
+
+DO NOT use ownership or FPL consensus as a target.
+
+DO NOT hard-code João Pedro, Calvert-Lewin, Haaland, Bruno, Saka,
+Marmoush or any other player's projection.
+
+DO NOT modify the optimizer until the new calibration passes all
+deployment gates.
+
+==================================================
+BACKGROUND — PHASE 3J FINDINGS
+==================================================
+
+Phase 3J audited 36,494 historical attacking observations across
+2022/23–2025/26.
+
+Phase 3H successfully corrected the extreme cross-position distortion,
+but Phase 3J identified a second calibration problem.
+
+Phase 3H applied the following xG/xA calibration only to £10m+ players:
+
+prem_xg_ratio = 1.882x
+prem_xa_ratio = 3.020x
+
+Players below £10m instead received:
+
+non_prem_xg_ratio = 0.984x
+non_prem_xa_ratio = 1.446x
+
+This creates an artificial binary threshold.
+
+Historical Phase 3J results:
+
+£12m+:
+Predicted calibrated xP = 5.40
+Actual FPL points = 5.74
+Bias = +0.34
+
+£10m–£12m:
+Predicted calibrated xP = 3.67
+Actual = 4.29
+Bias = +0.62
+
+£8m–£10m:
+Predicted calibrated xP = 2.39
+Actual = 3.62
+Bias = +1.23
+
+£6m–£8m:
+Predicted calibrated xP = 1.93
+Actual = 2.81
+Bias = +0.88
+
+Therefore:
+
+£10m+ calibration is broadly successful.
+
+£8m–£10m attackers remain systematically underpredicted.
+
+£6m–£8m attackers remain systematically underpredicted.
+
+==================================================
+ROLE FINDING
+==================================================
+
+Phase 3J also established that FPL position alone is insufficient.
+
+Historical attacking archetypes:
+
+Elite Striker:
+9.18 pts/90
+
+Inside Forward / Goalscoring Winger:
+8.53 pts/90
+
+Creative Winger / Playmaker:
+7.50 pts/90
+
+Central / Box-to-Box Midfielder:
+7.60 pts/90
+
+The current MID/FWD distinction hides meaningful attacking-role
+differences.
+
+Phase 3J therefore recommended:
+
+1. Piecewise price-tier calibration
+2. Role-aware calibration
+3. Retaining underlying football data rather than raw historical
+   FPL points
+
+==================================================
+1. PRESERVE PHASE 3H
+==================================================
+
+Do NOT delete or overwrite:
+
+expected_xp_calibrated_v1
+
+Keep it available as the baseline.
+
+Create a new candidate:
+
+expected_xp_calibrated_v2
+
+or equivalent versioned artifact.
+
+The production system must retain the ability to compare:
+
+RAW
+PHASE 3H
+PHASE 3K CANDIDATE
+
+==================================================
+2. DO NOT BLINDLY COPY THE 1.882x / 3.020x MULTIPLIERS
+==================================================
+
+Do NOT simply apply:
+
+£6–8m → 1.882x xG
+£8–10m → 1.882x xG
+
+or equivalent fixed multipliers.
+
+The Phase 3J evidence tells us that the current binary threshold is
+wrong.
+
+It does NOT prove that the £10m+ multiplier is the correct multiplier
+for every cheaper attacker.
+
+Instead, LEARN the calibration from historical data.
+
+==================================================
+3. BUILD PIECEWISE PRICE-TIER CALIBRATION
+==================================================
+
+Candidate attacking price tiers:
+
+Tier A:
+£4.5–£6.0m
+
+Tier B:
+£6.0–£8.0m
+
+Tier C:
+£8.0–£10.0m
+
+Tier D:
+£10.0–£12.0m
+
+Tier E:
+£12m+
+
+For each tier, estimate historical calibration for:
+
+xG
+xA
+
+Use only information available before the historical GW deadline.
+
+The calibration must be learned from historical observations.
+
+Do not assume the resulting ratios in advance.
+
+==================================================
+4. SAMPLE-SIZE SAFETY
+==================================================
+
+Do NOT allow a small price tier to produce unstable calibration.
+
+For every learned tier report:
+
+sample size
+raw xG
+actual goals
+raw xA
+actual assists
+learned xG calibration
+learned xA calibration
+confidence/uncertainty
+
+If a tier has insufficient data, shrink its calibration toward a
+broader parent tier.
+
+For example:
+
+£8–10m
+can shrink toward
+£6–12m attacker calibration
+
+rather than producing an unstable independent coefficient.
+
+The exact implementation should be data-driven.
+
+==================================================
+5. ROLE-AWARE CALIBRATION
+==================================================
+
+Where historical data supports it, introduce role proxies.
+
+Candidate role categories:
+
+1. Elite Striker
+2. Standard Striker
+3. Inside Forward / Goalscoring Winger
+4. Creative Winger / Playmaker
+5. Central / Box-to-Box Midfielder
+6. Defensive/Holding Midfielder
+
+IMPORTANT:
+
+Do NOT invent role labels from player reputation.
+
+Use available historical data to construct reproducible role proxies.
+
+Possible inputs include:
+
+xG/90
+xA/90
+shots
+shots in box
+touches in box
+key passes
+assists/xA
+historical position
+formation/role data if available
+penalty involvement
+set-piece involvement
+attacking involvement
+
+Document exactly which features are used.
+
+==================================================
+6. ROLE CLASSIFICATION MUST BE LEAK-FREE
+==================================================
+
+Role classification for a historical GW must use only information
+available before that GW.
+
+Do NOT classify a player using:
+
+future-season role
+future transfer
+future FPL points
+future goals
+future xG
+future assists
+
+If rolling features are used, construct them chronologically.
+
+==================================================
+7. COMBINE PRICE + ROLE
+==================================================
+
+Test whether calibration should depend on both:
+
+price tier
+AND
+attacking role.
+
+Candidate structure:
+
+raw xG
+   ↓
+price-tier calibration
+   +
+role calibration
+   ↓
+calibrated xG
+
+and:
+
+raw xA
+   ↓
+price-tier calibration
+   +
+role calibration
+   ↓
+calibrated xA
+
+Do not assume additive or multiplicative structure.
+
+Test simple alternatives.
+
+==================================================
+8. MODEL CANDIDATES
+==================================================
+
+At minimum evaluate:
+
+MODEL A:
+Phase 3H calibration unchanged.
+
+MODEL B:
+Piecewise price-tier calibration only.
+
+MODEL C:
+Role-aware calibration only.
+
+MODEL D:
+Piecewise price-tier + role-aware calibration.
+
+Prefer simple interpretable models.
+
+Possible techniques:
+
+- isotonic regression
+- monotonic regression
+- hierarchical shrinkage
+- regularized linear calibration
+- piecewise calibration
+
+Do NOT immediately use a large black-box model.
+
+The goal is calibration, not another feature-heavy prediction model.
+
+==================================================
+9. HISTORICAL FPL POINTS MUST REMAIN EXCLUDED
+==================================================
+
+Phase 3J tested adding rolling historical FPL points.
+
+It degraded out-of-sample MAE:
+
+1.6962 → 1.8664
+
+Therefore:
+
+DO NOT add raw historical FPL points to the production calibration
+candidate.
+
+The production candidate should remain based on:
+
+underlying football data
++
+minutes
++
+price tier
++
+role information
++
+existing calibrated components
+
+Historical FPL points may only be used as the target/ground truth.
+
+==================================================
+10. CHRONOLOGICAL VALIDATION
+==================================================
+
+Use strict time-based validation.
+
+Do NOT randomly split player-GW observations.
+
+Use something equivalent to:
+
+TRAIN:
+2022/23 + 2023/24
+
+VALIDATE:
+2024/25
+
+TEST:
+2025/26
+
+The final test period must remain untouched until candidate selection.
+
+If another chronological split is technically more appropriate,
+document it before using it.
+
+==================================================
+11. PRIMARY METRICS
+==================================================
+
+For xG:
+
+MAE
+RMSE
+bias
+calibration by predicted bucket
+
+For xA:
+
+MAE
+RMSE
+bias
+calibration by predicted bucket
+
+For final xP:
+
+MAE
+RMSE
+Pearson correlation
+Spearman correlation
+mean bias
+
+Evaluate separately for:
+
+GKP
+DEF
+MID
+FWD
+
+and specifically:
+
+£4.5–£6
+£6–£8
+£8–£10
+£10–£12
+£12+
+
+==================================================
+12. CRITICAL 3J REGRESSION TEST
+==================================================
+
+Repeat the exact Phase 3J price-tier analysis.
+
+Expected historical baseline:
+
+£6–8m:
+Bias +0.88
+
+£8–10m:
+Bias +1.23
+
+The new system should materially reduce these biases.
+
+DO NOT redefine the cohorts to make the result look better.
+
+Use the same definitions.
+
+==================================================
+13. JOÃO PEDRO TEST
+==================================================
+
+Evaluate João Pedro specifically.
+
+Historical Phase 3J cohort:
+
+£7–8m attackers
+xG/90 0.18–0.28
+
+Actual:
+3.60 pts/match
+
+Current Phase 3H projection:
+3.19 xP
+
+Historical cohort underprediction:
++0.98 pts/match
+
+After applying candidate v2, report:
+
+raw xG
+v1 calibrated xG
+v2 calibrated xG
+
+raw xA
+v1 calibrated xA
+v2 calibrated xA
+
+raw xP
+v1 xP
+v2 xP
+
+Do NOT target a desired final number.
+
+The candidate must determine the result.
+
+==================================================
+14. CALVERT-LEWIN TEST
+==================================================
+
+Evaluate DCL separately.
+
+Do NOT blindly apply the João Pedro adjustment.
+
+Account for:
+
+current club
+recent form
+historical club
+expected minutes
+role
+xG/90
+xA/90
+sample size
+
+Compare:
+
+Phase 3H
+Phase 3K candidate
+
+Determine whether the new calibration improves his historical cohort
+without artificially inflating him.
+
+==================================================
+15. MARMoush / LOW-SAMPLE TEST
+==================================================
+
+Evaluate:
+
+Marmoush
+Osula
+Awoniyi
+
+Ensure the new price/role calibration does NOT recreate the previous
+low-sample problem.
+
+Particularly check:
+
+high xG/90
+low minutes
+high expected minutes
+small sample
+
+The new calibration must NOT turn small-sample efficiency into
+automatic high xP.
+
+==================================================
+16. PREMIUM REGRESSION TEST
+==================================================
+
+Verify that Phase 3H's successful premium calibration is preserved.
+
+Evaluate:
+
+Haaland
+Bruno
+Saka
+Palmer
+
+and the historical £10m+ cohorts.
+
+The new model must NOT materially degrade the £10m+ calibration merely
+to improve cheaper attackers.
+
+==================================================
+17. CURRENT 2026/27 GW1 OUTPUT
+==================================================
+
+After candidate training, generate a diagnostic table:
+
+Player
+Position
+Price
+Club
+Fixture
+Expected minutes
+
+Raw xG
+Phase 3H xG
+Phase 3K xG
+
+Raw xA
+Phase 3H xA
+Phase 3K xA
+
+Raw xP
+Phase 3H xP
+Phase 3K xP
+
+Include:
+
+Haaland
+Bruno
+Saka
+Palmer
+João Pedro
+Calvert-Lewin
+Marmoush
+Osula
+Awoniyi
+Cherki
+Foden
+Dango
+Savinho
+Semenyo
+Gibbs-White
+
+Also produce the complete MID + FWD ranking.
+
+DO NOT use ownership to rank it.
+
+==================================================
+18. CHECK FOR NEW PATHOLOGIES
+==================================================
+
+After applying v2, search for:
+
+- cheap attackers suddenly dominating
+- every £6–8m attacker receiving the same uplift
+- every winger receiving the same uplift
+- low-sample players receiving excessive uplift
+- role classification instability
+- extreme xG/xA multipliers
+- discontinuities at £6m, £8m, £10m
+- discontinuities between MID and FWD
+- unrealistic top-end projections
+
+Flag all such cases.
+
+==================================================
+19. DEPLOYMENT GATE
+==================================================
+
+Candidate v2 may replace v1 ONLY if it satisfies ALL of:
+
+1. Lower or equal overall xP MAE.
+
+2. Lower or equal overall xP RMSE.
+
+3. Improved £6–8m attacker bias.
+
+4. Improved £8–10m attacker bias.
+
+5. No material degradation in £10m+ calibration.
+
+6. No material degradation for GKP/DEF.
+
+7. Improved or equal xG calibration.
+
+8. Improved or equal xA calibration.
+
+9. No low-sample regression.
+
+10. No data leakage.
+
+11. No unstable coefficients.
+
+12. No extreme calibration discontinuities.
+
+If these conditions are not satisfied:
+
+DO NOT DEPLOY v2.
+
+Keep Phase 3H as production.
+
+==================================================
+20. MODEL SELECTION
+==================================================
+
+At the end explicitly compare:
+
+Phase 3H
+Piecewise-only
+Role-only
+Piecewise + role
+
+in a table:
+
+Model
+xG MAE
+xA MAE
+xP MAE
+xP RMSE
+Spearman
+£6–8 bias
+£8–10 bias
+£10+ bias
+Low-sample MAE
+
+Select the best candidate based on OUT-OF-SAMPLE evidence.
+
+Do not select based on current GW1 rankings.
+
+==================================================
+21. PRODUCTION INTEGRATION
+==================================================
+
+ONLY if the deployment gate passes:
+
+Create:
+
+expected_xp_calibrated_v2
+
+Version all new calibration artifacts.
+
+Record:
+
+training period
+validation period
+test period
+features
+role definitions
+price tiers
+coefficients/calibrators
+metrics
+artifact paths
+SHA256
+
+Update the projection pipeline to use v2.
+
+Maintain:
+
+raw_xP
+v1_xP
+v2_xP
+
+for diagnostics.
+
+==================================================
+22. FRONTEND
+==================================================
+
+If v2 is deployed, update the frontend diagnostic view to show:
+
+Raw xP
+Phase 3H xP
+Phase 3K xP
+
+and:
+
+Calibration adjustment
+
+Do NOT hide previous values.
+
+This allows us to inspect whether João Pedro, DCL and other mid-price
+attackers move for defensible reasons.
+
+==================================================
+23. OPTIMIZER
+==================================================
+
+DO NOT run the optimizer during this phase.
+
+Even if v2 passes.
+
+We will inspect the new full-pool rankings first.
+
+The optimizer remains frozen until we explicitly approve it.
+
+==================================================
+24. DOCUMENTATION
+==================================================
+
+Create:
+
+docs/phases/PHASE_3K_PIECEWISE_ROLE_AWARE_CALIBRATION.md
+
+Save this prompt:
+
+docs/prompts/PHASE_3K_PIECEWISE_ROLE_AWARE_CALIBRATION.md
+
+Update:
+
+docs/PROJECT_STATE.md
+docs/ROADMAP.md
+docs/DATA_PIPELINE.md
+
+Document:
+
+- Phase 3J findings
+- why v2 was required
+- candidate architectures
+- role definitions
+- price tiers
+- chronological validation
+- metrics
+- deployment decision
+- known limitations
+
+Continue updating PROJECT_STATE.md in every future phase.
+
+==================================================
+STOP CONDITION
+==================================================
+
+STOP after candidate evaluation and deployment decision.
+
+DO NOT run the optimizer.
+
+DO NOT generate a final FPL squad.
+
+DO NOT use ownership to select a winner.
+
+DO NOT manually alter any player.
+
+The goal is:
+
+FIX THE MID-PRICE ATTACKER COMPRESSION USING EMPIRICALLY VALIDATED
+PRICE-TIER + ROLE-AWARE CALIBRATION, WHILE PRESERVING THE SUCCESSFUL
+PHASE 3H PREMIUM CALIBRATION AND LOW-SAMPLE SAFEGUARDS.
+
+Only deploy v2 if the chronological out-of-sample evidence proves it
+is better.

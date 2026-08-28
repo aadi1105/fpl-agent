@@ -26,42 +26,51 @@
 | **Phase 3C.8** | Low-Sample Minutes & Per-90 Shrinkage Implementation | **COMPLETED (VALIDATED)** | August 2026 |
 | **Phase 3D** | Production Model Validation, Retraining & Deployment | **COMPLETED (DEPLOYED)** | August 2026 |
 | **Phase 3D.1** | Post-Deployment Player Price Integrity Audit & Fix | **COMPLETED (AUDITED)** | August 2026 |
-| **Phase 5** | Model Ensemble & Uncertainty Quantification | 🔴 **PLANNED** | Future |
-| **Phase 6** | News, RAG & Manager Presser Agent | 🔴 **PLANNED** | Future |
-| **Phase 7** | Mini-League Game Theory & Ownership Optimization | 🔴 **PLANNED** | Future |
+| **Phase 3D.2** | Production Projection & Fixture Pipeline Forensic Audit | **COMPLETED (AUDITED)** | August 2026 |
+| **Phase 3D (Reality Check)**| Prediction Reality Check (Out-of-Sample Ground-Truth Evaluation)| **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3E** | 2026/27 Current-State Player, Transfer & Fixture Audit | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3F** | GW1 Prediction Decision & Forensic Component Audit | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3G** | Cross-Position xP Calibration & Value Audit | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3H** | Prediction Calibration Layer (`expected_xp_calibrated_v1`) | **COMPLETED (DEPLOYED)** | August 2026 |
+| **Phase 3I** | Full-Pool Calibrated Projection Sanity Audit | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3J** | Attacking Role, Price-Tier & FPL Scoring Hierarchy Audit | **COMPLETED (AUDITED)** | August 2026 |
+| **Phase 3K** | Piecewise & Role-Aware Calibration (`expected_xp_calibrated_v2`) | **COMPLETED (DEPLOYED)** | August 2026 |
+| **Phase 3K.1** | Metric Reproduction & Deployment-Gate Verification | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3L** | Optimizer Integration & Projection Consumption Audit | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3M** | Dynamic Gameweek State & Current Player Data Refresh | **COMPLETED (DEPLOYED)** | August 2026 |
+| **Phase 3M.1** | Gameweek Transition, Weekly Refresh & Optimizer UX Foundation | **COMPLETED (DEPLOYED)** | August 2026 |
+| **Phase 3N.1** | Decision Engine Reality Audit & Current-State Validation | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.2** | GW2 Reality, Player-Role & User-Decision Audit | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.2A**| My Team Functionality + Frontend UX Repair | **COMPLETED (DEPLOYED)** | August 2026 |
+| **Phase 3N.2B**| Live Frontend Verification + Optimizer Performance Repair | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.3** | Optimization Mode Integrity & Practical Team Comparison | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.4** | Gameweek Index / Projection Consistency + Optimal XI Audit + Player Visuals | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.5** | Calibration Audit + My Team Persistence Fix | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.6** | My Team Loading UX + SQLite Concurrency / Optimizer Failure | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.7** | My Team Financial State + Legal Transfer Audit | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.8** | My Team Persistence / Reload / Default-Squad Root-Cause Audit | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.9** | My Team V2: Dedicated FPL-Style Team Page + Position Picker | **COMPLETED (DEPLOYED)** | August 2026 |
+| **Phase 3N.10**| My Team Player Interaction + Substitution Flow | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.10B**| Player Insight Modal Close Fix & Live Verification | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.10C**| Optimizer & My Team State Isolation | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.11**| Optimization Mode Integrity + Decision Engine Audit | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.12**| Expected-Minutes Competition + Live Data Freshness Audit | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.13**| Long-Horizon Integrity + Diagnostics Rendering Audit | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.14**| Expected-Points Model Audit + Full UI/UX Redesign | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.15**| Production Regression Debug + Real Browser Acceptance | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.16**| My Team Command Center: Squad Management Entry Point | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.17**| My Team Squad Persistence + Rendering Failure | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.18**| My Team Substitution Flow + State Reliability Fix | **COMPLETED (VERIFIED)** | August 2026 |
 
 ---
 
 ## 📑 Completed Phases Detail
 
-### Phase 3B: Expected Assists ($xA$) Machine Learning Model
-* Constructed leak-free per-fixture historical xA dataset (`data/ml/historical_xa_dataset.csv`) across 113,592 records (2022-2026).
-* Conducted xG Feature Ablation test: Retained pre-deadline `xg_v1_lgbm_pred` as a feature (+0.27% deviance gain).
-* Evaluated LightGBM Poisson, Tweedie, and L2 Regression on 2024/25 Validation Set.
-* Selected Poisson LightGBM (`xa_v1_lgbm`) and evaluated on untouched 2025/26 Test Set:
-  - **Poisson Deviance**: Baseline `0.1889` $\to$ ML **`0.1737`** (+8.05% improvement).
-  - **Rank Correlation (Spearman $\rho$)**: Baseline `0.1720` $\to$ ML **`0.2017`** (+17.27% improvement).
-  - **Linear Correlation (Pearson $r$)**: Baseline `0.2410` $\to$ ML **`0.2172`**.
-* Built production inference wrapper [`backend/ml/xa_predictor.py`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/backend/ml/xa_predictor.py) with automatic fallback to `xa_baseline_v1`.
-* Integrated into [`backend/projections/engine.py`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/backend/projections/engine.py) and exposed diagnostic fields (`xa_baseline`, `xa_ml`, `xa_model_version`, `used_xa_fallback`).
-* Complete details in [`docs/phases/PHASE_3B_EXPECTED_ASSISTS.md`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/docs/phases/PHASE_3B_EXPECTED_ASSISTS.md).
-* Full pytest test suite passing (43/43 tests).
-
-### Phase 3A: Expected Goals ($xG$) Machine Learning Model
-* Constructed leak-free per-fixture historical xG dataset (`data/ml/historical_xg_dataset.csv`) across 113,592 records (2022-2026).
-* Evaluated LightGBM Poisson, Tweedie, and L2 Regression on 2024/25 Validation Set.
-* Selected Poisson LightGBM (`xg_v1_lgbm`) and evaluated on untouched 2025/26 Test Set:
-  - **Poisson Deviance**: Baseline `0.1805` $\to$ ML **`0.1622`** (+10.15% improvement).
-  - **MAE**: Baseline `0.0692` goals $\to$ ML **`0.0619`** goals (+10.55% improvement).
-  - **RMSE**: Baseline `0.1904` $\to$ ML **`0.1880`** (+1.24% improvement).
-* Built production inference wrapper [`backend/ml/xg_predictor.py`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/backend/ml/xg_predictor.py) with automatic fallback to `xg_baseline_v1`.
-* Integrated into [`backend/projections/engine.py`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/backend/projections/engine.py) and exposed diagnostic fields (`xg_baseline`, `xg_ml`, `xg_model_version`, `used_xg_fallback`).
-* Complete details in [`docs/phases/PHASE_3A_EXPECTED_GOALS.md`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/docs/phases/PHASE_3A_EXPECTED_GOALS.md).
-* Full pytest test suite passing (39/39 tests).
-
-### Phase 2C: Expected Minutes Validation & Production Integration
-* Verified 0% temporal leakage on 2025/26 test set.
-* Built production inference wrapper [`backend/ml/minutes_predictor.py`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/backend/ml/minutes_predictor.py) with automatic fallback to deterministic baseline (`expected_minutes_baseline_v1`).
-* Integrated `expected_minutes_v1` into [`backend/projections/engine.py`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/backend/projections/engine.py) without double-counting.
-* Updated API diagnostics endpoint to output `expected_minutes_baseline`, `expected_minutes_ml`, `model_version`, `p_start`, `p_60_plus`, `p_zero`, `used_fallback`.
-* Full test suite passing (35/35 tests).
+### Phase 3N.18 — My Team Substitution Flow + State Reliability Fix
+* Resolved second-interaction modal dead click bug by clearing inline display/visibility styles prior to `.open` activation.
+* Deployed FPL-style clean substitution selection UX (`[↔️ SUBSTITUTE]` -> candidate cards grid with `[← BACK]` and `[CANCEL]`).
+* Enforced formation validation with locked status cards and concise feedback.
+* Implemented captain auto-transfer when benching a captain.
+* Added test suite [`tests/test_phase3n18_substitution_ux_and_state.py`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/tests/test_phase3n18_substitution_ux_and_state.py) (98/98 total tests passing).
+* Zero changes made to ML models or optimizer code.
+* Full details in [`docs/phases/PHASE_3N18_MY_TEAM_SUBSTITUTION_FLOW_AND_STATE_RELIABILITY_FIX.md`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/docs/phases/PHASE_3N18_MY_TEAM_SUBSTITUTION_FLOW_AND_STATE_RELIABILITY_FIX.md).

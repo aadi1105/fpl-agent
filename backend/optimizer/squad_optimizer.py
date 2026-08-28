@@ -32,22 +32,31 @@ class SquadOptimizer:
         banned_player_ids = banned_player_ids or []
         locked_player_ids = locked_player_ids or []
 
-        # Determine 4-GW horizon: [GW0, GW1, GW2, GW3]
-        horizon_gws = [current_gw + k for k in range(4) if (current_gw + k) <= 38]
+        # Determine horizon GWs and weights based on optimization mode
+        if mode in ["NEXT_GW", "CURRENT_GW_ONLY", "MODE_1"]:
+            horizon_gws = [current_gw]
+            gw_weights = [1.0]
+        elif mode in ["SHORT_TERM", "MODE_2"]:
+            horizon_gws = [current_gw + k for k in range(2) if (current_gw + k) <= 38]
+            gw_weights = [0.65, 0.35][:len(horizon_gws)]
+        elif mode in ["LONG_TERM", "MODE_4"]:
+            horizon_gws = [current_gw + k for k in range(7) if (current_gw + k) <= 38]
+            gw_weights = [0.30, 0.20, 0.15, 0.12, 0.10, 0.08, 0.05][:len(horizon_gws)]
+        elif mode in ["STRONG_XI_DUMP_BENCH"]:
+            horizon_gws = [current_gw + k for k in range(4) if (current_gw + k) <= 38]
+            gw_weights = [0.70, 0.15, 0.10, 0.05][:len(horizon_gws)]
+        elif mode in ["BALANCED_BENCH"]:
+            horizon_gws = [current_gw + k for k in range(4) if (current_gw + k) <= 38]
+            gw_weights = [0.45, 0.25, 0.15, 0.15][:len(horizon_gws)]
+        elif mode in ["MEDIUM_TERM", "CURRENT_GW_PLUS_3", "MODE_3"]:
+            horizon_gws = [current_gw + k for k in range(4) if (current_gw + k) <= 38]
+            gw_weights = [0.55, 0.20, 0.15, 0.10][:len(horizon_gws)]
+        else:
+            horizon_gws = [current_gw + k for k in range(4) if (current_gw + k) <= 38]
+            gw_weights = [0.55, 0.20, 0.15, 0.10][:len(horizon_gws)]
+
         if not horizon_gws:
             horizon_gws = [current_gw]
-
-        # Determine horizon weights based on mode
-        if mode == "MAXIMUM_SQUAD":
-            gw_weights = [0.25, 0.25, 0.25, 0.25][:len(horizon_gws)]
-        elif mode == "STRONG_XI_DUMP_BENCH":
-            gw_weights = [0.70, 0.15, 0.10, 0.05][:len(horizon_gws)]
-        elif mode == "BALANCED_BENCH":
-            gw_weights = [0.45, 0.25, 0.15, 0.15][:len(horizon_gws)]
-        elif weights and len(weights) == len(horizon_gws):
-            gw_weights = weights
-        else: # CURRENT_GW_PLUS_3
-            gw_weights = settings.DEFAULT_HORIZON_WEIGHTS[:len(horizon_gws)]
 
         # Normalize weights to sum to 1.0
         w_sum = sum(gw_weights)
@@ -96,6 +105,16 @@ class SquadOptimizer:
             raise RuntimeError("OR-Tools solver CBC/SCIP not available.")
 
         x = {p.id: solver1.BoolVar(f"x_{p.id}") for p in players}
+
+        from backend.ingestion.current_state import CurrentGameStateManager
+        state_mgr = CurrentGameStateManager(self.db)
+        
+        # Enforce current availability & eligibility constraints
+        for p in players:
+            elig_info = state_mgr.evaluate_player_eligibility(p)
+            if not elig_info["is_optimizer_eligible"]:
+                if p.id in x and p.id not in locked_player_ids:
+                    solver1.Add(x[p.id] == 0)
 
         for pid in banned_player_ids:
             if pid in x: solver1.Add(x[pid] == 0)

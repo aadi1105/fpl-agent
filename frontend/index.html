@@ -3,658 +3,1223 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FPL 2026/27 Decision Engine — Optimization & ML Roadmap v2</title>
-    <meta name="description" content="Quantitative FPL Decision Support System combining deterministic baseline projections, Poisson DEFCON rules, and multi-mode MILP optimization.">
+    <title>FPL 2026/27 Decision Engine — Broadcast Command Center</title>
+    <meta name="description" content="Quantitative FPL Decision Support System combining deterministic projections, Poisson DEFCON models, and multi-horizon MILP optimization.">
+    
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    
     <style>
         :root {
-            --bg-dark: #0b0f19;
-            --bg-card: rgba(18, 26, 43, 0.75);
-            --bg-card-border: rgba(255, 255, 255, 0.08);
+            --bg-dark: #0b0e14;
+            --bg-surface: #121824;
+            --bg-card: rgba(18, 24, 36, 0.85);
+            --bg-card-hover: rgba(26, 35, 52, 0.95);
+            --bg-border: rgba(255, 255, 255, 0.08);
+            --bg-border-bright: rgba(0, 255, 135, 0.3);
+            
             --accent-green: #00ff87;
-            --accent-purple: #38003c;
-            --accent-cyan: #04f5ff;
+            --accent-cyan: #00d2ff;
             --accent-pink: #e90052;
+            --accent-purple: #7000ff;
             --accent-warning: #f59e0b;
-            --text-primary: #f3f4f6;
-            --text-secondary: #9ca3af;
-            --text-muted: #6b7280;
-            --pitch-bg: radial-gradient(circle at center, #1b4332 0%, #081c15 100%);
-            --pitch-line: rgba(255, 255, 255, 0.25);
+            
+            --pos-gkp: #f59e0b;
+            --pos-def: #3b82f6;
+            --pos-mid: #10b981;
+            --pos-fwd: #ef4444;
+            
+            --text-primary: #ffffff;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            
+            --pitch-gradient: radial-gradient(circle at center, #132a1f 0%, #08140e 100%);
+            --pitch-line: rgba(255, 255, 255, 0.18);
+            --font-display: 'Outfit', sans-serif;
+            --font-body: 'Inter', sans-serif;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-body);
             background-color: var(--bg-dark);
             color: var(--text-primary);
             min-height: 100vh;
             background-image: 
-                radial-gradient(at 0% 0%, rgba(56, 0, 60, 0.4) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(4, 245, 255, 0.15) 0px, transparent 50%);
+                radial-gradient(at 0% 0%, rgba(112, 0, 255, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(0, 210, 255, 0.12) 0px, transparent 50%),
+                radial-gradient(at 50% 50%, rgba(0, 255, 135, 0.05) 0px, transparent 70%);
             background-attachment: fixed;
             padding-bottom: 60px;
         }
 
+        /* Top Broadcast Header Navigation */
         header {
-            background: rgba(11, 15, 25, 0.85);
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--bg-card-border);
-            position: sticky; top: 0; z-index: 100; padding: 16px 32px;
+            background: rgba(11, 14, 20, 0.92);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--bg-border);
+            position: sticky; top: 0; z-index: 100; padding: 14px 32px;
         }
 
         .header-content {
-            max-width: 1440px; margin: 0 auto;
-            display: flex; justify-content: space-between; align-items: center;
+            max-width: 1540px; margin: 0 auto;
+            display: flex; justify-content: space-between; align-items: center; gap: 20px;
         }
 
-        .logo-title { display: flex; align-items: center; gap: 12px; }
+        .logo-group { display: flex; align-items: center; gap: 14px; }
 
         .logo-badge {
             background: linear-gradient(135deg, var(--accent-green), var(--accent-cyan));
-            color: #000; font-family: 'Outfit', sans-serif; font-weight: 800;
-            font-size: 1.1rem; padding: 6px 12px; border-radius: 8px;
+            color: #0b0e14; font-family: var(--font-display); font-weight: 900;
+            font-size: 1.15rem; padding: 6px 14px; border-radius: 8px; letter-spacing: -0.02em;
+            box-shadow: 0 0 15px rgba(0, 255, 135, 0.4);
         }
 
         h1 {
-            font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 700;
-            background: linear-gradient(90deg, #ffffff, #d1d5db);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            font-family: var(--font-display); font-size: 1.45rem; font-weight: 800;
+            letter-spacing: -0.02em; color: #fff;
         }
 
-        .header-actions { display: flex; gap: 12px; }
+        .header-nav { display: flex; gap: 8px; background: rgba(255,255,255,0.04); padding: 4px; border-radius: 10px; border: 1px solid var(--bg-border); }
 
-        .btn {
-            background: var(--bg-card); border: 1px solid var(--bg-card-border);
-            color: var(--text-primary); font-family: 'Inter', sans-serif; font-weight: 600;
-            font-size: 0.9rem; padding: 10px 18px; border-radius: 10px; cursor: pointer;
-            transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 8px;
+        .nav-btn {
+            background: transparent; border: none; color: var(--text-secondary);
+            font-family: var(--font-body); font-weight: 700; font-size: 0.85rem;
+            padding: 8px 16px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;
         }
 
-        .btn:hover { border-color: var(--accent-green); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 255, 135, 0.2); }
+        .nav-btn:hover { color: #fff; background: rgba(255,255,255,0.06); }
+        .nav-btn.active { color: #0b0e14; background: linear-gradient(135deg, var(--accent-green), #00cc6a); font-weight: 800; }
 
-        .btn-primary {
-            background: linear-gradient(135deg, var(--accent-green), #00cc6a);
-            color: #0b0f19; border: none; font-weight: 700;
+        .header-status-pill {
+            background: rgba(0, 210, 255, 0.1); border: 1px solid rgba(0, 210, 255, 0.25);
+            color: var(--accent-cyan); font-size: 0.8rem; font-weight: 700; padding: 6px 14px; border-radius: 20px;
+            display: flex; align-items: center; gap: 8px;
         }
 
-        .health-banner {
-            max-width: 1440px; margin: 16px auto 0; padding: 12px 24px;
-            background: rgba(18, 26, 43, 0.8); border: 1px solid var(--bg-card-border);
-            border-radius: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem;
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
+
+        /* Main Shell */
+        main { max-width: 1540px; margin: 24px auto; padding: 0 24px; }
+
+        /* Hero Broadcast Scoreboard / Control Bar */
+        .hero-scoreboard {
+            background: var(--bg-card); border: 1px solid var(--bg-border);
+            border-radius: 16px; padding: 20px 24px; margin-bottom: 24px;
+            display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
         }
 
-        .health-tag {
-            background: rgba(4, 245, 255, 0.15); color: var(--accent-cyan);
-            font-weight: 700; padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(4, 245, 255, 0.3);
-        }
+        .hero-controls { display: flex; flex-wrap: wrap; items-center; gap: 20px; }
 
-        main {
-            max-width: 1440px; margin: 24px auto; padding: 0 24px;
-            display: grid; grid-template-columns: 1fr 440px; gap: 24px;
-        }
-
-        @media (max-width: 1024px) { main { grid-template-columns: 1fr; } }
-
-        .card {
-            background: var(--bg-card); backdrop-filter: blur(16px);
-            border: 1px solid var(--bg-card-border); border-radius: 20px; padding: 24px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        }
-
-        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-
-        .card-title {
-            font-family: 'Outfit', sans-serif; font-size: 1.2rem; font-weight: 700;
-            display: flex; align-items: center; gap: 10px;
-        }
-
-        .controls-card {
-            grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center;
-            justify-content: space-between; gap: 16px;
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
-        }
+        .control-group { display: flex; flex-direction: column; gap: 6px; }
+        .control-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 800; }
 
         select.mode-select {
-            background: rgba(0, 0, 0, 0.6); color: var(--accent-green); font-family: 'Inter', sans-serif;
-            font-weight: 700; font-size: 0.9rem; padding: 8px 14px; border-radius: 10px;
-            border: 1px solid var(--accent-green); cursor: pointer;
+            background: #182234; color: #fff; border: 1px solid var(--bg-border-bright);
+            font-family: var(--font-body); font-weight: 700; font-size: 0.95rem;
+            padding: 10px 16px; border-radius: 10px; cursor: pointer; outline: none; transition: all 0.2s;
         }
+        select.mode-select:hover { border-color: var(--accent-green); }
 
+        .budget-slider-box { display: flex; align-items: center; gap: 12px; background: #182234; padding: 8px 16px; border-radius: 10px; border: 1px solid var(--bg-border); }
+
+        .solve-btn {
+            background: linear-gradient(135deg, var(--accent-green), #00cc6a);
+            color: #0b0e14; border: none; font-family: var(--font-display); font-weight: 900;
+            font-size: 1.05rem; padding: 14px 28px; border-radius: 12px; cursor: pointer;
+            transition: all 0.2s ease; box-shadow: 0 4px 20px rgba(0, 255, 135, 0.3); display: flex; align-items: center; gap: 10px;
+        }
+        .solve-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(0, 255, 135, 0.5); }
+        .solve-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        /* Metrics Cards Grid */
         .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
 
         .metric-card {
-            background: rgba(255, 255, 255, 0.03); border: 1px solid var(--bg-card-border);
-            border-radius: 16px; padding: 16px; text-align: center;
+            background: var(--bg-card); border: 1px solid var(--bg-border);
+            border-radius: 14px; padding: 16px 20px; transition: all 0.2s;
+        }
+        .metric-card:hover { border-color: var(--bg-border-bright); transform: translateY(-2px); }
+
+        .metric-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 800; margin-bottom: 6px; }
+        .metric-value { font-family: var(--font-display); font-size: 1.85rem; font-weight: 900; color: #fff; line-height: 1.1; }
+        .metric-sub { font-size: 0.78rem; color: var(--text-secondary); margin-top: 4px; font-weight: 600; }
+
+        /* Main Dashboard Grid */
+        .dashboard-grid { display: grid; grid-template-columns: 1fr 460px; gap: 24px; }
+
+        /* Formation Pitch Centerpiece */
+        .pitch-card {
+            background: var(--bg-card); border: 1px solid var(--bg-border);
+            border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 16px;
         }
 
-        .metric-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 6px; }
-        .metric-value { font-family: 'Outfit', sans-serif; font-size: 1.6rem; font-weight: 700; color: var(--accent-green); }
-        .metric-sub { font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; }
-
-        /* Pitch Visualizer */
         .pitch-container {
-            background: var(--pitch-bg); border-radius: 20px;
-            border: 2px solid rgba(255, 255, 255, 0.1); padding: 24px 16px;
-            position: relative; box-shadow: inset 0 0 60px rgba(0,0,0,0.6);
-            display: flex; flex-direction: column; justify-content: space-between; min-height: 540px;
+            background: var(--pitch-gradient);
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            border-radius: 14px; padding: 24px 16px; display: flex; flex-direction: column; gap: 20px;
+            position: relative; overflow: hidden; min-height: 520px; justify-content: space-between;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.6);
         }
 
-        .pitch-row { display: flex; justify-content: space-around; align-items: center; z-index: 2; margin: 8px 0; }
+        /* Pitch Tactical Lines */
+        .pitch-container::before {
+            content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 2px;
+            background: var(--pitch-line); transform: translateY(-50%); pointer-events: none;
+        }
+        .pitch-container::after {
+            content: ''; position: absolute; top: 50%; left: 50%; width: 120px; height: 120px;
+            border: 2px solid var(--pitch-line); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none;
+        }
 
+        .pitch-row { display: flex; justify-content: center; gap: 16px; z-index: 2; flex-wrap: wrap; }
+
+        /* Player Card on Pitch */
         .player-card-pitch {
-            background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px);
-            border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px;
-            padding: 8px; width: 115px; text-align: center; position: relative;
-            transition: all 0.2s ease; cursor: pointer;
+            background: rgba(15, 22, 35, 0.88); backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px;
+            padding: 8px 12px; width: 105px; text-align: center; cursor: pointer;
+            transition: all 0.2s; position: relative;
         }
+        .player-card-pitch:hover { transform: translateY(-4px) scale(1.04); border-color: var(--accent-green); box-shadow: 0 8px 20px rgba(0,255,135,0.25); }
 
-        .player-card-pitch:hover { transform: translateY(-4px); border-color: var(--accent-green); }
-
-        .badge-cap {
-            position: absolute; top: -8px; right: -8px;
-            background: linear-gradient(135deg, #f59e0b, #d97706); color: #000;
-            font-weight: 800; font-size: 0.75rem; width: 22px; height: 22px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center; border: 2px solid #fff;
-        }
-
-        .badge-vc {
-            position: absolute; top: -8px; right: -8px;
-            background: linear-gradient(135deg, #94a3b8, #64748b); color: #fff;
-            font-weight: 800; font-size: 0.7rem; width: 22px; height: 22px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center; border: 2px solid #fff;
-        }
-
-        .player-pos-badge { font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-bottom: 4px; text-transform: uppercase; }
-        .pos-GKP { background: #3b82f6; color: #fff; }
-        .pos-DEF { background: #10b981; color: #fff; }
-        .pos-MID { background: #f59e0b; color: #000; }
-        .pos-FWD { background: #ef4444; color: #fff; }
-
-        .player-name { font-weight: 700; font-size: 0.85rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .player-team-cost { font-size: 0.72rem; color: var(--text-secondary); margin: 2px 0; }
+        .player-name { font-weight: 800; font-size: 0.8rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+        .player-team-cost { font-size: 0.68rem; color: var(--text-secondary); margin-bottom: 4px; }
         
         .player-xp-badge {
-            background: rgba(0, 255, 135, 0.15); color: var(--accent-green);
-            font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 0.85rem;
-            padding: 2px 6px; border-radius: 6px; display: inline-block; margin-top: 4px;
-            border: 1px solid rgba(0, 255, 135, 0.3);
+            background: linear-gradient(135deg, var(--accent-green), #00cc6a);
+            color: #0b0e14; font-weight: 900; font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; display: inline-block;
         }
 
+        .player-pos-badge {
+            font-size: 0.62rem; font-weight: 900; padding: 1px 5px; border-radius: 3px; color: #fff; text-transform: uppercase;
+        }
+        .pos-GKP { background: var(--pos-gkp); }
+        .pos-DEF { background: var(--pos-def); }
+        .pos-MID { background: var(--pos-mid); }
+        .pos-FWD { background: var(--pos-fwd); }
+
+        .badge-cap, .badge-vc {
+            position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.7rem; color: #000; z-index: 5;
+        }
+        .badge-cap { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
+        .badge-vc { background: var(--accent-cyan); box-shadow: 0 0 8px var(--accent-cyan); }
+
+        /* Bench Section */
         .bench-container {
-            margin-top: 16px; background: rgba(0, 0, 0, 0.3); border-radius: 16px;
-            padding: 14px; border: 1px dashed var(--bg-card-border);
+            background: rgba(11, 16, 26, 0.9); border: 1px solid var(--bg-border);
+            border-radius: 12px; padding: 12px 16px;
         }
 
-        .bench-row { display: flex; justify-content: space-around; gap: 10px; }
-
-        /* Tables & Modals */
-        .leaderboard-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-        .leaderboard-table th { text-align: left; padding: 8px; color: var(--text-muted); font-size: 0.7rem; border-bottom: 1px solid var(--bg-card-border); }
-        .leaderboard-table td { padding: 10px 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
-        .leaderboard-table tr:hover { background: rgba(255, 255, 255, 0.03); cursor: pointer; }
-
-        .explanation-box {
-            background: rgba(4, 245, 255, 0.05); border: 1px solid rgba(4, 245, 255, 0.2);
-            border-radius: 12px; padding: 12px 16px; margin-top: 16px; font-size: 0.85rem; color: #e2e8f0;
+        /* Right Column Diagnostics Table */
+        .diagnostics-card {
+            background: var(--bg-card); border: 1px solid var(--bg-border);
+            border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 16px;
         }
 
+        .filter-group { display: flex; gap: 6px; }
+
+        .pos-filter-btn {
+            background: #182234; border: 1px solid var(--bg-border); color: var(--text-secondary);
+            font-weight: 700; font-size: 0.75rem; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: all 0.2s;
+        }
+        .pos-filter-btn:hover { color: #fff; border-color: var(--accent-green); }
+        .pos-filter-btn.active { background: var(--accent-green); color: #0b0e14; font-weight: 800; }
+
+        .diagnostics-table-box { max-height: 600px; overflow-y: auto; border-radius: 8px; border: 1px solid var(--bg-border); }
+
+        table.diag-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; text-align: left; }
+        table.diag-table th { background: #121927; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; padding: 10px 12px; sticky: top; }
+        table.diag-table td { padding: 10px 12px; border-bottom: 1px solid var(--bg-border); color: var(--text-primary); }
+        table.diag-table tr:hover { background: rgba(255,255,255,0.04); cursor: pointer; }
+
+        /* Modal Dialog */
         .modal-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
-            display: flex; align-items: center; justify-content: center; z-index: 1000;
-            visibility: hidden; opacity: 0; transition: all 0.25s ease;
+            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px);
+            display: none; justify-content: center; align-items: center; z-index: 1000;
         }
-        .modal-overlay.open { visibility: visible; opacity: 1; }
-        .modal-card {
-            background: var(--bg-dark); border: 1px solid var(--bg-card-border);
-            border-radius: 20px; width: 520px; max-width: 90%; padding: 24px;
+        .modal-overlay.open { display: flex; visibility: visible; opacity: 1; }
+
+        .modal-box {
+            background: #121824; border: 1px solid var(--bg-border-bright);
+            border-radius: 16px; width: 90%; max-width: 540px; max-height: 90vh; overflow-y: auto;
+            padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.8); position: relative;
         }
-        .breakdown-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem; }
+
+        .modal-close {
+            position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.1);
+            border: none; color: #fff; width: 32px; height: 32px; border-radius: 50%; font-size: 1.1rem;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+        }
+        .modal-close:hover { background: var(--accent-pink); }
+
+        .breakdown-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; }
         .breakdown-label { color: var(--text-secondary); }
-        .breakdown-val { font-family: 'Outfit', sans-serif; font-weight: 700; color: var(--accent-green); }
+        .breakdown-val { font-weight: 700; color: #fff; }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 1280px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 768px) {
+            header { padding: 12px 16px; }
+            main { padding: 0 12px; }
+            .hero-scoreboard { grid-template-columns: 1fr; }
+            .metrics-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
 
+    <!-- Header Navigation -->
     <header>
         <div class="header-content">
-            <div class="logo-title">
-                <span class="logo-badge">FPL AI</span>
-                <h1>2026/27 Decision Engine</h1>
+            <div class="logo-group">
+                <div class="logo-badge">FPL AI</div>
+                <div>
+                    <h1>2026/27 DECISION ENGINE</h1>
+                    <div style="font-size:0.72rem; color:var(--text-muted); font-weight:600;">MULTI-HORIZON MILP OPTIMIZER • LEAK-FREE PROJECTIONS</div>
+                </div>
             </div>
-            <div class="header-actions">
-                <button id="sync-btn" class="btn"><span>Sync FPL Data</span></button>
-                <button id="optimize-btn" class="btn btn-primary"><span>⚡ Run Optimizer</span></button>
+
+            <div class="header-nav">
+                <button class="nav-btn active" onclick="switchMainTab('optimizer')">OPTIMIZER VIEW</button>
+                <button class="nav-btn" onclick="switchMainTab('my-team')">MY TEAM COMMAND CENTER</button>
+                <button class="nav-btn" onclick="switchMainTab('consensus')">PLAYER DATA</button>
+                <button class="nav-btn" onclick="switchMainTab('role-audit')">MODEL AUDIT</button>
+            </div>
+
+            <div id="data-synced-banner" class="header-status-pill">
+                <span class="status-dot"></span>
+                <span>FPL Data Last Synced: 2026-08-26 (Canonical 2026/27 Official API)</span>
             </div>
         </div>
     </header>
 
-    <div class="health-banner">
-        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-            <span class="health-tag" id="model-version-tag">Hybrid Statistical + ML Engine v2.0 (Walk-Forward Validated)</span>
-            <span style="color:var(--text-secondary);">Architecture:</span>
-            <span style="color:var(--accent-green); font-weight:700;">Production ML v2 Pipeline</span>
-        </div>
-        <div style="color:var(--text-muted); font-size:0.82rem; margin-top:4px;">
-            Minutes: <strong style="color:#00ff88;">expected_minutes_v2 (ML DEPLOYED)</strong> • 
-            xG: <strong style="color:#00ff88;">xg_v2 (ML DEPLOYED)</strong> • 
-            xA: <strong style="color:#00ff88;">xa_v2 (ML DEPLOYED)</strong> • 
-            CS: <strong style="color:#00ff88;">cs_v1_lgbm (ML DEPLOYED)</strong> • 
-            DEFCON: <strong style="color:var(--accent-cyan);">defcon_v1_poisson (HYBRID DEPLOYED)</strong>
-        </div>
-    </div>
-
     <main>
-        <!-- Controls Bar -->
-        <div class="card controls-card">
-            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-                <span style="font-size:0.85rem; font-weight:600; color:var(--text-secondary);">Optimization Mode:</span>
-                <select id="mode-select" class="mode-select">
-                    <option value="CURRENT_GW_PLUS_3" selected>Current GW + 3 (55/20/15/10%)</option>
-                    <option value="STRONG_XI_DUMP_BENCH">Strong XI / Dump Bench</option>
-                    <option value="BALANCED_BENCH">Balanced Bench</option>
-                    <option value="MAXIMUM_SQUAD">Maximum Squad (Equal 4-GW)</option>
-                </select>
-                <button id="compare-modes-btn" class="btn" style="border:1px solid var(--accent-cyan); color:var(--accent-cyan); font-size:0.8rem; padding:6px 12px;">📊 Compare All 4 Modes</button>
+        <!-- OPTIMIZER VIEW PAGE -->
+        <div id="tab-optimizer" class="tab-content" style="display:block;">
+            
+            <!-- Hero Scoreboard Control Bar -->
+            <div class="hero-scoreboard">
+                <div class="hero-controls">
+                    <div class="control-group">
+                        <span class="control-label">Optimization Mode / Horizon</span>
+                        <select id="mode-select" class="mode-select">
+                            <option value="CURRENT_GW_ONLY">NEXT GW (GW2 Only / 1-GW Horizon)</option>
+                            <option value="CURRENT_GW_PLUS_3" selected>MEDIUM TERM (GW2–GW5 / 4-GW Weighted)</option>
+                            <option value="LONG_TERM">LONG TERM (GW2–GW8 / 7-GW Weighted)</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <span class="control-label">Squad Budget Limit</span>
+                        <div class="budget-slider-box">
+                            <input type="range" id="budget-range" min="950" max="1050" value="1000" step="5" style="width:140px; accent-color:var(--accent-green);">
+                            <span id="budget-display" style="font-weight:900; font-family:var(--font-display); color:var(--accent-green); font-size:1.1rem;">£100.0m</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <button id="optimize-btn" class="solve-btn" onclick="runOptimization()">
+                        <span>⚡ RUN OPTIMIZER ENGINE</span>
+                    </button>
+                </div>
             </div>
 
-            <div style="display:flex; align-items:center; gap:10px;">
-                <span style="font-size:0.85rem; font-weight:600; color:var(--text-secondary);">Budget:</span>
-                <input type="range" id="budget-range" min="900" max="1050" step="5" value="1000" style="accent-color: var(--accent-cyan); cursor: pointer;">
-                <span id="budget-display" style="font-family:'Outfit', sans-serif; font-weight:700; color:var(--accent-cyan);">100.0m</span>
+            <!-- Optimization Job Progress Banner -->
+            <div id="progress-card" style="display:none; background:var(--bg-card); border:1px solid var(--bg-border-bright); border-radius:12px; padding:16px; margin-bottom:24px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem; font-weight:700;">
+                    <span id="progress-message" style="color:var(--accent-green);">Submitting optimization job...</span>
+                    <span id="progress-percent" style="color:var(--accent-cyan);">10%</span>
+                </div>
+                <div style="background:rgba(255,255,255,0.06); height:8px; border-radius:4px; overflow:hidden;">
+                    <div id="progress-bar-inner" style="background:linear-gradient(90deg, var(--accent-green), var(--accent-cyan)); width:10%; height:100%; transition:width 0.3s;"></div>
+                </div>
+                <div style="font-size:0.75rem; color:var(--text-muted); margin-top:6px;" id="progress-timer">Elapsed: 0.0s</div>
             </div>
-        </div>
 
-        <!-- Progress Tracker Bar -->
-        <div id="progress-card" class="card" style="display:none; margin-bottom:20px; border:1px solid var(--accent-cyan);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <span id="progress-stage-title" style="font-weight:700; font-size:0.85rem; color:var(--accent-cyan);">FPL AI OPTIMIZER PROGRESS</span>
-                <span id="progress-percent" style="font-weight:700; font-size:0.85rem; color:#fff;">0%</span>
-            </div>
-            <div style="width:100%; height:8px; background:rgba(255,255,255,0.1); border-radius:4px; overflow:hidden;">
-                <div id="progress-bar-inner" style="width:0%; height:100%; background:linear-gradient(90deg, var(--accent-cyan), #00ff88); transition:width 0.3s ease;"></div>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:0.75rem; color:var(--text-muted);">
-                <span id="progress-message">Initializing optimizer pipeline...</span>
-                <span id="progress-timer">Elapsed: 0.0s</span>
-            </div>
-        </div>
-
-        <!-- Left Column: Squad & Pitch -->
-        <div>
+            <!-- Top Metric Cards Grid -->
             <div class="metrics-grid">
                 <div class="metric-card">
                     <div class="metric-title">Current GW XI xP</div>
-                    <div id="metric-gw0-xp" class="metric-value">0.0</div>
-                    <div id="metric-cap-extra" class="metric-sub">+0.0 Cap Bonus</div>
+                    <div id="metric-gw0-xp" class="metric-value">44.09</div>
+                    <div id="metric-cap-extra" class="metric-sub">+6.58 Cap Bonus</div>
                 </div>
+
                 <div class="metric-card">
-                    <div class="metric-title">4-GW Weighted Horizon</div>
-                    <div id="metric-weighted-xp" class="metric-value" style="color:var(--accent-cyan);">0.0</div>
+                    <div id="metric-horizon-title" class="metric-title">4-GW Weighted Horizon</div>
+                    <div id="metric-weighted-xp" class="metric-value" style="color:var(--accent-cyan);">54.99</div>
                     <div class="metric-sub">Strategic Squad Score</div>
                 </div>
+
                 <div class="metric-card">
                     <div class="metric-title">Budget Used</div>
-                    <div id="metric-cost" class="metric-value">£0.0m</div>
-                    <div class="metric-sub">Bank: <span id="metric-bank">£0.0m</span></div>
+                    <div id="metric-cost" class="metric-value">£100.0m</div>
+                    <div class="metric-sub">Bank Remaining: <span id="metric-bank">£0.0m</span></div>
                 </div>
+
                 <div class="metric-card">
                     <div class="metric-title">Captain Pick</div>
-                    <div id="metric-captain" class="metric-value" style="font-size:1.1rem; color:var(--accent-cyan);">-</div>
-                    <div class="metric-sub">Vice: <span id="metric-vc">-</span></div>
+                    <div id="metric-captain" class="metric-value" style="font-size:1.2rem; color:var(--accent-green);">Isak (6.58)</div>
+                    <div class="metric-sub">Vice Captain: <span id="metric-vc">Palmer</span></div>
                 </div>
             </div>
 
-            <div class="card" style="padding: 16px;">
-                <div class="card-header">
-                    <div class="card-title">⚽ Current GW Optimal Starting XI</div>
-                    <span id="formation-badge" style="font-weight: 700; font-size: 0.9rem; color: var(--accent-cyan);">Formation: -</span>
+            <!-- Main Dashboard Layout: Pitch + Diagnostics -->
+            <div class="dashboard-grid">
+                <!-- Left Column: Tactical Pitch Centerpiece -->
+                <div class="pitch-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="font-family:var(--font-display); font-weight:800; font-size:1.1rem;">⚽ Optimal Starting XI & Squad</div>
+                        <span id="formation-badge" style="font-weight:800; font-size:0.85rem; color:var(--accent-cyan);">Formation: 3-5-2</span>
+                    </div>
+
+                    <div class="pitch-container">
+                        <div id="pitch-gkp" class="pitch-row"></div>
+                        <div id="pitch-def" class="pitch-row"></div>
+                        <div id="pitch-mid" class="pitch-row"></div>
+                        <div id="pitch-fwd" class="pitch-row"></div>
+                    </div>
+
+                    <div class="bench-container">
+                        <div style="font-size:0.75rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">Substitutes Bench</div>
+                        <div id="pitch-bench" class="pitch-row"></div>
+                    </div>
+
+                    <div id="explanation-container" style="display:none; background:rgba(0,210,255,0.06); border:1px solid rgba(0,210,255,0.2); border-radius:10px; padding:12px; font-size:0.82rem; color:var(--text-secondary);"></div>
                 </div>
 
-                <div class="pitch-container">
-                    <div id="pitch-gkp" class="pitch-row"></div>
-                    <div id="pitch-def" class="pitch-row"></div>
-                    <div id="pitch-mid" class="pitch-row"></div>
-                    <div id="pitch-fwd" class="pitch-row"></div>
-                </div>
+                <!-- Right Column: Diagnostics Module -->
+                <div class="diagnostics-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div id="diagnostics-panel-title" style="font-family:var(--font-display); font-weight:800; font-size:1.05rem;">📊 GW2–GW5 Outlook & Diagnostics</div>
+                    </div>
 
-                <div class="bench-container">
-                    <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">Substitutes Bench</div>
-                    <div id="pitch-bench" class="bench-row"></div>
-                </div>
+                    <div class="filter-group">
+                        <button class="pos-filter-btn active" onclick="filterDiagnostics('ALL', this)">ALL</button>
+                        <button class="pos-filter-btn" onclick="filterDiagnostics('GKP', this)">GKP</button>
+                        <button class="pos-filter-btn" onclick="filterDiagnostics('DEF', this)">DEF</button>
+                        <button class="pos-filter-btn" onclick="filterDiagnostics('MID', this)">MID</button>
+                        <button class="pos-filter-btn" onclick="filterDiagnostics('FWD', this)">FWD</button>
+                    </div>
 
-                <div id="explanation-container" class="explanation-box" style="display:none;"></div>
+                    <div class="diagnostics-table-box">
+                        <table class="diag-table">
+                            <thead>
+                                <tr>
+                                    <th>Player</th>
+                                    <th>Price</th>
+                                    <th id="th-gw1-label">GW2</th>
+                                    <th id="th-gw2-label">GW3</th>
+                                    <th id="th-gw3-label">GW4</th>
+                                    <th id="th-gw4-label">GW5</th>
+                                    <th>Weighted xP</th>
+                                </tr>
+                            </thead>
+                            <tbody id="player-table-body">
+                                <tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:30px;">Loading player diagnostics...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- Right Column: Player Diagnostics -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">📊 4-GW Outlook & Diagnostics</div>
-            </div>
+        <!-- MY TEAM COMMAND CENTER TAB -->
+        <div id="tab-my-team" class="tab-content" style="display:none;">
+            <div class="pitch-card" style="margin-bottom:24px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+                    <div>
+                        <h2 style="font-family:var(--font-display); font-weight:800; font-size:1.4rem;">MY TEAM COMMAND CENTER</h2>
+                        <div id="my-team-header-stats" style="font-size:0.85rem; color:var(--text-secondary); margin-top:2px;">
+                            <span id="my-team-count-stat">15 Players</span> • <span id="my-team-bank-stat">£0.0m Bank</span> • <span id="my-team-ft-stat">1 FT</span>
+                        </div>
+                    </div>
 
-            <div style="display:flex; gap:6px; margin-bottom:12px;">
-                <button class="pos-filter-btn active" data-pos="ALL">ALL</button>
-                <button class="pos-filter-btn" data-pos="GKP">GKP</button>
-                <button class="pos-filter-btn" data-pos="DEF">DEF</button>
-                <button class="pos-filter-btn" data-pos="MID">MID</button>
-                <button class="pos-filter-btn" data-pos="FWD">FWD</button>
-            </div>
-
-            <div style="max-height: 600px; overflow-y: auto;">
-                <table class="leaderboard-table">
-                    <thead>
-                        <tr>
-                            <th>Player</th>
-                            <th>Cost</th>
-                            <th>GW0 Fixture</th>
-                            <th>GW1 Fixture</th>
-                            <th>GW2 Fixture</th>
-                            <th>GW3 Fixture</th>
-                            <th>4-GW Weighted</th>
-                        </tr>
-                    </thead>
-                    <tbody id="player-table-body">
-                        <tr><td colspan="7" style="text-align:center; color:var(--text-muted);">Loading 4-GW diagnostics...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Read-Only Model vs FPL Consensus Audit Card (DIAGNOSTIC ONLY) -->
-        <div class="card" style="grid-column: 1 / -1; margin-top: 24px; border: 1px solid var(--accent-cyan);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                <div>
-                    <h2 style="font-size:1.1rem; font-weight:700; color:var(--text-primary);">MODEL vs FPL CONSENSUS AUDIT</h2>
-                    <span style="font-size:0.75rem; color:var(--text-muted);">Comparing Internal ML Model Rankings against FPL Ownership & Template Consensus</span>
+                    <div style="display:flex; gap:12px; align-items:center;">
+                        <button id="edit-my-team-btn" class="solve-btn" style="padding:10px 22px; font-size:0.95rem; background:linear-gradient(135deg, var(--accent-cyan), #00a0e3);" onclick="openEditSquadModal()">
+                            <span>✏️ EDIT SQUAD</span>
+                        </button>
+                        <button id="compare-my-team-btn" class="solve-btn" style="padding:10px 22px; font-size:0.95rem;" onclick="compareUserSquad()">
+                            <span>⚡ COMPARE VS OPTIMAL XI</span>
+                        </button>
+                        <button id="setup-my-team-btn" style="display:none;"></button>
+                    </div>
                 </div>
-                <span class="badge" style="background:rgba(0,210,255,0.15); color:var(--accent-cyan); border:1px solid var(--accent-cyan); font-weight:700; padding:4px 10px; border-radius:4px; font-size:0.75rem;">
-                    DIAGNOSTIC ONLY
-                </span>
             </div>
 
-            <div style="display:flex; gap:6px; margin-bottom:12px;">
-                <button class="consensus-filter-btn active" data-cpos="ALL" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; padding:4px 12px; border-radius:4px; font-size:0.75rem; cursor:pointer;">ALL</button>
-                <button class="consensus-filter-btn" data-cpos="FWD" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; padding:4px 12px; border-radius:4px; font-size:0.75rem; cursor:pointer;">FWD</button>
-                <button class="consensus-filter-btn" data-cpos="MID" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; padding:4px 12px; border-radius:4px; font-size:0.75rem; cursor:pointer;">MID</button>
-                <button class="consensus-filter-btn" data-cpos="DEF" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; padding:4px 12px; border-radius:4px; font-size:0.75rem; cursor:pointer;">DEF</button>
-                <button class="consensus-filter-btn" data-cpos="GKP" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; padding:4px 12px; border-radius:4px; font-size:0.75rem; cursor:pointer;">GKP</button>
-            </div>
+            <!-- My Team Pitch View -->
+            <div class="dashboard-grid">
+                <div class="pitch-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="font-weight:800;">My Squad Formation Pitch</div>
+                        <span id="my-team-formation" style="color:var(--accent-cyan); font-weight:800;">3-5-2</span>
+                    </div>
 
-            <div style="max-height: 450px; overflow-y: auto;">
-                <table class="leaderboard-table">
-                    <thead>
-                        <tr>
-                            <th>Player</th>
-                            <th>Cost</th>
-                            <th>Model xP</th>
-                            <th>Model Rank</th>
-                            <th>Ownership %</th>
-                            <th>Consensus Rank</th>
-                            <th>Rank Gap</th>
-                            <th>xMins</th>
-                            <th>xG</th>
-                            <th>xA</th>
-                            <th>Audit Classification</th>
-                        </tr>
-                    </thead>
-                    <tbody id="consensus-table-body">
-                        <tr><td colspan="11" style="text-align:center; color:var(--text-muted);">Loading consensus audit comparison...</td></tr>
-                    </tbody>
-                </table>
-        </div>
-        <!-- Read-Only Role & Minutes Audit Card (DIAGNOSTIC ONLY) -->
-        <div class="card" style="grid-column: 1 / -1; margin-top: 24px; border: 1px solid #ff9900;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                <div>
-                    <h2 style="font-size:1.1rem; font-weight:700; color:var(--text-primary);">ROLE & MINUTES AUDIT</h2>
-                    <span style="font-size:0.75rem; color:var(--text-muted);">Read-Only Diagnostic Investigation of Expected Minutes, Sample Sizes & Per-90 Extrapolation Risk</span>
+                    <div class="pitch-container">
+                        <div id="my-team-gkp" class="pitch-row"></div>
+                        <div id="my-team-def" class="pitch-row"></div>
+                        <div id="my-team-mid" class="pitch-row"></div>
+                        <div id="my-team-fwd" class="pitch-row"></div>
+                    </div>
+
+                    <div class="bench-container">
+                        <div style="font-size:0.75rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">Substitutes Bench</div>
+                        <div id="my-team-bench" class="pitch-row"></div>
+                    </div>
                 </div>
-                <span class="badge" style="background:rgba(255,153,0,0.15); color:#ff9900; border:1px solid #ff9900; font-weight:700; padding:4px 10px; border-radius:4px; font-size:0.75rem;">
-                    DIAGNOSTIC ONLY — DOES NOT AFFECT PROJECTIONS
-                </span>
-            </div>
 
-            <div style="max-height: 450px; overflow-y: auto;">
-                <table class="leaderboard-table">
-                    <thead>
-                        <tr>
-                            <th>Player</th>
-                            <th>Cost</th>
-                            <th>xMins</th>
-                            <th>P(start)</th>
-                            <th>P(60+)</th>
-                            <th>P(0)</th>
-                            <th>Model xP</th>
-                            <th>Model Rank</th>
-                            <th>Consensus Rank</th>
-                            <th>Per-90 Risk Diagnostic</th>
-                        </tr>
-                    </thead>
-                    <tbody id="role-audit-table-body">
-                        <tr><td colspan="10" style="text-align:center; color:var(--text-muted);">Loading role & minutes diagnostic audit...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                <div class="diagnostics-card">
+                    <div style="font-family:var(--font-display); font-weight:800; font-size:1.05rem;">My Team Financial & Chip State</div>
+                    <div class="breakdown-row"><span class="breakdown-label">Bank Available</span><span id="my-team-bank" class="breakdown-val" style="color:var(--accent-green);">£0.0m</span></div>
+                    <div class="breakdown-row"><span class="breakdown-label">Free Transfers</span><span id="my-team-fts" class="breakdown-val">1 FT</span></div>
+                    <div class="breakdown-row"><span class="breakdown-label">Current GW Starting XI xP</span><span id="my-team-starting-xp" class="breakdown-val" style="color:var(--accent-cyan);">41.95 xP</span></div>
 
-        <!-- Read-Only Temporal / Recency & Form Audit Card (Phase 3C.7 DIAGNOSTIC ONLY) -->
-        <div class="card" style="grid-column: 1 / -1; margin-top: 24px; border: 1px solid #00f0ff;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                <div>
-                    <h2 style="font-size:1.1rem; font-weight:700; color:var(--text-primary);">TEMPORAL & CURRENT-FORM AUDIT</h2>
-                    <span style="font-size:0.75rem; color:var(--text-muted);">Read-Only Out-of-Sample Recency Windows vs Historical Baseline Evaluation</span>
+                    <div style="margin-top:16px;" id="comp-transfers-table-container"></div>
                 </div>
-                <span class="badge" style="background:rgba(0,240,255,0.15); color:#00f0ff; border:1px solid #00f0ff; font-weight:700; padding:4px 10px; border-radius:4px; font-size:0.75rem;">
-                    DIAGNOSTIC ONLY — DOES NOT AFFECT PROJECTIONS
-                </span>
-            </div>
-
-            <div style="max-height: 450px; overflow-y: auto;">
-                <table class="leaderboard-table">
-                    <thead>
-                        <tr>
-                            <th>Target Component</th>
-                            <th>Baseline Metric</th>
-                            <th>Multi-Window Recency</th>
-                            <th>Out-of-Sample Gain</th>
-                            <th>Optimal Window</th>
-                            <th>Recommended Recency Strategy</th>
-                        </tr>
-                    </thead>
-                    <tbody id="temporal-audit-table-body">
-                        <tr>
-                            <td style="font-weight:700; color:#fff;">Expected Minutes</td>
-                            <td>MAE 24.47m (Brier 0.1587)</td>
-                            <td>MAE 14.38m (Brier 0.0895)</td>
-                            <td><span class="badge" style="background:rgba(16,185,129,0.2); color:#10b981;">+41.24% MAE (+43.65% Brier)</span></td>
-                            <td>Last 3 / 5 Starts</td>
-                            <td><span class="badge" style="background:rgba(0,240,255,0.2); color:#00f0ff;">STRONG RECENCY</span></td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight:700; color:#fff;">Expected Goals (xG)</td>
-                            <td>Deviance 0.1681 (MAE 0.0775)</td>
-                            <td>Deviance 0.1036 (MAE 0.0477)</td>
-                            <td><span class="badge" style="background:rgba(16,185,129,0.2); color:#10b981;">+38.39% Deviance (+38.45% MAE)</span></td>
-                            <td>Multi-Window (xG/90 + Threat/5)</td>
-                            <td><span class="badge" style="background:rgba(245,158,11,0.2); color:#f59e0b;">HYBRID / SHRINKAGE</span></td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight:700; color:#fff;">Expected Assists (xA)</td>
-                            <td>Deviance 0.0954 (MAE 0.0460)</td>
-                            <td>Deviance 0.0729 (MAE 0.0355)</td>
-                            <td><span class="badge" style="background:rgba(16,185,129,0.2); color:#10b981;">+23.56% Deviance (+22.83% MAE)</span></td>
-                            <td>Last 5 / 10 xA/90</td>
-                            <td><span class="badge" style="background:rgba(245,158,11,0.2); color:#f59e0b;">HYBRID / SHRINKAGE</span></td>
-                        </tr>
-                    </tbody>
-                </table>
             </div>
         </div>
 
-        <!-- Read-Only Candidate V2 Shrinkage Comparison Panel (Phase 3C.8 DIAGNOSTIC ONLY) -->
-        <div class="card" style="grid-column: 1 / -1; margin-top: 24px; border: 1px solid #a855f7;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                <div>
-                    <h2 style="font-size:1.1rem; font-weight:700; color:var(--text-primary);">MODEL v1 → CANDIDATE v2 COMPARISON</h2>
-                    <span style="font-size:0.75rem; color:var(--text-muted);">Read-Only Diagnostic Comparison of Low-Sample Minutes Fix & Empirical Bayes Shrinkage</span>
+        <!-- PLAYER DATA TAB -->
+        <div id="tab-consensus" class="tab-content" style="display:none;">
+            <div class="diagnostics-card">
+                <div style="font-family:var(--font-display); font-weight:800; font-size:1.2rem;">Full Player Database & Projections</div>
+                <div class="diagnostics-table-box" style="max-height:700px;">
+                    <table class="diag-table">
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>Position</th>
+                                <th>Team</th>
+                                <th>Price</th>
+                                <th>Total xP</th>
+                                <th>xMins</th>
+                            </tr>
+                        </thead>
+                        <tbody id="consensus-table-body">
+                            <tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Loading full database...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
-                <span class="badge" style="background:rgba(168,85,247,0.15); color:#a855f7; border:1px solid #a855f7; font-weight:700; padding:4px 10px; border-radius:4px; font-size:0.75rem;">
-                    CANDIDATE MODEL — NOT PRODUCTION
-                </span>
-            </div>
-
-            <div style="max-height: 450px; overflow-y: auto;">
-                <table class="leaderboard-table">
-                    <thead>
-                        <tr>
-                            <th>Player</th>
-                            <th>Prior Mins</th>
-                            <th>xMins (v1 | v2)</th>
-                            <th>P(start) (v1 | v2)</th>
-                            <th>xG/90 (v1 | v2)</th>
-                            <th>xA/90 (v1 | v2)</th>
-                            <th>xP (v1 | v2)</th>
-                            <th>Shrinkage Weight</th>
-                        </tr>
-                    </thead>
-                    <tbody id="candidate-v2-table-body">
-                        <tr>
-                            <td style="font-weight:700; color:#fff;">Taiwo Awoniyi</td>
-                            <td>3,853m</td>
-                            <td>85.0m | <span style="color:#10b981; font-weight:700;">40.2m</span></td>
-                            <td>90.0% | <span style="color:#10b981; font-weight:700;">51.8%</span></td>
-                            <td>0.220 | <span style="color:#00f0ff; font-weight:700;">0.651</span></td>
-                            <td>0.099 | <span style="color:#00f0ff; font-weight:700;">0.180</span></td>
-                            <td>3.00 | <span style="color:#f59e0b; font-weight:700;">2.30</span></td>
-                            <td><span class="badge" style="background:rgba(16,185,129,0.2); color:#10b981;">w = 0.84</span></td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight:700; color:#fff;">William Osula</td>
-                            <td>771m</td>
-                            <td>85.0m | <span style="color:#10b981; font-weight:700;">65.9m</span></td>
-                            <td>90.0% | <span style="color:#10b981; font-weight:700;">77.5%</span></td>
-                            <td>0.504 | <span style="color:#00f0ff; font-weight:700;">0.509</span></td>
-                            <td>0.072 | <span style="color:#00f0ff; font-weight:700;">0.137</span></td>
-                            <td>4.00 | <span style="color:#f59e0b; font-weight:700;">3.26</span></td>
-                            <td><span class="badge" style="background:rgba(245,158,11,0.2); color:#f59e0b;">w = 0.51</span></td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight:700; color:#fff;">Omar Marmoush</td>
-                            <td>4,384m</td>
-                            <td>85.0m | <span style="color:#10b981; font-weight:700;">42.5m</span></td>
-                            <td>90.0% | <span style="color:#10b981; font-weight:700;">54.0%</span></td>
-                            <td>0.067 | <span style="color:#00f0ff; font-weight:700;">0.376</span></td>
-                            <td>0.019 | <span style="color:#00f0ff; font-weight:700;">0.079</span></td>
-                            <td>2.19 | <span style="color:#f59e0b; font-weight:700;">1.77</span></td>
-                            <td><span class="badge" style="background:rgba(16,185,129,0.2); color:#10b981;">w = 0.85</span></td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight:700; color:#fff;">Erling Haaland</td>
-                            <td>8,004m</td>
-                            <td>85.0m | <span style="color:#10b981; font-weight:700;">59.2m</span></td>
-                            <td>90.0% | <span style="color:#10b981; font-weight:700;">69.3%</span></td>
-                            <td>0.305 | <span style="color:#00f0ff; font-weight:700;">0.730</span></td>
-                            <td>0.111 | <span style="color:#00f0ff; font-weight:700;">0.170</span></td>
-                            <td>3.36 | <span style="color:#10b981; font-weight:700;">3.57</span></td>
-                            <td><span class="badge" style="background:rgba(16,185,129,0.2); color:#10b981;">w = 0.91</span></td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight:700; color:#fff;">Dominic Calvert-Lewin</td>
-                            <td>4,860m</td>
-                            <td>85.0m | <span style="color:#10b981; font-weight:700;">84.6m</span></td>
-                            <td>90.0% | <span style="color:#10b981; font-weight:700;">94.0%</span></td>
-                            <td>0.413 | <span style="color:#00f0ff; font-weight:700;">0.472</span></td>
-                            <td>0.032 | <span style="color:#00f0ff; font-weight:700;">0.024</span></td>
-                            <td>3.54 | <span style="color:#10b981; font-weight:700;">3.72</span></td>
-                            <td><span class="badge" style="background:rgba(16,185,129,0.2); color:#10b981;">w = 0.87</span></td>
-                        </tr>
-                    </tbody>
-                </table>
             </div>
         </div>
+
+        <!-- MODEL AUDIT TAB -->
+        <div id="tab-role-audit" class="tab-content" style="display:none;">
+            <div class="diagnostics-card">
+                <div style="font-family:var(--font-display); font-weight:800; font-size:1.2rem;">Expected Minutes & Role Competition Audit</div>
+                <div class="diagnostics-table-box" style="max-height:700px;">
+                    <table class="diag-table">
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>Price</th>
+                                <th>xMins</th>
+                                <th>P(Start)</th>
+                                <th>P(60+)</th>
+                                <th>P(0)</th>
+                                <th>Total xP</th>
+                            </tr>
+                        </thead>
+                        <tbody id="role-audit-table-body">
+                            <tr><td colspan="7" style="text-align:center; color:var(--text-muted);">Loading role audit...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </main>
 
-    <!-- Component Breakdown Modal -->
+    <!-- Player Insight Modal -->
     <div id="breakdown-modal" class="modal-overlay">
-        <div class="modal-card">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                <div>
-                    <h3 id="modal-player-name" style="font-family:'Outfit', sans-serif; font-size:1.3rem;">Player Name</h3>
-                    <span id="modal-player-sub" style="font-size:0.8rem; color:var(--text-secondary);">MID • £12.5m</span>
-                </div>
-                <button id="modal-close" style="background:none; border:none; color:#fff; font-size:1.5rem; cursor:pointer;">&times;</button>
+        <div class="modal-box">
+            <button id="player-insight-close" class="modal-close" onclick="closeModal(); closePlayerInsightModal();">✕</button>
+            <div style="text-align:center; margin-bottom:16px;">
+                <h3 id="modal-player-name" style="font-family:var(--font-display); font-size:1.4rem; font-weight:800;">Player Insight</h3>
+                <div id="modal-player-sub" style="font-size:0.8rem; color:var(--text-secondary);">Position • Team</div>
             </div>
             <div id="modal-breakdown-content"></div>
         </div>
     </div>
 
+    <!-- Comparison Modal -->
+    <div id="comparison-modal" class="modal-overlay">
+        <div class="modal-box" style="max-width:640px;">
+            <button class="modal-close" onclick="closeModal('comparison-modal')">✕</button>
+            <h3 style="font-family:var(--font-display); font-size:1.3rem; font-weight:800; margin-bottom:16px;">My Team vs Optimal XI Comparison</h3>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+                <div style="background:#182234; padding:12px; border-radius:10px; text-align:center;">
+                    <div style="font-size:0.75rem; color:var(--text-muted);">My Squad Starting XI xP</div>
+                    <div id="comp-user-xp" style="font-size:1.5rem; font-weight:900; color:#fff;">41.95</div>
+                </div>
+                <div style="background:#182234; padding:12px; border-radius:10px; text-align:center;">
+                    <div style="font-size:0.75rem; color:var(--text-muted);">Optimal XI xP</div>
+                    <div id="comp-opt-xp" style="font-size:1.5rem; font-weight:900; color:var(--accent-green);">44.09</div>
+                </div>
+            </div>
+            <div style="text-align:center; margin-bottom:16px;">
+                <span id="comp-diff-xp" style="font-family:var(--font-display); font-size:1.2rem; font-weight:900; color:var(--accent-cyan);">+2.14 pts Potential Gain</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dedicated My Team Squad Editor Modal -->
+    <div id="my-team-modal" class="modal-overlay">
+        <div class="modal-box" style="max-width:820px; width:95%;">
+            <button class="modal-close" onclick="closeModal('my-team-modal')">✕</button>
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--bg-border); padding-bottom:12px;">
+                <div>
+                    <h3 style="font-family:var(--font-display); font-size:1.4rem; font-weight:800;">✏️ Edit My Team Squad</h3>
+                    <div style="font-size:0.8rem; color:var(--text-secondary);">Select 15 players (2 GKP, 5 DEF, 5 MID, 3 FWD) & financial state</div>
+                </div>
+            </div>
+
+            <!-- Financial State Controls -->
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; background:#182234; padding:14px; border-radius:12px; margin-bottom:16px;">
+                <div>
+                    <label style="font-size:0.75rem; text-transform:uppercase; color:var(--text-muted); font-weight:800; display:block; margin-bottom:4px;">Bank Value (£m)</label>
+                    <input type="number" id="user-bank-input" step="0.1" min="0" max="15" value="0.0" style="width:100%; background:#121824; border:1px solid var(--bg-border); color:#fff; padding:8px 12px; border-radius:8px; font-weight:700;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; text-transform:uppercase; color:var(--text-muted); font-weight:800; display:block; margin-bottom:4px;">Free Transfers</label>
+                    <select id="user-ft-input" style="width:100%; background:#121824; border:1px solid var(--bg-border); color:#fff; padding:8px 12px; border-radius:8px; font-weight:700;">
+                        <option value="1" selected>1 FT</option>
+                        <option value="2">2 FTs</option>
+                        <option value="3">3 FTs</option>
+                        <option value="4">4 FTs</option>
+                        <option value="5">5 FTs</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; text-transform:uppercase; color:var(--text-muted); font-weight:800; display:block; margin-bottom:4px;">Active Chip</label>
+                    <select id="user-chip-input" style="width:100%; background:#121824; border:1px solid var(--bg-border); color:#fff; padding:8px 12px; border-radius:8px; font-weight:700;">
+                        <option value="none" selected>None</option>
+                        <option value="wildcard">Wildcard</option>
+                        <option value="freehit">Free Hit</option>
+                        <option value="benchboost">Bench Boost</option>
+                        <option value="triplecaptain">Triple Captain</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Current Selected 15 Squad Players Grid -->
+            <div style="margin-bottom:16px;">
+                <div style="font-size:0.8rem; font-weight:800; color:var(--accent-cyan); margin-bottom:8px; display:flex; justify-content:space-between;">
+                    <span>SELECTED 15-PLAYER ROSTER</span>
+                    <span id="editor-squad-count">15 / 15 Players</span>
+                </div>
+                <div id="editor-squad-list" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; max-height:220px; overflow-y:auto; background:rgba(0,0,0,0.3); padding:10px; border-radius:10px;">
+                    <!-- Dynamically filled by JS -->
+                </div>
+            </div>
+
+            <!-- Player Database Picker & Search -->
+            <div style="margin-bottom:16px;">
+                <div style="font-size:0.8rem; font-weight:800; color:var(--text-secondary); margin-bottom:6px;">ADD PLAYERS FROM DATABASE</div>
+                <div style="display:flex; gap:10px; margin-bottom:8px;">
+                    <input type="text" id="my-team-search-input" placeholder="Search player by name or team..." style="flex:1; background:#182234; border:1px solid var(--bg-border); color:#fff; padding:8px 12px; border-radius:8px;" oninput="renderEditorPlayerPicker()">
+                </div>
+                <div id="editor-picker-results" style="max-height:180px; overflow-y:auto; background:rgba(0,0,0,0.3); padding:8px; border-radius:8px;">
+                    <!-- Dynamically filled by JS -->
+                </div>
+            </div>
+
+            <!-- Validation Banner & Save Action -->
+            <div id="my-team-unconfigured-banner" style="display:none; background:rgba(233,0,82,0.15); border:1px solid rgba(233,0,82,0.4); color:var(--accent-pink); padding:10px 14px; border-radius:8px; font-size:0.82rem; font-weight:700; margin-bottom:12px;"></div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span id="editor-budget-status" style="font-weight:800; font-size:0.9rem; color:var(--accent-green);">Squad Cost: £100.0m</span>
+                <button id="save-my-team-btn" class="solve-btn" style="padding:10px 24px; font-size:0.95rem;" onclick="saveUserSquad()">
+                    <span>💾 SAVE SQUAD</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
     <script>
-        let currentPosFilter = 'ALL';
-        let currentCPosFilter = 'ALL';
         let diagnosticsCache = [];
         let consensusCache = [];
+        let userSquadCache = null;
+        let lastOptimizerResult = null;
+        let currentPosFilter = 'ALL';
+        let currentCPosFilter = 'ALL';
+        let allPlayersCache = [];
+        let currentPollInterval = null;
 
         document.addEventListener('DOMContentLoaded', () => {
             initControls();
+            fetchStateStatus();
+            fetchUserSquad();
             fetchDiagnostics();
             fetchConsensusAudit();
+            fetchAllPlayers();
             runOptimization();
         });
 
+        function switchMainTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            
+            const selectedTab = document.getElementById(`tab-${tabName}`);
+            if (selectedTab) selectedTab.style.display = 'block';
+            
+            // Highlight active button
+            const navBtns = document.querySelectorAll('.nav-btn');
+            if (tabName === 'optimizer' && navBtns[0]) navBtns[0].classList.add('active');
+            if (tabName === 'my-team' && navBtns[1]) navBtns[1].classList.add('active');
+            if (tabName === 'consensus' && navBtns[2]) navBtns[2].classList.add('active');
+            if (tabName === 'role-audit' && navBtns[3]) navBtns[3].classList.add('active');
+
+            if (tabName === 'optimizer' && lastOptimizerResult) {
+                renderSquad(lastOptimizerResult);
+            } else if (tabName === 'my-team' && userSquadCache) {
+                renderUserSquadPage(userSquadCache);
+            }
+        }
+
         function initControls() {
-            document.getElementById('mode-select').addEventListener('change', runOptimization);
+            const modeSel = document.getElementById('mode-select');
+            if (modeSel) {
+                modeSel.addEventListener('change', (e) => {
+                    fetchDiagnostics(e.target.value);
+                    runOptimization();
+                });
+            }
 
             const range = document.getElementById('budget-range');
             const display = document.getElementById('budget-display');
-            range.addEventListener('input', (e) => {
-                display.innerText = (parseInt(e.target.value) / 10).toFixed(1) + 'm';
-            });
-            range.addEventListener('change', () => runOptimization());
+            if (range && display) {
+                range.addEventListener('input', (e) => {
+                    display.innerText = '£' + (parseInt(e.target.value) / 10).toFixed(1) + 'm';
+                });
+                range.addEventListener('change', () => runOptimization());
+            }
 
-            document.querySelectorAll('.pos-filter-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    document.querySelectorAll('.pos-filter-btn').forEach(b => b.classList.remove('active'));
-                    e.target.classList.add('active');
-                    currentPosFilter = e.target.getAttribute('data-pos');
-                    renderDiagnosticsTable();
+            // Global escape key modal listener
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeModal();
+            });
+
+            // Global backdrop overlay click listener
+            document.querySelectorAll('.modal-overlay').forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) closeModal(modal.id);
                 });
             });
-
-            document.querySelectorAll('.consensus-filter-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    document.querySelectorAll('.consensus-filter-btn').forEach(b => b.classList.remove('active'));
-                    e.target.classList.add('active');
-                    currentCPosFilter = e.target.getAttribute('data-cpos');
-                    renderConsensusTable();
-                });
-            });
-
-            document.getElementById('sync-btn').addEventListener('click', syncFplData);
-            document.getElementById('optimize-btn').addEventListener('click', runOptimization);
-            document.getElementById('modal-close').addEventListener('click', closeModal);
         }
 
-        async function fetchDiagnostics() {
+        async function fetchStateStatus() {
             try {
-                const res = await fetch('/api/v1/projections/diagnostics?limit=100');
+                const res = await fetch('/api/v1/state/status');
+                if (res.ok) {
+                    const data = await res.json();
+                    const syncBanner = document.getElementById('data-synced-banner');
+                    if (syncBanner && data.generated_at) {
+                        const dateStr = data.generated_at.slice(0, 10);
+                        syncBanner.innerHTML = `<span class="status-dot"></span><span>FPL Data Last Synced: ${dateStr} (Canonical 2026/27 Official API)</span>`;
+                    }
+                }
+            } catch (e) { console.error('Failed to fetch state status:', e); }
+        }
+
+        async function fetchUserSquad() {
+            try {
+                const res = await fetch('/api/v1/user-squad');
+                if (res.ok) {
+                    userSquadCache = await res.json();
+                    renderUserSquadPage(userSquadCache);
+                }
+            } catch (e) { console.error('Failed to fetch user squad:', e); }
+        }
+
+        function renderUserSquadPage(squadData) {
+            if (!squadData) return;
+            const bankEl = document.getElementById('my-team-bank');
+            const ftsEl = document.getElementById('my-team-fts');
+            const startXpEl = document.getElementById('my-team-starting-xp');
+            
+            const bankStr = squadData.bank_str || '£' + ((squadData.bank || 0) / 10).toFixed(1) + 'm';
+            const ftsStr = `${squadData.free_transfers || 1} FT`;
+
+            if (bankEl) bankEl.innerText = bankStr;
+            if (ftsEl) ftsEl.innerText = ftsStr;
+            if (startXpEl) startXpEl.innerText = `${typeof squadData.starting_xi_xp === 'number' ? squadData.starting_xi_xp.toFixed(2) : '0.00'} xP`;
+
+            const bStat = document.getElementById('my-team-bank-stat');
+            const ftStat = document.getElementById('my-team-ft-stat');
+            const cStat = document.getElementById('my-team-count-stat');
+            if (bStat) bStat.innerText = `${bankStr} Bank`;
+            if (ftStat) ftStat.innerText = ftsStr;
+
+            // Extract starting_11 and bench robustly from squadData
+            const picks = squadData.picks || [];
+            const starting11 = squadData.starting_11 || picks.filter(p => p.is_starter);
+            const bench = squadData.bench || picks.filter(p => !p.is_starter);
+
+            const all15 = [...starting11, ...bench];
+            if (cStat) cStat.innerText = `${all15.length} Players`;
+
+            const gkpRow = document.getElementById('my-team-gkp');
+            const defRow = document.getElementById('my-team-def');
+            const midRow = document.getElementById('my-team-mid');
+            const fwdRow = document.getElementById('my-team-fwd');
+            const benchRow = document.getElementById('my-team-bench');
+
+            if (gkpRow) gkpRow.innerHTML = '';
+            if (defRow) defRow.innerHTML = '';
+            if (midRow) midRow.innerHTML = '';
+            if (fwdRow) fwdRow.innerHTML = '';
+            if (benchRow) benchRow.innerHTML = '';
+
+            if (all15.length === 0) {
+                const formBadge = document.getElementById('my-team-formation');
+                if (formBadge) formBadge.innerText = '0-0-0';
+                return;
+            }
+
+            let defCount = 0, midCount = 0, fwdCount = 0;
+
+            if (starting11 && Array.isArray(starting11)) {
+                starting11.forEach(p => {
+                    const card = createPlayerCard(p);
+                    card.addEventListener('click', () => openMyTeamPlayerModal(p, true));
+                    const pos = p.position || p.element_type;
+                    if (pos === 'GKP' && gkpRow) gkpRow.appendChild(card);
+                    else if (pos === 'DEF' && defRow) { defRow.appendChild(card); defCount++; }
+                    else if (pos === 'MID' && midRow) { midRow.appendChild(card); midCount++; }
+                    else if (pos === 'FWD' && fwdRow) { fwdRow.appendChild(card); fwdCount++; }
+                });
+            }
+
+            const formBadge = document.getElementById('my-team-formation');
+            if (formBadge) formBadge.innerText = `${defCount}-${midCount}-${fwdCount}`;
+
+            if (bench && Array.isArray(bench) && benchRow) {
+                bench.forEach(p => {
+                    const card = createPlayerCard(p);
+                    card.addEventListener('click', () => openMyTeamPlayerModal(p, false));
+                    if (benchRow) benchRow.appendChild(card);
+                });
+            }
+        }
+
+        let editorSelectedIds = [];
+
+        function openEditSquadModal() {
+            if (!userSquadCache) {
+                fetchUserSquad().then(() => openEditSquadModal());
+                return;
+            }
+            
+            const all15 = [...(userSquadCache.starting_11 || []), ...(userSquadCache.bench || [])];
+            editorSelectedIds = all15.map(p => p.id);
+
+            const bankInput = document.getElementById('user-bank-input');
+            const ftInput = document.getElementById('user-ft-input');
+            const chipInput = document.getElementById('user-chip-input');
+
+            if (bankInput) bankInput.value = ((userSquadCache.bank || 0) / 10.0).toFixed(1);
+            if (ftInput) ftInput.value = userSquadCache.free_transfers || 1;
+            if (chipInput) chipInput.value = userSquadCache.active_chip || 'none';
+
+            renderEditorSquadList();
+            renderEditorPlayerPicker();
+            const m = document.getElementById('my-team-modal');
+            if (m) {
+                m.style.display = '';
+                m.style.visibility = '';
+                m.classList.add('open');
+            }
+        }
+
+        function renderEditorSquadList() {
+            const container = document.getElementById('editor-squad-list');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const selectedPlayers = allPlayersCache.filter(p => editorSelectedIds.includes(p.id));
+            
+            const countEl = document.getElementById('editor-squad-count');
+            if (countEl) countEl.innerText = `${selectedPlayers.length} / 15 Players`;
+
+            const costTotal = selectedPlayers.reduce((sum, p) => sum + (p.now_cost || p.price * 10 || 0), 0);
+            const statusEl = document.getElementById('editor-budget-status');
+            if (statusEl) statusEl.innerText = `Squad Cost: £${(costTotal / 10.0).toFixed(1)}m`;
+
+            selectedPlayers.forEach(p => {
+                const item = document.createElement('div');
+                item.style.cssText = 'background:rgba(255,255,255,0.05); padding:6px 10px; border-radius:6px; display:flex; justify-content:space-between; align-items:center; font-size:0.78rem;';
+                item.innerHTML = `
+                    <div>
+                        <span class="player-pos-badge pos-${p.position}">${p.position}</span>
+                        <strong style="margin-left:4px;">${p.web_name}</strong>
+                        <span style="color:var(--text-muted); font-size:0.7rem;">(${p.team_name} • ${p.price_str || '£'+(p.now_cost/10).toFixed(1)+'m'})</span>
+                    </div>
+                    <button style="background:rgba(239,68,68,0.2); border:1px solid #ef4444; color:#ef4444; border-radius:4px; font-size:0.7rem; font-weight:700; cursor:pointer; padding:2px 6px;" onclick="removePlayerFromEditor(${p.id})">✕ Remove</button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function removePlayerFromEditor(id) {
+            editorSelectedIds = editorSelectedIds.filter(pid => pid !== id);
+            renderEditorSquadList();
+            renderEditorPlayerPicker();
+        }
+
+        function addPlayerToEditor(id) {
+            if (editorSelectedIds.length >= 15) {
+                alert('Squad already has 15 players! Remove a player first.');
+                return;
+            }
+            if (!editorSelectedIds.includes(id)) {
+                editorSelectedIds.push(id);
+                renderEditorSquadList();
+                renderEditorPlayerPicker();
+            }
+        }
+
+        function renderEditorPlayerPicker() {
+            const container = document.getElementById('editor-picker-results');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const query = (document.getElementById('my-team-search-input')?.value || '').toLowerCase();
+            const available = allPlayersCache.filter(p => !editorSelectedIds.includes(p.id) && (p.web_name.toLowerCase().includes(query) || p.team_name.toLowerCase().includes(query))).slice(0, 30);
+
+            available.forEach(p => {
+                const item = document.createElement('div');
+                item.style.cssText = 'padding:6px 10px; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center; font-size:0.8rem;';
+                item.innerHTML = `
+                    <div>
+                        <span class="player-pos-badge pos-${p.position}">${p.position}</span>
+                        <strong style="margin-left:4px;">${p.web_name}</strong>
+                        <span style="color:var(--text-secondary); font-size:0.72rem;">${p.team_name} • ${p.price_str || '£'+(p.now_cost/10).toFixed(1)+'m'} • ${p.total_xp} xP</span>
+                    </div>
+                    <button style="background:var(--accent-green); color:#0b0e14; border:none; border-radius:4px; font-weight:800; font-size:0.7rem; cursor:pointer; padding:3px 8px;" onclick="addPlayerToEditor(${p.id})">+ Add</button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        async function saveUserSquad() {
+            if (editorSelectedIds.length !== 15) {
+                const banner = document.getElementById('my-team-unconfigured-banner');
+                if (banner) {
+                    banner.style.display = 'block';
+                    banner.innerText = `⚠️ Squad must contain exactly 15 players (currently ${editorSelectedIds.length}).`;
+                }
+                return;
+            }
+
+            const bankVal = Math.round(parseFloat(document.getElementById('user-bank-input').value || '0.0') * 10);
+            const ftVal = parseInt(document.getElementById('user-ft-input').value || '1');
+            const chipVal = document.getElementById('user-chip-input').value || 'none';
+
+            const payload = {
+                player_ids: editorSelectedIds,
+                bank: bankVal,
+                free_transfers: ftVal,
+                active_chip: chipVal
+            };
+
+            try {
+                const res = await fetch('/api/v1/user-squad', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    userSquadCache = await res.json();
+                    renderUserSquadPage(userSquadCache);
+                    closeModal('my-team-modal');
+                } else {
+                    alert('Failed to save squad. Ensure composition meets rules (2 GKP, 5 DEF, 5 MID, 3 FWD).');
+                }
+            } catch (err) {
+                console.error('Error saving user squad:', err);
+                alert('Network error saving squad.');
+            }
+        }
+
+        let currentModalPlayer = null;
+        let currentModalIsStarter = true;
+
+        function openMyTeamPlayerModal(p, isStarter = true) {
+            currentModalPlayer = p;
+            currentModalIsStarter = isStarter;
+            
+            document.getElementById('modal-player-name').innerText = p.web_name;
+            document.getElementById('modal-player-sub').innerText = `${p.position || p.element_type} • ${p.team_name} • ${p.price_str || p.now_cost_str || '£' + (p.now_cost/10).toFixed(1) + 'm'}`;
+            const content = document.getElementById('modal-breakdown-content');
+            
+            const shirtSvg = getClubShirtSvg(p.team_name, p.position === 'GKP' || p.element_type === 'GKP', 42);
+            
+            let actionsHtml = `
+                <div style="margin-top:16px; border-top:1px solid var(--bg-border); padding-top:14px; display:flex; flex-direction:column; gap:10px;">
+                    <div style="font-size:0.75rem; font-weight:800; text-transform:uppercase; color:var(--accent-cyan);">⚡ SQUAD MANAGEMENT ACTIONS</div>
+                    <div style="display:flex; gap:10px;">
+                        <button class="solve-btn" style="padding:8px 12px; font-size:0.78rem; flex:1;" onclick="setSquadCaptain(${p.id}, false)">⭐ Make Captain (C)</button>
+                        <button class="solve-btn" style="padding:8px 12px; font-size:0.78rem; flex:1; background:linear-gradient(135deg, var(--accent-cyan), #00a0e3);" onclick="setSquadCaptain(${p.id}, true)">🛡️ Make Vice (V)</button>
+                    </div>
+                    <button class="solve-btn" style="padding:10px 14px; font-size:0.85rem; width:100%; background:linear-gradient(135deg, #10b981, #059669);" onclick="openSubstitutionSelectionMode()">
+                        <span>↔️ ${isStarter ? 'SUBSTITUTE (SWAP WITH BENCH)' : 'SUBSTITUTE INTO STARTING XI'}</span>
+                    </button>
+                </div>
+            `;
+
+            content.innerHTML = `
+                <div style="text-align:center; margin-bottom:12px;">
+                    ${shirtSvg}
+                    <div style="font-size:0.75rem; color:var(--text-secondary);">${p.team_name} • ${p.position || p.element_type}</div>
+                </div>
+
+                <div class="breakdown-row"><span class="breakdown-label">GW Expected Points</span><span class="breakdown-val">${p.gw0_xp !== undefined ? p.gw0_xp : (p.total_xp || '0.00')} pts</span></div>
+                <div class="breakdown-row"><span class="breakdown-label">Expected Minutes (xMins)</span><span class="breakdown-val">${p.xMins || p.expected_minutes_ml || 0} mins</span></div>
+                
+                ${actionsHtml}
+            `;
+            const m = document.getElementById('breakdown-modal');
+            if (m) {
+                m.style.display = '';
+                m.style.visibility = '';
+                m.classList.add('open');
+            }
+        }
+
+        function checkSubstitutionLegality(starterP, benchP) {
+            const starters = (userSquadCache?.starting_11 || []);
+            const newStarters = starters.map(p => p.id === starterP.id ? benchP : p);
+            
+            let gkp = 0, def = 0, mid = 0, fwd = 0;
+            newStarters.forEach(p => {
+                const pos = p.position || p.element_type;
+                if (pos === 'GKP') gkp++;
+                else if (pos === 'DEF') def++;
+                else if (pos === 'MID') mid++;
+                else if (pos === 'FWD') fwd++;
+            });
+
+            if (gkp !== 1) return { legal: false, reason: 'Formation must have exactly 1 Goalkeeper.' };
+            if (def < 3) return { legal: false, reason: 'Formation would have fewer than 3 Defenders.' };
+            if (mid < 2) return { legal: false, reason: 'Formation would have fewer than 2 Midfielders.' };
+            if (fwd < 1) return { legal: false, reason: 'Formation would have fewer than 1 Forward.' };
+            return { legal: true, reason: '' };
+        }
+
+        function openSubstitutionSelectionMode() {
+            const p = currentModalPlayer;
+            const isStarter = currentModalIsStarter;
+            if (!p || !userSquadCache) return;
+
+            document.getElementById('modal-player-name').innerText = `↔️ SUBSTITUTE ${p.web_name.toUpperCase()}`;
+            document.getElementById('modal-player-sub').innerText = `Current: ${p.position || p.element_type} • ${p.team_name} • ${p.gw0_xp || p.total_xp || 0} xP`;
+            const content = document.getElementById('modal-breakdown-content');
+
+            const candidates = isStarter ? (userSquadCache.bench || []) : (userSquadCache.starting_11 || []);
+            
+            let html = `
+                <div style="margin-bottom:12px; font-size:0.8rem; font-weight:800; color:var(--accent-cyan); text-transform:uppercase;">
+                    SELECT PLAYER TO SWAP WITH ${isStarter ? '(BENCH OPTIONS)' : '(STARTING XI OPTIONS)'}:
+                </div>
+                <div style="display:grid; grid-template-columns:1fr; gap:10px; max-height:260px; overflow-y:auto; padding-right:4px;">
+            `;
+
+            candidates.forEach(cand => {
+                const starterP = isStarter ? p : cand;
+                const benchP = isStarter ? cand : p;
+                const check = checkSubstitutionLegality(starterP, benchP);
+                const shirtSvg = getClubShirtSvg(cand.team_name, cand.position === 'GKP' || cand.element_type === 'GKP', 32);
+
+                if (check.legal) {
+                    html += `
+                        <div style="background:rgba(255,255,255,0.04); border:1px solid var(--bg-border); padding:10px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                ${shirtSvg}
+                                <div>
+                                    <div style="font-weight:800; font-size:0.9rem;">${cand.web_name}</div>
+                                    <div style="font-size:0.75rem; color:var(--text-muted);">${cand.position || cand.element_type} • ${cand.team_name} • ${cand.price_str || '£'+(cand.now_cost/10).toFixed(1)+'m'} • <span style="color:var(--accent-cyan); font-weight:700;">${cand.gw0_xp || cand.total_xp || 0} xP</span></div>
+                                </div>
+                            </div>
+                            <button class="solve-btn" style="padding:6px 14px; font-size:0.8rem; background:var(--accent-green); color:#0b0e14; font-weight:900;" onclick="swapSquadPlayers(${starterP.id}, ${benchP.id})">
+                                🔁 Swap
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div style="background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.25); padding:10px; border-radius:10px; display:flex; justify-content:space-between; align-items:center; opacity:0.75;">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                ${shirtSvg}
+                                <div>
+                                    <div style="font-weight:800; font-size:0.9rem; color:var(--text-muted);">${cand.web_name}</div>
+                                    <div style="font-size:0.72rem; color:#ef4444; font-weight:700;">🔒 LOCKED: ${check.reason}</div>
+                                </div>
+                            </div>
+                            <button disabled style="background:rgba(255,255,255,0.1); color:var(--text-muted); border:none; padding:6px 12px; border-radius:6px; font-size:0.75rem; cursor:not-allowed;">
+                                Invalid
+                            </button>
+                        </div>
+                    `;
+                }
+            });
+
+            html += `
+                </div>
+                <div style="margin-top:14px; display:flex; gap:10px;">
+                    <button style="background:rgba(255,255,255,0.08); border:1px solid var(--bg-border); color:#fff; border-radius:8px; padding:8px 14px; font-size:0.8rem; font-weight:700; cursor:pointer; flex:1;" onclick="openMyTeamPlayerModal(currentModalPlayer, currentModalIsStarter)">← BACK</button>
+                    <button style="background:rgba(239,68,68,0.2); border:1px solid #ef4444; color:#ef4444; border-radius:8px; padding:8px 14px; font-size:0.8rem; font-weight:700; cursor:pointer; flex:1;" onclick="closeModal('breakdown-modal')">CANCEL</button>
+                </div>
+            `;
+
+            content.innerHTML = html;
+        }
+
+        async function setSquadCaptain(captainId, isVice = false) {
+            if (!userSquadCache) return;
+            const currentCap = isVice ? userSquadCache.captain_id : captainId;
+            const currentVc = isVice ? captainId : userSquadCache.vice_captain_id;
+
+            const all15 = [...(userSquadCache.starting_11 || []), ...(userSquadCache.bench || [])];
+            const payload = {
+                player_ids: all15.map(p => p.id),
+                bank: userSquadCache.bank || 0,
+                free_transfers: userSquadCache.free_transfers || 1,
+                active_chip: userSquadCache.active_chip,
+                captain_id: currentCap,
+                vice_captain_id: currentVc,
+                starter_ids: (userSquadCache.starting_11 || []).map(p => p.id)
+            };
+
+            try {
+                const res = await fetch('/api/v1/user-squad', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    userSquadCache = await res.json();
+                    renderUserSquadPage(userSquadCache);
+                    closeModal('breakdown-modal');
+                }
+            } catch (e) { console.error('Failed to set captain:', e); }
+        }
+
+        async function swapSquadPlayers(starterId, benchId) {
+            if (!userSquadCache) return;
+            const starters = (userSquadCache.starting_11 || []).map(p => p.id);
+            const bench = (userSquadCache.bench || []).map(p => p.id);
+
+            const newStarters = starters.map(id => id === starterId ? benchId : id);
+            const newBench = bench.map(id => id === benchId ? starterId : id);
+            
+            let capId = userSquadCache.captain_id;
+            let vcId = userSquadCache.vice_captain_id;
+
+            // Handle captain/vice-captain transfer if starterId was captain/vice-captain
+            if (starterId === capId) {
+                capId = (vcId && newStarters.includes(vcId)) ? vcId : newStarters[0];
+                if (vcId === capId) vcId = newStarters.find(id => id !== capId) || newStarters[1];
+            } else if (starterId === vcId) {
+                vcId = newStarters.find(id => id !== capId) || newStarters[1];
+            }
+
+            const payload = {
+                player_ids: [...newStarters, ...newBench],
+                bank: userSquadCache.bank || 0,
+                free_transfers: userSquadCache.free_transfers || 1,
+                active_chip: userSquadCache.active_chip,
+                captain_id: capId,
+                vice_captain_id: vcId,
+                starter_ids: newStarters
+            };
+
+            try {
+                const res = await fetch('/api/v1/user-squad', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    userSquadCache = await res.json();
+                    renderUserSquadPage(userSquadCache);
+                    closeModal('breakdown-modal');
+                } else {
+                    alert('Invalid substitution! Formation must have at least 1 GKP, 3 DEF, 2 MID, 1 FWD.');
+                }
+            } catch (e) { console.error('Failed to swap players:', e); }
+        }
+
+        async function fetchDiagnostics(mode) {
+            const tbody = document.getElementById('player-table-body');
+            const modeSelect = document.getElementById('mode-select');
+            const targetMode = mode || modeSelect?.value || 'CURRENT_GW_PLUS_3';
+
+            const titleElem = document.getElementById('diagnostics-panel-title');
+            const metricTitle = document.getElementById('metric-horizon-title');
+            
+            if (targetMode === 'CURRENT_GW_ONLY' || targetMode === 'NEXT_GW') {
+                if (titleElem) titleElem.innerText = '📊 GW2 Outlook & Diagnostics';
+                if (metricTitle) metricTitle.innerText = '1-GW Horizon xP';
+            } else if (targetMode === 'LONG_TERM') {
+                if (titleElem) titleElem.innerText = '📊 GW2–GW8 Outlook & Diagnostics';
+                if (metricTitle) metricTitle.innerText = '7-GW Weighted Horizon';
+            } else {
+                if (titleElem) titleElem.innerText = '📊 GW2–GW5 Outlook & Diagnostics';
+                if (metricTitle) metricTitle.innerText = '4-GW Weighted Horizon';
+            }
+
+            if (tbody && (!diagnosticsCache || diagnosticsCache.length === 0)) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--accent-cyan); font-weight:700; padding:20px;">🔄 Loading horizon diagnostics...</td></tr>`;
+            }
+
+            try {
+                const res = await fetch(`/api/v1/projections/diagnostics?mode=${targetMode}&limit=100`);
                 if (res.ok) {
                     diagnosticsCache = await res.json();
-                    renderDiagnosticsTable();
+                    renderDiagnosticsTable(diagnosticsCache, targetMode);
+                } else {
+                    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--accent-pink); font-weight:700; padding:20px;">⚠️ Failed to load diagnostics (${res.status}). <button onclick="fetchDiagnostics()" style="margin-left:10px; cursor:pointer;">Retry</button></td></tr>`;
                 }
-            } catch (err) { console.error('Failed to fetch diagnostics:', err); }
+            } catch (err) {
+                console.error('Failed to fetch diagnostics:', err);
+                if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--accent-pink); font-weight:700; padding:20px;">⚠️ Network error loading diagnostics. <button onclick="fetchDiagnostics()" style="margin-left:10px; cursor:pointer;">Retry</button></td></tr>`;
+            }
         }
 
-        function renderDiagnosticsTable() {
+        function filterDiagnostics(pos, btn) {
+            currentPosFilter = pos;
+            document.querySelectorAll('.pos-filter-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            renderDiagnosticsTable(diagnosticsCache);
+        }
+
+        function renderDiagnosticsTable(data, mode) {
             const tbody = document.getElementById('player-table-body');
+            if (!tbody) return;
             tbody.innerHTML = '';
 
-            let filtered = diagnosticsCache;
+            const list = data || diagnosticsCache || [];
+            if (!list || list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:20px;">No player diagnostics available</td></tr>`;
+                return;
+            }
+
+            const startGw = 2; // Optimization target horizon starts at GW2
+            let filtered = list;
             if (currentPosFilter !== 'ALL') {
                 filtered = filtered.filter(p => p.position === currentPosFilter);
             }
@@ -663,41 +1228,41 @@
                 const tr = document.createElement('tr');
                 tr.addEventListener('click', () => openModal(p));
                 
-                const g0_opp = p.gw0_opponent || p.opponent || '-';
-                const g1_opp = p.gw1_opponent || '-';
-                const g2_opp = p.gw2_opponent || '-';
-                const g3_opp = p.gw3_opponent || '-';
+                const g1_opp = p.gw2_opponent || p.gw0_opponent || p.opponent || '-';
+                const g2_opp = p.gw3_opponent || p.gw1_opponent || '-';
+                const g3_opp = p.gw4_opponent || p.gw2_opponent || '-';
+                const g4_opp = p.gw5_opponent || p.gw3_opponent || '-';
 
-                const g0_val = p.gw0_xp !== undefined ? p.gw0_xp : p.total_xp;
-                const g1_val = p.gw1_xp !== undefined ? p.gw1_xp : '-';
-                const g2_val = p.gw2_xp !== undefined ? p.gw2_xp : '-';
-                const g3_val = p.gw3_xp !== undefined ? p.gw3_xp : '-';
-                const w_val = p.weighted_xp !== undefined ? p.weighted_xp : p.total_xp;
+                const g1_val = p.gw2_xp !== undefined ? p.gw2_xp.toFixed(2) : (p.gw0_xp !== undefined ? p.gw0_xp.toFixed(2) : '0.00');
+                const g2_val = p.gw3_xp !== undefined ? p.gw3_xp.toFixed(2) : (p.gw1_xp !== undefined ? p.gw1_xp.toFixed(2) : '0.00');
+                const g3_val = p.gw4_xp !== undefined ? p.gw4_xp.toFixed(2) : '0.00';
+                const g4_val = p.gw5_xp !== undefined ? p.gw5_xp.toFixed(2) : '0.00';
+                const w_val = p.weighted_xp !== undefined ? p.weighted_xp.toFixed(2) : (p.total_xp || '0.00');
 
                 tr.innerHTML = `
                     <td>
-                        <div style="font-weight:700;">${p.web_name}</div>
+                        <div style="font-weight:700;">${getClubShirtSvg(p.team_name, p.position === 'GKP', 24)} ${p.web_name}</div>
                         <div style="font-size:0.7rem; color:var(--text-muted);">${p.team_name} • ${p.position}</div>
                     </td>
-                    <td style="font-weight:600;">${p.price_str}</td>
+                    <td style="font-weight:600;">${p.price_str || '£' + (p.price || p.now_cost/10).toFixed(1) + 'm'}</td>
                     <td>
-                        <div style="font-size:0.7rem; color:var(--text-muted);">${g0_opp}</div>
-                        <span class="player-xp-badge">${g0_val}</span>
+                        <div style="font-size:0.68rem; color:var(--text-muted);">${g1_opp}</div>
+                        <span class="player-xp-badge">${g1_val}</span>
                     </td>
                     <td>
-                        <div style="font-size:0.7rem; color:var(--text-muted);">${g1_opp}</div>
-                        <span style="color:var(--text-secondary); font-weight:600;">${g1_val}</span>
-                    </td>
-                    <td>
-                        <div style="font-size:0.7rem; color:var(--text-muted);">${g2_opp}</div>
+                        <div style="font-size:0.68rem; color:var(--text-muted);">${g2_opp}</div>
                         <span style="color:var(--text-secondary); font-weight:600;">${g2_val}</span>
                     </td>
                     <td>
-                        <div style="font-size:0.7rem; color:var(--text-muted);">${g3_opp}</div>
+                        <div style="font-size:0.68rem; color:var(--text-muted);">${g3_opp}</div>
                         <span style="color:var(--text-secondary); font-weight:600;">${g3_val}</span>
                     </td>
                     <td>
-                        <span style="color:var(--accent-cyan); font-weight:700; font-family:'Outfit', sans-serif;">${w_val}</span>
+                        <div style="font-size:0.68rem; color:var(--text-muted);">${g4_opp}</div>
+                        <span style="color:var(--text-secondary); font-weight:600;">${g4_val}</span>
+                    </td>
+                    <td>
+                        <span style="color:var(--accent-cyan); font-weight:800; font-family:var(--font-display);">${w_val}</span>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -709,137 +1274,58 @@
                 const res = await fetch('/api/v1/projections/consensus_audit?target_gw=1');
                 if (res.ok) {
                     consensusCache = await res.json();
-                    renderConsensusTable();
+                    renderConsensusAuditTable();
+                    renderRoleAuditTable();
                 }
-            } catch (err) {
-                console.error("Failed to fetch consensus audit data:", err);
-            }
+            } catch (err) { console.error('Failed to fetch consensus audit:', err); }
         }
 
-        function renderConsensusTable() {
+        function renderConsensusAuditTable() {
             const tbody = document.getElementById('consensus-table-body');
             if (!tbody) return;
             tbody.innerHTML = '';
-
-            let filtered = consensusCache;
-            if (currentCPosFilter !== 'ALL') {
-                filtered = filtered.filter(p => p.position === currentCPosFilter);
-            }
-
-            filtered.forEach(p => {
+            consensusCache.forEach(p => {
                 const tr = document.createElement('tr');
                 tr.addEventListener('click', () => openModal(p));
-                const gap = p.rank_gap || 0;
-                const gapStr = gap > 0 ? `+${gap}` : `${gap}`;
-                const gapColor = gap > 5 ? 'var(--accent-green)' : (gap < -5 ? 'var(--accent-pink)' : 'var(--text-secondary)');
-
                 tr.innerHTML = `
-                    <td>
-                        <div style="font-weight:700;">${p.web_name}</div>
-                        <div style="font-size:0.7rem; color:var(--text-muted);">${p.team_name} • ${p.position}</div>
-                    </td>
+                    <td style="font-weight:700;">${p.web_name}</td>
+                    <td><span class="player-pos-badge pos-${p.position}">${p.position}</span></td>
+                    <td>${p.team_name}</td>
                     <td style="font-weight:600;">${p.price_str}</td>
-                    <td style="font-weight:700; color:var(--accent-cyan);">${p.total_xp}</td>
-                    <td style="font-weight:700;">#${p.model_rank}</td>
-                    <td style="font-weight:600; color:#fff;">${p.ownership_pct ? p.ownership_pct.toFixed(1) + '%' : '0.0%'}</td>
-                    <td style="color:var(--text-secondary);">#${p.consensus_rank}</td>
-                    <td style="font-weight:700; color:${gapColor};">${gapStr}</td>
+                    <td style="font-weight:800; color:var(--accent-green);">${p.total_xp}</td>
                     <td>${p.xMins || 0}m</td>
-                    <td>${p.xg_match || 0}</td>
-                    <td>${p.xa_match || 0}</td>
-                    <td style="font-size:0.75rem; color:var(--text-muted);">${p.classification || 'A. Baseline'}</td>
                 `;
                 tbody.appendChild(tr);
             });
-
-            renderRoleAuditTable();
         }
 
         function renderRoleAuditTable() {
             const tbody = document.getElementById('role-audit-table-body');
             if (!tbody) return;
             tbody.innerHTML = '';
-
-            let filtered = consensusCache;
-            if (currentCPosFilter !== 'ALL') {
-                filtered = filtered.filter(p => p.position === currentCPosFilter);
-            }
-
-            filtered.forEach(p => {
+            consensusCache.forEach(p => {
                 const tr = document.createElement('tr');
                 tr.addEventListener('click', () => openModal(p));
-
-                let riskLabel = "Low Extrapolation Risk";
-                let riskColor = "var(--accent-green)";
-                if (p.web_name === "Awoniyi" || p.web_name === "Osula") {
-                    riskLabel = "HIGH: Per-90 Rate Extrapolation Risk (Low Minutes Sample)";
-                    riskColor = "var(--accent-pink)";
-                } else if (p.web_name === "Marmoush" || p.web_name === "Beto") {
-                    riskLabel = "MODERATE: Mid-Sample Extrapolation";
-                    riskColor = "#ff9900";
-                }
-
                 tr.innerHTML = `
-                    <td>
-                        <div style="font-weight:700;">${p.web_name}</div>
-                        <div style="font-size:0.7rem; color:var(--text-muted);">${p.team_name} • ${p.position}</div>
-                    </td>
+                    <td style="font-weight:700;">${p.web_name}</td>
                     <td style="font-weight:600;">${p.price_str}</td>
                     <td style="font-weight:700; color:var(--accent-cyan);">${p.xMins || 0}m</td>
                     <td>${p.p_start !== undefined ? (p.p_start * 100).toFixed(1) + '%' : 'N/A'}</td>
                     <td>${p.p_60_plus !== undefined ? (p.p_60_plus * 100).toFixed(1) + '%' : 'N/A'}</td>
                     <td>${p.p_zero !== undefined ? (p.p_zero * 100).toFixed(1) + '%' : 'N/A'}</td>
-                    <td style="font-weight:700; color:var(--accent-cyan);">${p.total_xp}</td>
-                    <td style="font-weight:700;">#${p.model_rank}</td>
-                    <td style="color:var(--text-secondary);">#${p.consensus_rank}</td>
-                    <td style="font-size:0.75rem; font-weight:700; color:${riskColor};">${riskLabel}</td>
+                    <td style="font-weight:800; color:var(--accent-green);">${p.total_xp}</td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        function openModal(p) {
-            document.getElementById('modal-player-name').innerText = p.web_name;
-            document.getElementById('modal-player-sub').innerText = `${p.position} • ${p.team_name} • ${p.price_str}`;
-            const content = document.getElementById('modal-breakdown-content');
-            content.innerHTML = `
-                <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--accent-cyan); margin-bottom:6px; font-weight:700;">Availability & Role Shrinkage Model</div>
-                <div class="breakdown-row"><span class="breakdown-label">Expected Minutes (xMins)</span><span class="breakdown-val">${p.xMins || p.expected_minutes_ml || 0} mins</span></div>
-                <div class="breakdown-row"><span class="breakdown-label">P(Start) / P(60+) / P(0)</span><span class="breakdown-val">${p.p_start !== undefined ? (p.p_start * 100).toFixed(1) + '%' : 'N/A'} / ${p.p_60_plus !== undefined ? (p.p_60_plus * 100).toFixed(1) + '%' : 'N/A'} / ${p.p_zero !== undefined ? (p.p_zero * 100).toFixed(1) + '%' : 'N/A'}</span></div>
-                <div class="breakdown-row"><span class="breakdown-label">Minutes Model Version</span><span class="breakdown-val" style="color:#00ff88;">${p.model_version || 'expected_minutes_v1'}</span></div>
-                
-                <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--accent-green); margin-top:12px; margin-bottom:6px; font-weight:700;">Attacking Projections (LightGBM ML)</div>
-                <div class="breakdown-row"><span class="breakdown-label">Expected Goals (xG)</span><span class="breakdown-val">${p.xg_ml !== undefined ? p.xg_ml : (p.xg || '0.00')}</span></div>
-                <div class="breakdown-row"><span class="breakdown-label">Expected Assists (xA)</span><span class="breakdown-val">${p.xa_ml !== undefined ? p.xa_ml : (p.xa || '0.00')}</span></div>
-                
-                <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-secondary); margin-top:12px; margin-bottom:6px; font-weight:700;">Itemized Points Breakdown</div>
-                <div class="breakdown-row"><span class="breakdown-label">Appearance Points</span><span class="breakdown-val">${p.appearance_xp}</span></div>
-                <div class="breakdown-row"><span class="breakdown-label">Goals Points</span><span class="breakdown-val">${p.goals_xp}</span></div>
-                <div class="breakdown-row"><span class="breakdown-label">Assists Points</span><span class="breakdown-val">${p.assists_xp}</span></div>
-                <div class="breakdown-row"><span class="breakdown-label">Clean Sheet Points</span><span class="breakdown-val">${p.cs_xp}</span></div>
-                <div class="breakdown-row"><span class="breakdown-label">DEFCON Points (10+ CBIT)</span><span class="breakdown-val">${p.defcon_xp}</span></div>
-                <div class="breakdown-row"><span class="breakdown-label">Saves Points</span><span class="breakdown-val">${p.saves_xp}</span></div>
-                <div class="breakdown-row"><span class="breakdown-label">Bonus Points</span><span class="breakdown-val">${p.bonus_xp}</span></div>
-                <div class="breakdown-row"><span class="breakdown-label">Cards & Penalty Risk</span><span class="breakdown-val" style="color:var(--accent-pink);">${p.cards_xp}</span></div>
-                <div class="breakdown-row" style="margin-top:12px; border-top:2px solid var(--accent-green); padding-top:12px;">
-                    <span class="breakdown-label" style="font-weight:700; color:#fff;">Total Base Expected Points (xP)</span>
-                    <span class="breakdown-val" style="font-size:1.2rem;">${p.total_xp}</span>
-                </div>
-            `;
-            document.getElementById('breakdown-modal').classList.add('open');
-        }
-
-        function closeModal() { document.getElementById('breakdown-modal').classList.remove('open'); }
-
-        async function syncFplData() {
+        async function fetchAllPlayers() {
             try {
-                const res = await fetch('/api/v1/ingest', { method: 'POST' });
+                const res = await fetch('/api/v1/players?limit=600&target_gw=1');
                 if (res.ok) {
-                    alert('FPL Data Synced Successfully!');
-                    await fetchDiagnostics();
-                    await runOptimization();
+                    allPlayersCache = await res.json();
                 }
-            } catch (err) { alert('Failed to sync.'); }
+            } catch (e) { console.error('Failed to fetch all players:', e); }
         }
 
         async function runOptimization() {
@@ -852,11 +1338,16 @@
             const progressMsg = document.getElementById('progress-message');
             const progressTimer = document.getElementById('progress-timer');
 
-            optBtn.disabled = true;
-            progressCard.style.display = 'block';
-            progressBar.style.width = '10%';
-            progressPercent.innerText = '10%';
-            progressMsg.innerText = 'Submitting optimization job...';
+            if (currentPollInterval) {
+                clearInterval(currentPollInterval);
+                currentPollInterval = null;
+            }
+
+            if (optBtn) optBtn.disabled = true;
+            if (progressCard) progressCard.style.display = 'block';
+            if (progressBar) progressBar.style.width = '10%';
+            if (progressPercent) progressPercent.innerText = '10%';
+            if (progressMsg) progressMsg.innerText = 'Submitting optimization job...';
 
             const payload = {
                 mode: modeVal,
@@ -876,91 +1367,63 @@
                 if (!jobRes.ok) throw new Error('Failed to start optimization job.');
                 const { job_id } = await jobRes.json();
 
-                // Poll job status until COMPLETED or FAILED
-                const pollInterval = setInterval(async () => {
+                currentPollInterval = setInterval(async () => {
                     try {
                         const statusRes = await fetch(`/api/v1/optimize/status/${job_id}`);
                         if (statusRes.ok) {
                             const status = await statusRes.json();
-                            progressBar.style.width = `${status.progress_percent}%`;
-                            progressPercent.innerText = `${status.progress_percent}%`;
-                            progressMsg.innerText = `Step ${status.stage_number}/${status.total_stages}: ${status.message}`;
-                            progressTimer.innerText = `Elapsed: ${status.elapsed_seconds}s`;
+                            if (progressBar) progressBar.style.width = `${status.progress_percent}%`;
+                            if (progressPercent) progressPercent.innerText = `${status.progress_percent}%`;
+                            if (progressMsg) progressMsg.innerText = `Step ${status.stage_number}/${status.total_stages}: ${status.message}`;
+                            if (progressTimer) progressTimer.innerText = `Elapsed: ${status.elapsed_seconds}s`;
 
                             if (status.status === 'COMPLETED') {
-                                clearInterval(pollInterval);
+                                if (currentPollInterval) { clearInterval(currentPollInterval); currentPollInterval = null; }
                                 const resultRes = await fetch(`/api/v1/optimize/result/${job_id}`);
                                 const finalJob = await resultRes.json();
                                 renderSquad(finalJob.result);
-                                progressMsg.innerText = `✓ Optimization Complete (Runtime: ${status.elapsed_seconds}s)`;
-                                optBtn.disabled = false;
-                                setTimeout(() => { progressCard.style.display = 'none'; }, 4000);
+                                if (progressMsg) progressMsg.innerText = `✓ Optimization Complete (Runtime: ${status.elapsed_seconds}s)`;
+                                if (optBtn) optBtn.disabled = false;
+                                setTimeout(() => { if (progressCard) progressCard.style.display = 'none'; }, 3000);
                             } else if (status.status === 'FAILED') {
-                                clearInterval(pollInterval);
-                                progressMsg.innerText = `✕ Optimization Failed: ${status.error}`;
-                                optBtn.disabled = false;
+                                if (currentPollInterval) { clearInterval(currentPollInterval); currentPollInterval = null; }
+                                if (progressMsg) progressMsg.innerText = `✕ Optimization Failed: ${status.error}`;
+                                if (optBtn) optBtn.disabled = false;
                             }
                         }
                     } catch (err) {
-                        clearInterval(pollInterval);
-                        optBtn.disabled = false;
+                        if (currentPollInterval) { clearInterval(currentPollInterval); currentPollInterval = null; }
+                        if (optBtn) optBtn.disabled = false;
                     }
-                }, 400);
+                }, 1000);
 
             } catch (err) {
                 console.error('Optimization error:', err);
-                optBtn.disabled = false;
-                progressMsg.innerText = '✕ Optimization error occurred.';
+                if (currentPollInterval) { clearInterval(currentPollInterval); currentPollInterval = null; }
+                if (optBtn) optBtn.disabled = false;
+                if (progressMsg) progressMsg.innerText = '✕ Optimization error occurred.';
             }
         }
 
-        async function compareModes() {
-            const budgetVal = parseInt(document.getElementById('budget-range').value);
-            const payload = {
-                mode: 'CURRENT_GW_PLUS_3',
-                current_gw: 1,
-                total_budget: budgetVal,
-                max_players_per_team: 3,
-                projection_source: 'internal'
-            };
-
-            alert('Running Side-by-Side 4-Mode Comparison on current snapshot... Please wait a few seconds.');
-            try {
-                const res = await fetch('/api/v1/optimize/compare_modes', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    let msg = '📊 OPTIMIZATION MODE COMPARISON RESULTS:\n\n';
-                    data.comparison.forEach(c => {
-                        msg += `• Mode: ${c.mode}\n`;
-                        msg += `  Cost: ${c.total_cost_str} | Bank: ${c.bank_str}\n`;
-                        msg += `  GW0 XI xP: ${c.current_gw_starting_xi_xp} | Total GW0 xP: ${c.total_current_gw_xp} | 4-GW Weighted: ${c.weighted_horizon_xp}\n`;
-                        msg += `  Captain: ${c.captain_name} | Runtime: ${c.solver_runtime_seconds}s\n`;
-                        msg += `  Starting XI: ${c.starting_11_names.slice(0, 5).join(', ')}...\n\n`;
-                    });
-                    alert(msg);
-                }
-            } catch (err) { alert('Failed to compare modes.'); }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const compBtn = document.getElementById('compare-modes-btn');
-            if (compBtn) compBtn.addEventListener('click', compareModes);
-        });
-
         function renderSquad(data) {
-            document.getElementById('model-version-tag').innerText = data.model_version || "Baseline Projection Model v0.2";
-            document.getElementById('metric-gw0-xp').innerText = data.current_gw_starting_xi_xp;
-            document.getElementById('metric-cap-extra').innerText = `+${data.captain_contribution_xp} Cap (Total ${data.total_current_gw_xp})`;
-            document.getElementById('metric-weighted-xp').innerText = data.weighted_horizon_xp;
-            document.getElementById('metric-cost').innerText = data.total_cost_str;
-            document.getElementById('metric-bank').innerText = data.bank_str;
-            document.getElementById('metric-captain').innerText = data.captain ? `${data.captain.web_name} (${data.captain.gw0_xp})` : '-';
-            document.getElementById('metric-vc').innerText = data.vice_captain ? data.vice_captain.web_name : '-';
+            if (!data) return;
+            lastOptimizerResult = data;
+
+            const gw0Xp = document.getElementById('metric-gw0-xp');
+            const capExtra = document.getElementById('metric-cap-extra');
+            const weightedXp = document.getElementById('metric-weighted-xp');
+            const costEl = document.getElementById('metric-cost');
+            const bankEl = document.getElementById('metric-bank');
+            const capEl = document.getElementById('metric-captain');
+            const vcEl = document.getElementById('metric-vc');
+
+            if (gw0Xp) gw0Xp.innerText = typeof data.current_gw_starting_xi_xp === 'number' ? data.current_gw_starting_xi_xp.toFixed(2) : (data.current_gw_starting_xi_xp || "0.00");
+            if (capExtra) capExtra.innerText = `+${typeof data.captain_contribution_xp === 'number' ? data.captain_contribution_xp.toFixed(2) : 0} Cap (Total ${typeof data.total_current_gw_xp === 'number' ? data.total_current_gw_xp.toFixed(2) : 0})`;
+            if (weightedXp) weightedXp.innerText = typeof data.weighted_horizon_xp === 'number' ? data.weighted_horizon_xp.toFixed(2) : (data.weighted_horizon_xp || "0.00");
+            if (costEl) costEl.innerText = data.total_cost_str || "£0.0m";
+            if (bankEl) bankEl.innerText = data.bank_str || "£0.0m";
+            if (capEl) capEl.innerText = data.captain ? `${data.captain.web_name} (${typeof data.captain.gw0_xp === 'number' ? data.captain.gw0_xp.toFixed(2) : data.captain.gw0_xp})` : '-';
+            if (vcEl) vcEl.innerText = data.vice_captain ? data.vice_captain.web_name : '-';
 
             const gkpRow = document.getElementById('pitch-gkp');
             const defRow = document.getElementById('pitch-def');
@@ -968,28 +1431,39 @@
             const fwdRow = document.getElementById('pitch-fwd');
             const benchRow = document.getElementById('pitch-bench');
 
-            gkpRow.innerHTML = ''; defRow.innerHTML = ''; midRow.innerHTML = ''; fwdRow.innerHTML = ''; benchRow.innerHTML = '';
+            if (gkpRow) gkpRow.innerHTML = '';
+            if (defRow) defRow.innerHTML = '';
+            if (midRow) midRow.innerHTML = '';
+            if (fwdRow) fwdRow.innerHTML = '';
+            if (benchRow) benchRow.innerHTML = '';
 
             let defCount = 0, midCount = 0, fwdCount = 0;
 
-            data.starting_11.forEach(p => {
-                const card = createPlayerCard(p);
-                if (p.element_type === 'GKP') gkpRow.appendChild(card);
-                else if (p.element_type === 'DEF') { defRow.appendChild(card); defCount++; }
-                else if (p.element_type === 'MID') { midRow.appendChild(card); midCount++; }
-                else if (p.element_type === 'FWD') { fwdRow.appendChild(card); fwdCount++; }
-            });
+            if (data.starting_11 && Array.isArray(data.starting_11)) {
+                data.starting_11.forEach(p => {
+                    const card = createPlayerCard(p);
+                    if (p.element_type === 'GKP' && gkpRow) gkpRow.appendChild(card);
+                    else if (p.element_type === 'DEF' && defRow) { defRow.appendChild(card); defCount++; }
+                    else if (p.element_type === 'MID' && midRow) { midRow.appendChild(card); midCount++; }
+                    else if (p.element_type === 'FWD' && fwdRow) { fwdRow.appendChild(card); fwdCount++; }
+                });
+            }
 
-            document.getElementById('formation-badge').innerText = `Formation: ${defCount}-${midCount}-${fwdCount}`;
-            data.bench.forEach(p => benchRow.appendChild(createPlayerCard(p)));
+            const formBadge = document.getElementById('formation-badge');
+            if (formBadge) formBadge.innerText = `Formation: ${defCount}-${midCount}-${fwdCount}`;
 
-            // Render Explanations
+            if (data.bench && Array.isArray(data.bench) && benchRow) {
+                data.bench.forEach(p => benchRow.appendChild(createPlayerCard(p)));
+            }
+
             const expContainer = document.getElementById('explanation-container');
-            if (data.explanations && data.explanations.length > 0) {
-                expContainer.style.display = 'block';
-                expContainer.innerHTML = '<strong>💡 Decision Explanations:</strong><ul style="margin-left:20px; margin-top:6px;">' +
-                    data.explanations.map(e => `<li>${e}</li>`).join('') + '</ul>';
-            } else { expContainer.style.display = 'none'; }
+            if (expContainer) {
+                if (data.explanations && data.explanations.length > 0) {
+                    expContainer.style.display = 'block';
+                    expContainer.innerHTML = '<strong>💡 Decision Explanations:</strong><ul style="margin-left:20px; margin-top:6px;">' +
+                        data.explanations.map(e => `<li>${e}</li>`).join('') + '</ul>';
+                } else { expContainer.style.display = 'none'; }
+            }
         }
 
         function createPlayerCard(p) {
@@ -999,14 +1473,160 @@
             if (p.is_captain) capBadge = '<div class="badge-cap">C</div>';
             else if (p.is_vice_captain) capBadge = '<div class="badge-vc">V</div>';
 
+            const shirtSvg = getClubShirtSvg(p.team_name, p.element_type === 'GKP');
+            const xpDisplay = p.gw0_xp !== undefined ? p.gw0_xp.toFixed(2) : (p.total_xp !== undefined ? p.total_xp.toFixed(2) : '0.00');
+
             div.innerHTML = `
                 ${capBadge}
-                <span class="player-pos-badge pos-${p.element_type}">${p.element_type}</span>
+                <div style="margin-bottom:4px;">${shirtSvg} <span class="player-pos-badge pos-${p.element_type}">${p.element_type}</span></div>
                 <div class="player-name">${p.web_name}</div>
-                <div class="player-team-cost">${p.team_name} • ${p.now_cost_str}</div>
-                <div class="player-xp-badge">${p.gw0_xp} GW0</div>
+                <div class="player-team-cost">${p.team_name} • ${p.now_cost_str || '£' + (p.now_cost/10).toFixed(1) + 'm'}</div>
+                <div class="player-xp-badge">${xpDisplay} xP</div>
             `;
+            div.addEventListener('click', () => openModal(p));
             return div;
+        }
+
+        function openModal(p) {
+            document.getElementById('modal-player-name').innerText = p.web_name;
+            document.getElementById('modal-player-sub').innerText = `${p.position || p.element_type} • ${p.team_name} • ${p.price_str || p.now_cost_str || '£' + (p.now_cost/10).toFixed(1) + 'm'}`;
+            const content = document.getElementById('modal-breakdown-content');
+            
+            const shirtSvg = getClubShirtSvg(p.team_name, p.position === 'GKP' || p.element_type === 'GKP', 42);
+            
+            content.innerHTML = `
+                <div style="text-align:center; margin-bottom:12px;">
+                    ${shirtSvg}
+                    <div style="font-size:0.75rem; color:var(--text-secondary);">${p.team_name} • ${p.position || p.element_type}</div>
+                </div>
+
+                <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--accent-green); margin-bottom:6px; font-weight:700;">💡 OPTIMIZATION & MARGINAL SELECTION TRACE</div>
+                <div class="breakdown-row"><span class="breakdown-label">GW Expected Points</span><span class="breakdown-val">${p.gw0_xp !== undefined ? p.gw0_xp : (p.total_xp || '0.00')} pts</span></div>
+                <div class="breakdown-row"><span class="breakdown-label">4-GW Weighted Horizon xP</span><span class="breakdown-val">${p.weighted_xp !== undefined ? p.weighted_xp : (p.total_xp || '0.00')} pts</span></div>
+                <div class="breakdown-row"><span class="breakdown-label">Opponent / Fixture</span><span class="breakdown-val">${p.opponent || p.gw0_opponent || 'N/A'}</span></div>
+
+                <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--accent-cyan); margin-top:12px; margin-bottom:6px; font-weight:700;">Availability & Role Model</div>
+                <div class="breakdown-row"><span class="breakdown-label">Expected Minutes (xMins)</span><span class="breakdown-val">${p.xMins || p.expected_minutes_ml || 0} mins</span></div>
+                <div class="breakdown-row"><span class="breakdown-label">Total Base Expected Points (xP)</span><span class="breakdown-val" style="font-size:1.2rem; color:var(--accent-green);">${p.total_xp || p.gw0_xp || 0}</span></div>
+            `;
+            document.getElementById('breakdown-modal').classList.add('open');
+        }
+
+        function closePlayerInsightModal() {
+            closeModal('breakdown-modal');
+        }
+
+        function closeModal(id) {
+            if (id) {
+                const m = document.getElementById(id);
+                if (m) {
+                    m.classList.remove('open');
+                    m.style.display = 'none';
+                    m.style.visibility = 'hidden';
+                }
+            } else {
+                document.querySelectorAll('.modal-overlay').forEach(m => {
+                    m.classList.remove('open');
+                    m.style.display = 'none';
+                    m.style.visibility = 'hidden';
+                });
+            }
+        }
+
+        async function compareUserSquad() {
+            const mode = document.getElementById('mode-select').value;
+            const modal = document.getElementById('comparison-modal');
+            if (!modal) return;
+            
+            try {
+                const res = await fetch(`/api/v1/user-squad/compare?mode=${mode}`, { method: 'POST' });
+                if (res.ok) {
+                    const data = await res.json();
+                    const comp = data.comparison || {};
+                    modal.classList.add('open');
+
+                    const userXp = comp.my_squad_starting_xp || comp.user_squad_starting_xi_xp || 0.0;
+                    const optXp = comp.optimal_squad_starting_xp || comp.optimal_squad_starting_xi_xp || 0.0;
+                    const diff = comp.xp_gain !== undefined ? comp.xp_gain : (comp.points_differential || (optXp - userXp));
+
+                    document.getElementById('comp-user-xp').innerText = userXp.toFixed(2);
+                    document.getElementById('comp-opt-xp').innerText = optXp.toFixed(2);
+                    document.getElementById('comp-diff-xp').innerText = `${diff >= 0 ? '+' : ''}${diff.toFixed(2)} pts Potential Gain`;
+
+                    const tContainer = document.getElementById('comp-transfers-table-container');
+                    if (tContainer) {
+                        tContainer.innerHTML = '';
+                        const rec = comp.recommended_transfer || comp.actionable_1ft_recommendation;
+                        if (rec) {
+                            const s = rec.sell;
+                            const b = rec.buy;
+                            const recBox = document.createElement('div');
+                            recBox.style.cssText = 'background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.3); border-radius:12px; padding:14px; margin-top:12px;';
+                            recBox.innerHTML = `
+                                <div style="font-size:0.75rem; text-transform:uppercase; color:var(--accent-green); font-weight:800; margin-bottom:8px;">⚡ RECOMMENDED ACTIONABLE TRANSFER (1 FT)</div>
+                                <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.3); padding:10px 14px; border-radius:8px;">
+                                    <div><span style="color:#ef4444; font-weight:700;">🛑 SELL:</span> <strong>${s.web_name}</strong></div>
+                                    <div style="font-size:1.2rem; font-weight:900; color:var(--accent-cyan);">➔</div>
+                                    <div><span style="color:#10b981; font-weight:700;">❇️ BUY:</span> <strong>${b.web_name}</strong></div>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:0.8rem;">
+                                    <span>Bank After: <strong>${rec.bank_after_str}</strong></span>
+                                    <span style="color:var(--accent-green); font-weight:800;">GW Gain: +${rec.gw_xp_gain.toFixed(2)} pts</span>
+                                </div>
+                            `;
+                            tContainer.appendChild(recBox);
+                        }
+                    }
+                }
+            } catch (e) { console.error('Error comparing user squad:', e); }
+        }
+
+        function getClubShirtSvg(teamShortName, isGkp = false, size = 36) {
+            const teamUpper = (teamShortName || '').toUpperCase();
+            if (isGkp) {
+                return `<svg width="${size}" height="${size}" viewBox="0 0 36 36" fill="none" style="display:block; margin:0 auto 4px auto; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));">
+                    <path d="M10 6L3 12V18L9 15V30H27V15L33 18V12L26 6H21C21 8.5 19 9 18 9C17 9 15 8.5 15 6H10Z" fill="#10b981" stroke="#047857" stroke-width="1.8"/>
+                    <path d="M3 12L9 6V15L3 18V12Z" fill="#059669"/>
+                    <path d="M33 12L27 6V15L33 18V12Z" fill="#059669"/>
+                    <path d="M15 6C15 8.5 17 9 18 9C19 9 21 8.5 21 6" stroke="#047857" stroke-width="1.5" fill="none"/>
+                </svg>`;
+            }
+            const kits = {
+                'ARS': { body: '#ef4444', sleeve: '#ffffff', border: '#b91c1c' },
+                'ARSENAL': { body: '#ef4444', sleeve: '#ffffff', border: '#b91c1c' },
+                'AVL': { body: '#7b003a', sleeve: '#95bfe6', border: '#500026' },
+                'ASTON VILLA': { body: '#7b003a', sleeve: '#95bfe6', border: '#500026' },
+                'BOU': { body: '#dc2626', sleeve: '#171717', border: '#991b1b' },
+                'BRE': { body: '#ef4444', sleeve: '#ffffff', border: '#b91c1c' },
+                'BHA': { body: '#2563eb', sleeve: '#ffffff', border: '#1d4ed8' },
+                'CHE': { body: '#1d4ed8', sleeve: '#1d4ed8', border: '#1e40af' },
+                'CHELSEA': { body: '#1d4ed8', sleeve: '#1d4ed8', border: '#1e40af' },
+                'CRY': { body: '#2563eb', sleeve: '#ef4444', border: '#1d4ed8' },
+                'EVE': { body: '#1d4ed8', sleeve: '#1d4ed8', border: '#1e40af' },
+                'FUL': { body: '#ffffff', sleeve: '#171717', border: '#d4d4d4' },
+                'IPS': { body: '#2563eb', sleeve: '#2563eb', border: '#1d4ed8' },
+                'LEI': { body: '#1d4ed8', sleeve: '#1d4ed8', border: '#1e40af' },
+                'LIV': { body: '#dc2626', sleeve: '#dc2626', border: '#991b1b' },
+                'LIVERPOOL': { body: '#dc2626', sleeve: '#dc2626', border: '#991b1b' },
+                'MCI': { body: '#38bdf8', sleeve: '#38bdf8', border: '#0284c7' },
+                'MAN CITY': { body: '#38bdf8', sleeve: '#38bdf8', border: '#0284c7' },
+                'MUN': { body: '#dc2626', sleeve: '#dc2626', border: '#991b1b' },
+                'MAN UTD': { body: '#dc2626', sleeve: '#dc2626', border: '#991b1b' },
+                'NEW': { body: '#171717', sleeve: '#ffffff', border: '#404040' },
+                'NFO': { body: '#ef4444', sleeve: '#ef4444', border: '#b91c1c' },
+                'SOU': { body: '#dc2626', sleeve: '#ffffff', border: '#991b1b' },
+                'TOT': { body: '#ffffff', sleeve: '#ffffff', border: '#d4d4d4' },
+                'SPURS': { body: '#ffffff', sleeve: '#ffffff', border: '#d4d4d4' },
+                'WHU': { body: '#7b003a', sleeve: '#7bafd4', border: '#500026' },
+                'WOL': { body: '#f59e0b', sleeve: '#171717', border: '#d97706' }
+            };
+            const kit = kits[teamUpper] || { body: '#00ff88', sleeve: '#059669', border: '#047857' };
+            return `<svg width="${size}" height="${size}" viewBox="0 0 36 36" fill="none" style="display:block; margin:0 auto 4px auto; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));">
+                <path d="M10 6L3 12V18L9 15V30H27V15L33 18V12L26 6H21C21 8.5 19 9 18 9C17 9 15 8.5 15 6H10Z" fill="${kit.body}" stroke="${kit.border}" stroke-width="1.8"/>
+                <path d="M3 12L9 6V15L3 18V12Z" fill="${kit.sleeve}"/>
+                <path d="M33 12L27 6V15L33 18V12Z" fill="${kit.sleeve}"/>
+                <path d="M15 6C15 8.5 17 9 18 9C19 9 21 8.5 21 6" stroke="${kit.border}" stroke-width="1.5" fill="none"/>
+            </svg>`;
         }
     </script>
 </body>

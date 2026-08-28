@@ -1,0 +1,788 @@
+PHASE 3M — DYNAMIC GAMEWEEK STATE & CURRENT PLAYER DATA REFRESH
+
+OBJECTIVE
+
+Build the foundation for a weekly FPL state-refresh system.
+
+The application currently contains stale/incorrect player-state information,
+including examples such as:
+
+- players who are no longer first-choice starters
+- players who are injured for extended periods
+- players whose current club/role differs from historical data
+- players whose current availability should make them effectively
+  non-selectable
+
+Examples observed in the current application include:
+
+- Nick Pope appearing despite no longer being the clear first-choice
+  goalkeeper
+- Ekitike appearing despite a long-term injury
+- current player pool / rankings not always reflecting the current
+  2026/27 reality
+- Haaland must remain present and correctly represented
+
+This phase is therefore NOT primarily about improving the prediction
+model.
+
+It is about establishing a reliable CURRENT GAMEWEEK STATE layer that
+feeds the existing projection engine and optimizer.
+
+==================================================
+CORE PRINCIPLE
+==================================================
+
+Separate:
+
+1. HISTORICAL STATE
+2. CURRENT STATE
+
+Historical state must remain immutable and leak-free for:
+
+- training
+- backtesting
+- calibration
+- historical evaluation
+
+Current state is mutable and represents what is true NOW.
+
+Current state feeds:
+
+- current projections
+- optimizer
+- frontend
+- transfer decisions
+- captaincy
+- chips
+
+Never overwrite historical truth with current information.
+
+==================================================
+1. CANONICAL CURRENT GAMEWEEK STATE
+==================================================
+
+Create or formalize a canonical gameweek state object/table.
+
+It should contain at minimum:
+
+current_gw
+previous_gw
+season
+deadline
+last_successful_sync
+data_cutoff
+
+fixtures
+results
+player_states
+transfers
+price_changes
+availability
+injuries
+suspensions
+current_club_assignments
+current_positions
+current_roles
+current_form
+expected_minutes
+data_quality
+
+Every current projection should be traceable to a specific state.
+
+Each projection should carry:
+
+projection_gw
+state_version
+generated_at
+data_cutoff
+
+==================================================
+2. OFFICIAL FPL DATA MUST REMAIN THE CANONICAL SOURCE
+==================================================
+
+Use the official FPL API wherever it provides authoritative current
+information.
+
+At minimum synchronize:
+
+- player ID
+- player name
+- current club
+- current position
+- current price
+- total points
+- current GW points
+- minutes
+- starts where available
+- goals
+- assists
+- bonus
+- availability/status
+- chance of playing
+- fixtures
+- current gameweek
+- upcoming fixtures
+
+Do not invent values when the official API does not provide them.
+
+Document all secondary sources separately.
+
+==================================================
+3. CURRENT PLAYER ELIGIBILITY
+==================================================
+
+Create an explicit current-player eligibility state.
+
+Do NOT simply delete players from the database.
+
+A player should have a machine-readable status such as:
+
+ACTIVE
+INJURED
+SUSPENDED
+UNAVAILABLE
+TRANSFERRED
+NOT_FIRST_CHOICE
+DOUBTFUL
+RETIRED/REMOVED
+UNKNOWN
+
+The exact enum design may differ if the codebase already has an
+appropriate architecture.
+
+The important distinction is:
+
+DATABASE PRESENCE ≠ CURRENT FPL ELIGIBILITY
+
+Historical players must remain available for historical analysis.
+
+==================================================
+4. LONG-TERM INJURY HANDLING
+==================================================
+
+Long-term injured players must not silently remain viable optimizer
+candidates.
+
+For every current player with:
+
+chance_of_playing = 0
+or equivalent authoritative unavailable status
+or clearly documented long-term injury
+
+verify that the optimizer cannot select them for the current GW.
+
+Do not delete their historical records.
+
+The frontend should clearly communicate their current status.
+
+Example:
+
+Ekitike
+
+Historical data:
+RETAIN
+
+Current state:
+UNAVAILABLE / INJURED
+
+Current optimizer eligibility:
+FALSE
+
+==================================================
+5. FIRST-CHOICE / ROLE STATUS
+==================================================
+
+Do NOT equate:
+
+"active FPL player"
+
+with:
+
+"expected starter."
+
+For each current player where possible distinguish:
+
+ACTIVE
+EXPECTED STARTER
+ROTATION
+BACKUP
+INJURED
+SUSPENDED
+DOUBTFUL
+
+The projection engine should use this information through the existing
+expected-minutes architecture.
+
+Do NOT hard-code individual player names.
+
+Do NOT manually mark Pope or any other player as bad.
+
+Instead establish a reproducible current-role signal using available
+data.
+
+The objective is:
+
+A backup goalkeeper should not receive the same expected-minute
+probability as the established starter merely because he historically
+played many minutes.
+
+==================================================
+6. TRANSFER / CURRENT CLUB RECONCILIATION
+==================================================
+
+For every current player:
+
+current_club MUST be authoritative.
+
+Historical club information must remain attached to historical
+observations.
+
+Current fixtures must always use current_club.
+
+Explicitly audit:
+
+Taiwo Awoniyi
+Reiss Nelson
+Ekitike
+Nick Pope
+Haaland
+
+and every player whose current club differs from their historical club.
+
+For each report:
+
+player
+historical club(s)
+current club
+current position
+current availability
+GW fixture
+expected minutes
+optimizer eligibility
+
+==================================================
+7. HAALAND INTEGRITY TEST
+==================================================
+
+Haaland MUST be present in the active 2026/27 player pool.
+
+Verify:
+
+name
+player_id
+club = current club
+position = FWD
+price = current FPL price
+availability
+GW fixture
+expected minutes
+raw xP
+expected_xp_calibrated_v2
+optimizer eligibility
+
+Haaland must not disappear due to:
+
+- filtering
+- stale-data cleanup
+- role classification
+- transfer reconciliation
+- injury filters
+- price filters
+- optimizer preprocessing
+
+Create an explicit regression test:
+
+test_haaland_present_and_eligible()
+
+The test should verify that he remains correctly represented as long as
+the authoritative current data says he is active and available.
+
+==================================================
+8. POPE / EKIITEKE REGRESSION TESTS
+==================================================
+
+Create tests demonstrating that current-state filtering works.
+
+For Pope:
+
+Do not necessarily exclude him.
+
+Instead verify that his current expected-minutes / starter probability
+reflects his actual current role.
+
+For Ekitike:
+
+If authoritative current data says he is unavailable:
+
+optimizer eligibility = FALSE
+
+and current projection must reflect zero/near-zero availability as
+appropriate to the existing architecture.
+
+DO NOT hard-code:
+
+if player == "Ekitike"
+
+or:
+
+if player == "Pope"
+
+The implementation must be general.
+
+==================================================
+9. GW1 → GW2 STATE UPDATE
+==================================================
+
+The system must ingest GW1 actuals and construct the GW2 state.
+
+Update:
+
+minutes
+starts
+goals
+assists
+bonus
+DEFCON where available
+xG
+xA
+form
+availability
+current role indicators
+fixture state
+
+The GW1 result must become historical data.
+
+It must NOT overwrite older historical records.
+
+==================================================
+10. CURRENT FORM
+==================================================
+
+Create/verify rolling current-form features.
+
+Where appropriate maintain:
+
+last 1 GW
+last 3 GWs
+last 5 GWs
+last 10 GWs
+
+for:
+
+minutes
+starts
+goals
+assists
+xG
+xA
+FPL points
+bonus
+DEFCON
+
+All rolling features must be chronological.
+
+Current GW information must not leak into historical backtests.
+
+==================================================
+11. RECENCY VS HISTORICAL ABILITY
+==================================================
+
+Maintain separate concepts for:
+
+LONG-TERM ABILITY
+RECENT FORM
+CURRENT ROLE
+CURRENT AVAILABILITY
+
+Do not collapse them into one feature.
+
+Example:
+
+Marmoush may have:
+
+strong long-term football history
++
+poor recent form
++
+uncertain current minutes
+
+Those should remain distinguishable.
+
+Example:
+
+Calvert-Lewin may have:
+
+mediocre older history
++
+stronger recent output
++
+current role at Leeds
+
+Those should remain distinguishable.
+
+The projection engine can decide how to weight these signals.
+
+This phase only ensures the data is available correctly.
+
+==================================================
+12. FIXTURE STATE
+==================================================
+
+For the current GW and upcoming horizon maintain:
+
+GW
+home team
+away team
+opponent
+home/away
+fixture difficulty inputs
+fixture status
+
+Current fixture MUST always be derived from current club assignment.
+
+Do not use stale historical club fixtures.
+
+Verify the GW2 fixture set.
+
+==================================================
+13. DATA QUALITY LAYER
+==================================================
+
+Every refresh should produce a data-quality report.
+
+At minimum:
+
+total players
+active players
+unavailable players
+injured players
+suspended players
+doubtful players
+transferred players
+missing prices
+missing clubs
+missing positions
+missing fixtures
+missing availability
+duplicate player IDs
+
+The system should fail loudly if critical fields are missing.
+
+==================================================
+14. STALE-DATA DETECTION
+==================================================
+
+Create checks for:
+
+player club changed
+price changed
+availability changed
+position changed
+fixture changed
+starter probability changed materially
+injury status changed
+
+The system should identify when stored current state differs from the
+latest authoritative source.
+
+Do not silently preserve stale values.
+
+==================================================
+15. REFRESH / IDEMPOTENCY
+==================================================
+
+The refresh process must be safe to run repeatedly.
+
+Running the same refresh twice must NOT:
+
+- duplicate players
+- duplicate fixtures
+- duplicate historical observations
+- corrupt rolling features
+- change historical records
+- double-count GW points
+
+Implement or verify idempotent behaviour.
+
+==================================================
+16. SNAPSHOT VERSIONING
+==================================================
+
+Every successful refresh should create a state version/snapshot.
+
+Example:
+
+2026_27_GW2_STATE_v1
+
+Store:
+
+timestamp
+GW
+data cutoff
+source versions
+player count
+fixture count
+hash/checksum where appropriate
+
+The exact implementation may follow existing project conventions.
+
+==================================================
+17. PROJECTION INTEGRATION
+==================================================
+
+The existing projection architecture remains:
+
+current state
+→ expected minutes
+→ xG/xA/CS/DEFCON
+→ expected_xp_calibrated_v2
+→ optimizer
+
+Do NOT replace v2.
+
+Do NOT retrain models.
+
+Do NOT modify calibration.
+
+Do NOT change optimizer objectives.
+
+Only ensure that current-state data is correctly supplied to the
+existing production pipeline.
+
+==================================================
+18. OPTIMIZER INTEGRATION
+==================================================
+
+The optimizer must consume:
+
+current player state
++
+current fixtures
++
+current availability
++
+current price
++
+expected_xp_calibrated_v2
+
+Verify that:
+
+long-term injured players cannot be selected
+unavailable players cannot be selected
+transferred players use their current club
+current prices are used
+current fixtures are used
+Haaland remains eligible when current data says he is available
+
+Do not modify the optimizer objective.
+
+==================================================
+19. FRONTEND CURRENT-STATE DISPLAY
+==================================================
+
+The frontend should display clearly:
+
+CURRENT GAMEWEEK
+LAST UPDATED
+DATA STATUS
+
+For every player where relevant:
+
+current club
+current price
+current fixture
+availability
+expected minutes
+calibrated xP
+
+Use clear status indicators for:
+
+injured
+suspended
+doubtful
+rotation
+backup
+
+Do not allow stale players to look identical to fully available
+first-choice players.
+
+==================================================
+20. CURRENT 2026/27 AUDIT
+==================================================
+
+Run a full audit of the current active player pool.
+
+Expected population should come from the current authoritative FPL
+data, not a hard-coded number.
+
+Identify:
+
+players currently appearing in frontend but no longer active
+players unavailable but optimizer-eligible
+players missing from frontend
+players missing from optimizer
+players with stale clubs
+players with stale prices
+players with stale fixtures
+players with stale role/availability information
+
+Specifically confirm:
+
+Haaland is present.
+
+Pope is represented according to his current role.
+
+Ekitike is represented according to his current availability.
+
+Awoniyi is represented at his current club.
+
+Nelson is represented at his current club.
+
+==================================================
+21. AUTOMATED TESTS
+==================================================
+
+Add regression tests for:
+
+- current GW detection
+- current club reconciliation
+- transferred-player handling
+- long-term injury handling
+- availability filtering
+- first-choice/backup distinction
+- fixture reconciliation
+- current price reconciliation
+- refresh idempotency
+- snapshot creation
+- stale-data detection
+- Haaland presence
+- optimizer eligibility
+- historical-state immutability
+
+Do not write player-specific hacks.
+
+==================================================
+22. DO NOT OPTIMIZE YET
+==================================================
+
+Do NOT run the final GW2 optimizer.
+
+Do NOT recommend:
+
+- transfers
+- captain
+- Bench Boost
+- wildcard
+- final XI
+
+This phase is solely about ensuring that the system understands:
+
+"WHO IS ACTUALLY A VIABLE FPL PLAYER RIGHT NOW?"
+
+Once this is correct, the next phase will use the current GW2 state
+to optimize the actual decision.
+
+==================================================
+23. DOCUMENTATION
+==================================================
+
+Create:
+
+docs/phases/PHASE_3M_DYNAMIC_GAMEWEEK_STATE.md
+
+Save this prompt:
+
+docs/prompts/PHASE_3M_DYNAMIC_GAMEWEEK_STATE.md
+
+Update:
+
+docs/PROJECT_STATE.md
+docs/ROADMAP.md
+docs/DATA_PIPELINE.md
+
+Document:
+
+- current-state architecture
+- historical/current separation
+- refresh process
+- eligibility logic
+- stale-data handling
+- snapshot/versioning
+- data-quality checks
+- frontend changes
+- optimizer integration
+- test results
+
+==================================================
+24. FINAL SAFETY GATE
+==================================================
+
+Return exactly one:
+
+SAFE TO PROCEED TO GW2 OPTIMIZATION
+
+or
+
+NOT SAFE — CURRENT STATE DATA INVALID
+
+SAFE requires:
+
+1. Current GW correctly identified.
+
+2. Current player pool sourced from authoritative data.
+
+3. Current clubs correct.
+
+4. Current prices correct.
+
+5. Current fixtures correct.
+
+6. Current availability correct.
+
+7. Long-term unavailable players cannot enter the optimizer.
+
+8. Backup/rotation players are distinguished from expected starters
+   through reproducible logic.
+
+9. Historical data remains immutable.
+
+10. Refresh is idempotent.
+
+11. Haaland is present and correctly represented.
+
+12. Awoniyi and Nelson use current clubs.
+
+13. Pope reflects current role.
+
+14. Ekitike reflects current availability.
+
+15. v2 projection remains intact.
+
+16. Optimizer receives the current-state player pool.
+
+17. Frontend reflects the current state.
+
+18. All critical tests pass.
+
+==================================================
+STOP CONDITION
+==================================================
+
+DO NOT:
+
+- retrain models
+- change calibration
+- change optimizer objective
+- manually boost players
+- manually exclude players by name
+- use ownership
+- use FPL consensus
+- generate a GW2 squad
+- recommend transfers
+- activate chips
+
+The sole purpose of Phase 3M is:
+
+BUILD A RELIABLE, REFRESHABLE, CURRENT-GAMEWEEK STATE LAYER SO THAT
+EVERY FUTURE GAMEWEEK OPTIMIZATION IS BASED ON WHAT IS ACTUALLY TRUE
+RIGHT NOW — WHILE KEEPING HISTORICAL DATA CLEAN AND LEAK-FREE.

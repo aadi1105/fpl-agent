@@ -1,0 +1,775 @@
+PHASE 3H — PREDICTION CALIBRATION LAYER
+
+OBJECTIVE:
+Fix the empirically demonstrated cross-position xP calibration problems
+identified in Phase 3G.
+
+DO NOT modify the optimizer yet.
+
+DO NOT manually boost Haaland, Bruno, Saka, or any other player.
+
+DO NOT use ownership or FPL consensus as a prediction target.
+
+DO NOT hard-code positional bonuses.
+
+The goal is to make the predicted FPL point distribution empirically
+match historical FPL outcomes.
+
+==================================================
+BACKGROUND — PHASE 3G FINDINGS
+==================================================
+
+Phase 3G evaluated 62,437 leak-free historical player-GW observations.
+
+The current production xP scale was found to be systematically
+miscalibrated.
+
+Key findings:
+
+1. £4.5m–£7.0m defenders projected at 4.5–6.0 xP:
+
+Predicted mean: 4.84
+Actual mean:    2.74
+
+Bias: -2.10 points/match
+
+2. £10m+ premium attackers projected at 4.0–5.5 xP:
+
+Predicted mean: 4.66
+Actual mean:    6.03
+
+Bias: +1.37 points/match
+
+3. Premium attackers overall:
+
+Predicted xP: 2.98
+Actual FPL points: 5.05
+
+Underprediction: +2.07 points/match
+
+4. Clean sheets:
+
+Predicted probability: 34.5%
+Actual rate:            13.3%
+
+5. £10m+ attacker xG:
+
+Predicted: 0.253
+Actual goals: 0.435
+
+6. £10m+ attacker xA:
+
+Predicted: 0.087
+Actual assists: 0.253
+
+7. Current xP is therefore NOT safe to feed directly into the optimizer.
+
+The Phase 3G report is the ground truth for this phase.
+
+==================================================
+CORE PRINCIPLE
+==================================================
+
+We are NOT going to solve this by saying:
+
+"Haaland should score more because everyone knows Haaland is good."
+
+Instead:
+
+Historical predictions → actual historical outcomes
+
+must be used to learn a calibration transformation.
+
+The desired pipeline is:
+
+Underlying football models
+        ↓
+Raw xG / xA / CS / DEFCON / Minutes
+        ↓
+FPL scoring engine
+        ↓
+RAW xP
+        ↓
+CALIBRATION LAYER
+        ↓
+CALIBRATED xP
+        ↓
+optimizer
+
+The calibration layer must be learned from historical data and
+validated out-of-sample.
+
+==================================================
+1. PRESERVE THE CURRENT SYSTEM
+==================================================
+
+Do NOT delete or overwrite the existing production models.
+
+Preserve:
+
+- expected_minutes_v1
+- xG model
+- xA model
+- clean-sheet model
+- DEFCON model
+- FPL scoring engine
+- current raw xP pipeline
+
+Create a separate calibration implementation.
+
+Suggested namespace:
+
+backend/calibration/
+
+or an equivalent clearly separated structure.
+
+The current raw xP must remain available for comparison.
+
+==================================================
+2. BUILD THE CALIBRATION DATASET
+==================================================
+
+Construct a historical dataset using ONLY information available before
+each historical GW deadline.
+
+Each row should represent:
+
+(season, gameweek, fixture/player observation)
+
+Include:
+
+player_id
+season
+gameweek
+position
+price
+expected_minutes
+start_probability
+
+raw_xG
+raw_xA
+raw_CS_probability
+raw_DEFCON_probability
+raw_bonus_probability
+
+raw_xP
+
+historical minutes/features available pre-deadline
+
+AND TARGETS:
+
+actual_minutes
+actual_goals
+actual_assists
+actual_clean_sheet
+actual_DEFCON
+actual_bonus
+actual_FPL_points
+
+No future information.
+
+No post-deadline features.
+
+No leakage.
+
+==================================================
+3. CLEAN-SHEET CALIBRATION
+==================================================
+
+Build a candidate calibration model for clean-sheet probability.
+
+Start with simple methods:
+
+A. Platt/logistic calibration
+B. Isotonic regression
+
+Do not assume one is better.
+
+Evaluate both out-of-sample.
+
+Input:
+
+raw clean-sheet probability
+
+Target:
+
+actual clean sheet (0/1)
+
+Evaluate:
+
+Brier score
+LogLoss
+calibration error
+reliability curve
+
+Compare:
+
+CURRENT RAW CS MODEL
+vs
+CALIBRATED CS MODEL
+
+The calibrated version is eligible for production ONLY if it
+demonstrably improves out-of-sample calibration without causing
+material degradation elsewhere.
+
+==================================================
+4. xG CALIBRATION
+==================================================
+
+Investigate the excessive shrinkage identified in Phase 3G.
+
+Especially evaluate:
+
+- £10m+ attackers
+- established high-minute attackers
+- high historical xG players
+- low-sample players
+
+Build candidate calibration approaches.
+
+Start simple.
+
+Candidates:
+
+A. isotonic regression
+B. linear calibration
+C. monotonic calibration
+D. segmented calibration by position/experience if justified
+
+Do NOT immediately build another giant LightGBM model.
+
+The purpose is calibration, not feature expansion.
+
+Target:
+
+actual goals per match
+
+Evaluate:
+
+MAE
+RMSE
+calibration by predicted-xG bucket
+bias by price tier
+bias by position
+
+Compare raw xG against calibrated xG.
+
+==================================================
+5. xA CALIBRATION
+==================================================
+
+Repeat the same process for xA.
+
+Target:
+
+actual assists per match
+
+Evaluate:
+
+MAE
+RMSE
+calibration
+position bias
+price-tier bias
+
+Pay particular attention to premium midfielders and playmakers.
+
+==================================================
+6. DEFCON CALIBRATION
+==================================================
+
+Evaluate whether raw DEFCON probability/expected contribution is
+systematically inflated.
+
+Build a calibration layer if the data supports it.
+
+Evaluate:
+
+Brier score where applicable
+MAE of expected DEFCON points
+actual DEFCON occurrence
+position-specific calibration
+
+Do NOT remove DEFCON.
+
+Determine whether it needs calibration.
+
+==================================================
+7. REBUILD xP AFTER COMPONENT CALIBRATION
+==================================================
+
+Once candidate calibrated components exist:
+
+calibrated minutes
++
+calibrated xG
++
+calibrated xA
++
+calibrated CS
++
+calibrated DEFCON
++
+existing FPL scoring rules
+
+→ calibrated xP
+
+Do NOT immediately train a black-box final xP model.
+
+First determine whether correcting the underlying components fixes
+the cross-position xP problem.
+
+==================================================
+8. BUILD A FINAL xP CALIBRATION CANDIDATE
+==================================================
+
+If component calibration alone is insufficient, create a SECONDARY
+final-xP calibration layer.
+
+Candidate:
+
+raw xP
+position
+price
+expected minutes
+start probability
+raw/calibrated xG
+raw/calibrated xA
+raw/calibrated CS
+raw/calibrated DEFCON
+
+Target:
+
+actual FPL points
+
+Start with simple calibration models.
+
+Do not use a large black-box model unless simple approaches fail.
+
+The final calibration model must be:
+
+- leak-free
+- reproducible
+- versioned
+- explainable
+- backtestable
+
+==================================================
+9. CRITICAL: USE TIME-BASED OUT-OF-SAMPLE BACKTESTING
+==================================================
+
+DO NOT randomly split player-gameweek observations.
+
+Use chronological validation.
+
+For example:
+
+TRAIN:
+2022/23 + 2023/24
+
+VALIDATE:
+2024/25
+
+TEST:
+2025/26
+
+Or another equivalent strictly chronological split.
+
+The test period must remain untouched until the candidate is finalized.
+
+This is critical.
+
+We must never calibrate on the same observations used to claim
+performance.
+
+==================================================
+10. COMPARE AGAINST BASELINES
+==================================================
+
+At minimum compare:
+
+MODEL A:
+Current raw production pipeline
+
+MODEL B:
+Simple historical baseline
+
+MODEL C:
+Component-calibrated pipeline
+
+MODEL D:
+Component calibration + final xP calibration
+
+The simple baseline should use reasonable historical information
+available pre-deadline, such as recent FPL performance and/or recent
+underlying rates, without future leakage.
+
+The purpose is to determine whether our sophisticated system actually
+beats a simpler alternative.
+
+==================================================
+11. EVALUATION METRICS
+==================================================
+
+For xG:
+
+MAE
+RMSE
+bias
+calibration by bucket
+
+For xA:
+
+MAE
+RMSE
+bias
+calibration by bucket
+
+For CS:
+
+Brier score
+LogLoss
+calibration error
+
+For DEFCON:
+
+probability calibration where applicable
+expected-points MAE
+
+For final xP:
+
+MAE
+RMSE
+Pearson correlation
+Spearman correlation
+mean bias
+
+MOST IMPORTANT:
+
+Evaluate xP separately for:
+
+GKP
+DEF
+MID
+FWD
+
+and:
+
+£4–5m
+£5–6m
+£6–8m
+£8–10m
+£10–12m
+£12m+
+
+==================================================
+12. REPEAT THE PHASE 3G MATCHED COHORT TEST
+==================================================
+
+This is the most important regression test.
+
+Original Phase 3G:
+
+£4.5–£7m DEF with predicted 4.5–6.0 xP
+→ actual 2.74
+
+£10m+ attackers with predicted 4.0–5.5 xP
+→ actual 6.03
+
+After calibration, repeat the exact same analysis.
+
+We want to see whether the calibration gap decreases.
+
+Do NOT cherry-pick a new cohort.
+
+Use the same cohort definition.
+
+==================================================
+13. PREMIUM ATTACKER REGRESSION TEST
+==================================================
+
+Evaluate the historical premium attacker cohort:
+
+Haaland
+Salah
+Saka
+Son
+Bruno
+Palmer
+Kane
+De Bruyne
+and other £10m+ players where historical data exists.
+
+Compare:
+
+RAW MODEL
+vs
+CALIBRATED MODEL
+
+for:
+
+xG
+xA
+xP
+
+The calibration must improve the historical error without simply
+adding a premium-player identity boost.
+
+==================================================
+14. DEFENDER REGRESSION TEST
+==================================================
+
+Repeat the historical defender cohort.
+
+Especially:
+
+£4.5–£7m
+predicted 4.5–6.0 xP
+
+Compare:
+
+RAW xP
+CALIBRATED xP
+ACTUAL FPL POINTS
+
+The calibration should reduce the historical overprediction.
+
+==================================================
+15. CURRENT 2026/27 SNAPSHOT
+==================================================
+
+After the candidate calibration is trained and evaluated, run it on
+the current 2026/27 GW1 data.
+
+Show side-by-side:
+
+Player
+Position
+Price
+Fixture
+
+Raw xG
+Calibrated xG
+
+Raw xA
+Calibrated xA
+
+Raw CS
+Calibrated CS
+
+Raw DEFCON
+Calibrated DEFCON
+
+Raw xP
+Calibrated xP
+
+Do NOT optimize.
+
+This is for inspection only.
+
+Specifically inspect:
+
+Haaland
+Bruno
+Saka
+Palmer
+João Pedro
+Calafiori
+Gabriel
+Raya
+O'Reilly
+Gvardiol
+
+We want to see whether the corrected values become more plausible
+BECAUSE the historical calibration supports it.
+
+==================================================
+16. HARD DEPLOYMENT GATE
+==================================================
+
+The calibration layer must NOT become production merely because it
+looks better.
+
+Promote it only if it demonstrates, on the untouched chronological
+test set:
+
+1. Better xP calibration than the current system.
+
+2. Lower or equal xP MAE.
+
+3. Lower or equal xP RMSE.
+
+4. Improved cross-position calibration.
+
+5. Reduced defender overprediction.
+
+6. Reduced premium-attacker underprediction.
+
+7. No catastrophic degradation for GKP/MID/FWD.
+
+8. No evidence of leakage.
+
+If the calibrated system does NOT beat the raw system, DO NOT deploy it.
+
+Report:
+
+DEPLOY
+or
+DO NOT DEPLOY
+
+with numerical evidence.
+
+==================================================
+17. MODEL VERSIONING
+==================================================
+
+If a calibration model qualifies for deployment:
+
+Version it explicitly.
+
+Example:
+
+expected_xp_calibrated_v1
+
+Also version component calibrators:
+
+cs_calibration_v1
+xg_calibration_v1
+xa_calibration_v1
+defcon_calibration_v1
+
+Record:
+
+training period
+validation period
+test period
+features
+algorithm
+metrics
+artifact path
+SHA256
+creation timestamp
+
+==================================================
+18. PRODUCTION INTEGRATION
+==================================================
+
+ONLY if the deployment gate passes:
+
+Integrate the calibrated xP into the projection pipeline.
+
+Maintain:
+
+raw_xP
+calibrated_xP
+
+in diagnostics.
+
+The production value used downstream should be:
+
+calibrated_xP
+
+NOT raw_xP.
+
+Do NOT modify the optimizer.
+
+The optimizer should simply consume the improved projections.
+
+==================================================
+19. FRONTEND
+==================================================
+
+Update the frontend diagnostics to show:
+
+Raw xP
+Calibrated xP
+Calibration adjustment
+
+For example:
+
+Haaland
+Raw xP: 4.22
+Calibrated xP: X.XX
+Adjustment: +X.XX
+
+Calafiori
+Raw xP: 5.88
+Calibrated xP: X.XX
+Adjustment: -X.XX
+
+Do NOT hide the raw number.
+
+The purpose is transparency.
+
+==================================================
+20. DOCUMENTATION
+==================================================
+
+Create:
+
+docs/phases/PHASE_3H_PREDICTION_CALIBRATION.md
+
+Save this prompt:
+
+docs/prompts/PHASE_3H_PREDICTION_CALIBRATION.md
+
+Update:
+
+docs/PROJECT_STATE.md
+docs/ROADMAP.md
+docs/DATA_PIPELINE.md
+
+Document:
+
+- why calibration was required
+- Phase 3G findings
+- calibration approaches tested
+- chronological split
+- baselines
+- metrics
+- deployment decision
+- model versions
+- limitations
+
+Continue updating PROJECT_STATE.md in every future phase.
+
+==================================================
+21. ABSOLUTE PROHIBITIONS
+==================================================
+
+DO NOT:
+
+- add Haaland-specific boosts
+- add Bruno-specific boosts
+- use ownership as a target
+- use FPL consensus as a target
+- hard-code positional bonuses
+- modify optimizer objectives
+- modify formation constraints
+- modify budget
+- modify captaincy
+- retrain the existing production models
+- use future information
+- randomly split time-series data
+- cherry-pick favorable test periods
+- deploy a calibration model without out-of-sample evidence
+
+==================================================
+STOP CONDITION
+==================================================
+
+STOP after the calibration experiments and deployment evaluation.
+
+If the calibration model passes the deployment gate, integrate it and
+show the new 2026/27 GW1 projections.
+
+If it fails, leave the production system unchanged and explain why.
+
+DO NOT run the optimizer.
+
+DO NOT produce a final squad.
+
+The goal of Phase 3H is:
+
+MAKE THE xP SCALE EMPIRICALLY CALIBRATED TO ACTUAL HISTORICAL
+FPL OUTCOMES BEFORE THE OPTIMIZER EVER SEES IT.

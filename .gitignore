@@ -9,6 +9,8 @@ venv/
 
 # Database & Cache
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
 fpl_engine.db

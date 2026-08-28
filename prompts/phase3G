@@ -1,0 +1,554 @@
+PHASE 3G — CROSS-POSITION xP CALIBRATION & VALUE AUDIT
+
+IMPORTANT:
+DO NOT MODIFY THE OPTIMIZER.
+DO NOT RETRAIN THE EXISTING PRODUCTION MODELS.
+DO NOT ADD OWNERSHIP TO THE PROJECTION.
+DO NOT MANUALLY BOOST OR PENALIZE ANY PLAYER.
+DO NOT TUNE THE MODEL TO MATCH FPL CONSENSUS.
+
+Phase 3F established that the current prediction engine has useful
+historical ranking signal (Spearman ρ ≈ 0.664), but its current absolute
+xP scale appears structurally biased toward defenders.
+
+The current production example is:
+
+Nico O'Reilly:
+£6.5m → 5.30 GW1 xP
+
+Haaland:
+£15.5m → 4.22 GW1 xP
+
+Calafiori:
+£5.5m → 5.88 GW1 xP
+
+Bruno Fernandes:
+£12.0m → 4.10 GW1 xP
+
+Phase 3F demonstrated that this happens primarily because defenders receive
+clean-sheet and DEFCON points that forwards do not.
+
+We now need to determine whether this is:
+
+A. A legitimate property of the FPL scoring system,
+B. An overestimation of defender defensive returns,
+C. An underestimation of premium attacker returns,
+D. A combination of B and C,
+E. Or a different calibration problem.
+
+The goal is NOT to make the output "look more like FPL consensus".
+
+The goal is to determine whether the absolute xP estimates correspond
+reasonably to historical reality.
+
+==================================================
+1. DEFINE THE QUESTION
+==================================================
+
+Answer this question empirically:
+
+"When the model predicts that a £5–7m defender should score 5–6 points
+and a £12–16m premium attacker should score 4–5 points, does historical
+reality support that difference?"
+
+Do NOT assume the answer.
+
+Test it.
+
+==================================================
+2. BUILD A HISTORICAL CROSS-POSITION DATASET
+==================================================
+
+Using the existing leak-free historical prediction framework, construct
+a player-gameweek evaluation dataset.
+
+For every historical player-GW observation include:
+
+season
+gameweek
+player_id
+player
+position
+price
+expected_minutes
+xG
+xA
+CS probability
+DEFCON probability
+bonus probability
+predicted xP
+actual FPL points
+
+Use ONLY information available before the historical GW deadline.
+
+NO DATA LEAKAGE.
+
+Do not use post-deadline information to construct predictions.
+
+==================================================
+3. EVALUATE xP CALIBRATION BY POSITION
+==================================================
+
+For GKP / DEF / MID / FWD separately calculate:
+
+Predicted mean xP
+Actual mean FPL points
+Mean prediction error
+MAE
+RMSE
+Median error
+Spearman correlation
+Pearson correlation
+
+Calculate:
+
+Actual points - predicted xP
+
+and determine whether there is systematic overprediction or
+underprediction by position.
+
+Produce a table:
+
+Position | Predicted Mean | Actual Mean | Bias | MAE | RMSE | Spearman
+
+==================================================
+4. EVALUATE BY PREDICTED xP BUCKET
+==================================================
+
+Create predicted-xP buckets:
+
+0–2
+2–3
+3–4
+4–5
+5–6
+6–7
+7–8
+8+
+
+For every bucket calculate:
+
+number of observations
+mean predicted xP
+mean actual FPL points
+bias
+MAE
+
+This is critical.
+
+We need to determine whether:
+
+Predicted 5.5 → actually ≈5.5
+
+or:
+
+Predicted 5.5 → actually ≈4.2
+
+or:
+
+Predicted 4.2 → actually ≈5.5
+
+==================================================
+5. CROSS-POSITION COMPARISON
+==================================================
+
+Specifically compare:
+
+A. £4.5–£7.0m DEF with strong fixture
+
+against
+
+B. £10–£16m MID/FWD with strong fixture
+
+Match or stratify observations by:
+
+- expected minutes
+- fixture difficulty
+- predicted xP
+- position
+
+Do NOT compare arbitrary players.
+
+Create matched historical cohorts where possible.
+
+For example:
+
+DEF:
+Expected xP 4.5–6.0
+
+versus
+
+MID/FWD:
+Expected xP 4.0–5.5
+
+Then compare actual outcomes.
+
+==================================================
+6. PREMIUM ATTACKER AUDIT
+==================================================
+
+Specifically evaluate premium attackers:
+
+Haaland
+Salah
+Saka
+Palmer
+Bruno Fernandes
+Isak
+Watkins
+Son
+etc. where historical data permits.
+
+For historical observations, calculate:
+
+predicted xG
+actual goals
+predicted xA
+actual assists
+predicted xP
+actual FPL points
+
+Determine whether premium attackers are systematically underpredicted.
+
+Break this down by:
+
+- expected minutes
+- fixture difficulty
+- price
+- position
+- recent form
+- sample size
+
+Do NOT assume premium players should be higher.
+
+Determine whether the data supports it.
+
+==================================================
+7. DEFENDER / DEFCON AUDIT
+==================================================
+
+Evaluate defenders receiving high xP from:
+
+Clean Sheet
+DEFCON
+Appearance
+
+Specifically identify observations where:
+
+predicted CS xP > 1.5
+
+and/or
+
+predicted DEFCON xP > 0.2
+
+Determine:
+
+predicted CS probability
+actual clean-sheet rate
+
+predicted DEFCON probability
+actual DEFCON rate
+
+Calculate calibration and bias.
+
+Determine whether the defensive component is systematically
+overestimated.
+
+==================================================
+8. CLEAN SHEET CALIBRATION
+==================================================
+
+For all historical defender/GK observations calculate clean-sheet
+probability calibration.
+
+Create bins:
+
+0–10%
+10–20%
+20–30%
+30–40%
+40–50%
+50–60%
+60–70%
+70–80%
+80%+
+
+For each:
+
+predicted CS probability
+actual CS rate
+number of observations
+Brier score
+
+Identify systematic overconfidence or underconfidence.
+
+==================================================
+9. DEFCON CALIBRATION
+==================================================
+
+Perform equivalent analysis for DEFCON.
+
+Calculate:
+
+predicted DEFCON probability
+actual DEFCON occurrence
+
+by probability bucket.
+
+Also compare:
+
+predicted DEFCON points
+actual DEFCON points
+
+Determine whether DEFCON is responsible for meaningful systematic
+overprediction of defenders.
+
+==================================================
+10. PREMIUM ATTACKER xG/xA CALIBRATION
+==================================================
+
+Evaluate xG and xA separately.
+
+For xG:
+
+predicted xG
+actual goals
+
+For xA:
+
+predicted xA
+actual assists
+
+Produce calibration by predicted-rate bucket.
+
+Pay particular attention to high-quality attackers.
+
+Determine whether the current ML shrinkage is:
+
+- appropriately calibrated
+- too aggressive
+- insufficient
+
+Do NOT change shrinkage yet.
+
+==================================================
+11. PRICE / VALUE ANALYSIS
+==================================================
+
+This is diagnostic only.
+
+Calculate:
+
+predicted xP / £m
+actual FPL points / £m
+
+by position and price tier.
+
+Price tiers:
+
+£4.0–£5.0
+£5.0–£6.0
+£6.0–£8.0
+£8.0–£10.0
+£10.0–£12.0
+£12.0+
+
+Do NOT use value-per-million as the final optimization objective.
+
+We are only trying to understand whether the current absolute
+projection scale behaves sensibly across prices.
+
+==================================================
+12. EXTREME CASE AUDIT
+==================================================
+
+Find the 50 largest positive prediction errors:
+
+predicted xP - actual points
+
+and 50 largest negative errors:
+
+actual points - predicted xP
+
+Classify each by:
+
+position
+price
+expected minutes
+xG
+xA
+CS
+DEFCON
+fixture difficulty
+
+Determine whether extreme errors are concentrated in:
+
+- defenders
+- premium attackers
+- low-sample players
+- rotation players
+- particular fixture types
+
+==================================================
+13. CURRENT 2026/27 SNAPSHOT
+==================================================
+
+After the historical analysis, reproduce the current GW1 values for:
+
+Haaland
+Bruno
+Saka
+Palmer
+João Pedro
+Calafiori
+Gabriel
+O'Reilly
+Raya
+Gvardiol
+
+Show:
+
+Price
+Position
+Fixture
+Expected minutes
+xG
+xA
+CS probability
+DEFCON probability
+Predicted xP
+
+Then calculate diagnostic:
+
+Predicted xP / £m
+
+DO NOT alter the predictions.
+
+==================================================
+14. DO NOT USE CONSENSUS AS GROUND TRUTH
+==================================================
+
+Ownership, expert picks and FPL consensus may be shown in a separate
+comparison.
+
+They must NOT be used as labels.
+
+They must NOT modify xP.
+
+They must NOT be used to calibrate the model.
+
+We are comparing predictions to ACTUAL HISTORICAL FPL OUTCOMES.
+
+==================================================
+15. DETERMINE THE ACTUAL ROOT CAUSE
+==================================================
+
+Based on the evidence, classify the current defender-vs-attacker
+difference as:
+
+A. Correctly calibrated
+B. Defender CS overprediction
+C. Defender DEFCON overprediction
+D. Premium attacker xG underprediction
+E. Premium attacker xA underprediction
+F. Minutes calibration issue
+G. Multiple component calibration issues
+H. No statistically meaningful issue
+
+For every conclusion provide the actual metrics supporting it.
+
+==================================================
+16. CRITICAL DECISION
+==================================================
+
+Answer explicitly:
+
+1. Is a 5.5 xP defender historically worth approximately 5.5 actual
+   FPL points?
+
+2. Is a 4.2 xP premium attacker historically worth approximately 4.2
+   actual FPL points?
+
+3. Does the current system systematically undervalue premium attackers?
+
+4. Does the current system systematically overvalue defenders?
+
+5. Is the CS model calibrated?
+
+6. Is the DEFCON model calibrated?
+
+7. Is the xG model calibrated for elite attackers?
+
+8. Is the xA model calibrated for elite attackers?
+
+9. Is the absolute xP scale comparable across positions?
+
+10. Is the current xP safe to feed directly into the optimizer?
+
+==================================================
+17. NO MODEL CHANGES
+==================================================
+
+This phase is DIAGNOSTIC ONLY.
+
+Do NOT:
+
+- retrain models
+- change model features
+- change coefficients
+- change shrinkage
+- change xG
+- change xA
+- change CS
+- change DEFCON
+- change minutes
+- change FPL scoring
+- change optimizer
+- change formation constraints
+- add ownership
+- add consensus
+- add player-specific overrides
+
+We need evidence before changing anything.
+
+==================================================
+18. DOCUMENTATION
+==================================================
+
+Create:
+
+docs/phases/PHASE_3G_CROSS_POSITION_XP_CALIBRATION.md
+
+Save this prompt:
+
+docs/prompts/PHASE_3G_CROSS_POSITION_XP_CALIBRATION.md
+
+Update:
+
+docs/PROJECT_STATE.md
+docs/ROADMAP.md
+docs/DATA_PIPELINE.md
+
+Continue updating PROJECT_STATE.md in every future phase.
+
+==================================================
+STOP CONDITION
+==================================================
+
+STOP after producing the complete calibration report.
+
+Do not make any production changes.
+
+Do not run the optimizer.
+
+Do not generate a final GW1 squad.
+
+Do not proceed to another modelling phase.
+
+The ONLY objective is to determine:
+
+WHETHER OUR ABSOLUTE xP NUMBERS ARE ACTUALLY CALIBRATED ACROSS
+POSITIONS AND PRICE LEVELS.
+
+Once this is established, we will decide what — if anything — needs
+to be fixed.

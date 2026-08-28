@@ -1,0 +1,26 @@
+{
+  "role_ratios": {
+    "Central Midfielder": {
+      "xg_ratio": 1.397,
+      "xa_ratio": 1.886
+    },
+    "Creative Playmaker": {
+      "xg_ratio": 1.143,
+      "xa_ratio": 1.252
+    },
+    "Elite Striker": {
+      "xg_ratio": 0.908,
+      "xa_ratio": 2.004
+    },
+    "Inside Forward": {
+      "xg_ratio": 0.679,
+      "xa_ratio": 1.866
+    },
+    "Standard Striker": {
+      "xg_ratio": 2.096,
+      "xa_ratio": 2.021
+    }
+  },
+  "model_version": "expected_xp_calibrated_v2",
+  "creation_timestamp": "2026-08-22T05:16:00Z"
+}

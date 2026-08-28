@@ -116,11 +116,20 @@ class MinutesPredictor:
         sample_games = min(5.0, max(apps_last_5, mins_last_5 / 90.0))
         w_evidence = sample_games / 5.0
 
-        # Conservative Prior for unproven / low-sample role evidence:
-        prior_mins = 15.0
-        prior_p_start = 0.10
-        prior_p_60 = 0.05
-        prior_p_zero = 0.70
+        price = float(pdata.get("price", 5.0))
+        is_gkp = float(pdata.get("pos_DEF", 0.0)) == 0 and float(pdata.get("pos_MID", 0.0)) == 0 and float(pdata.get("pos_FWD", 0.0)) == 0
+
+        # Dynamic price & role-aware prior when recent 5-game sample is sparse
+        if is_gkp and price >= 4.5:
+            prior_mins, prior_p_start, prior_p_60, prior_p_zero = 85.0, 0.90, 0.90, 0.10
+        elif price >= 9.0:
+            prior_mins, prior_p_start, prior_p_60, prior_p_zero = 75.0, 0.85, 0.80, 0.10
+        elif price >= 7.0:
+            prior_mins, prior_p_start, prior_p_60, prior_p_zero = 65.0, 0.75, 0.70, 0.15
+        elif price >= 5.5:
+            prior_mins, prior_p_start, prior_p_60, prior_p_zero = 55.0, 0.60, 0.50, 0.25
+        else:
+            prior_mins, prior_p_start, prior_p_60, prior_p_zero = 25.0, 0.25, 0.15, 0.60
 
         calibrated_mins = (w_evidence * raw_mins) + ((1.0 - w_evidence) * prior_mins)
         calibrated_p_start = (w_evidence * raw_p_start) + ((1.0 - w_evidence) * prior_p_start)

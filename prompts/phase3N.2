@@ -1,0 +1,1140 @@
+PHASE 3N.2 — GW2 REALITY, PLAYER-ROLE & USER-DECISION AUDIT
+
+OBJECTIVE
+
+This is the FINAL DIAGNOSTIC / CORRECTION PHASE before the system is
+allowed to make an actual GW2 FPL decision.
+
+The project has accumulated a large number of successful tests, but the
+live frontend has demonstrated that passing internal consistency tests
+does NOT necessarily mean the decision engine is producing useful FPL
+decisions.
+
+The purpose of this phase is therefore:
+
+MAKE THE DECISION ENGINE ACTUALLY USEFUL FOR A REAL FPL DECISION.
+
+We need to verify that the system understands:
+
+- what gameweek we are actually in
+- which players are actually available
+- who is actually likely to start
+- current clubs
+- current fixtures
+- recent performance
+- historical performance
+- transfer uncertainty
+- injuries
+- expected minutes
+- current prices
+- the difference between current role and historical ability
+- the user's actual squad
+- the user's actual transfer/chip constraints
+- the difference between immediate and multi-GW optimization
+
+This phase MUST NOT blindly trust previous "PASS" results.
+
+Where a previous test only proved internal consistency, this phase must
+test external/current-state correctness.
+
+==================================================
+PART 1 — ABSOLUTE CURRENT-GAMEWEEK TRUTH
+==================================================
+
+1. Determine the ACTUAL current gameweek from authoritative current FPL
+data.
+
+Do not infer it from:
+
+- stored database state
+- previous snapshot
+- frontend label
+- hard-coded configuration
+- last successful sync
+
+The authoritative current GW must be established first.
+
+2. Compare:
+
+authoritative_current_gw
+database_current_gw
+CurrentGameStateManager.current_gw
+projection_engine.current_gw
+optimizer.current_gw
+API.current_gw
+frontend.current_gw
+
+3. If any layer is behind the authoritative current GW:
+
+FIX IT.
+
+Do not simply report the mismatch.
+
+4. The frontend MUST NOT show:
+
+GW1
+
+while the optimizer is producing:
+
+GW2
+
+or vice versa.
+
+5. After correction, every production layer must agree on the actual
+current gameweek.
+
+==================================================
+PART 2 — DATA FRESHNESS
+==================================================
+
+Audit the actual data timestamps.
+
+Report:
+
+FPL API last successful sync
+player data cutoff
+fixture data cutoff
+availability data cutoff
+projection generation time
+optimizer generation time
+frontend state refresh time
+
+The frontend must display:
+
+CURRENT GW: <actual>
+DATA LAST UPDATED: <actual>
+STATE: READY / STALE / FAILED
+
+Do not fabricate timestamps.
+
+If the current data is stale enough to affect a GW2 decision:
+
+mark the state STALE and explain exactly why.
+
+==================================================
+PART 3 — GW1 → GW2 ACTUAL TRANSITION
+==================================================
+
+Verify that GW1 has been frozen as historical state.
+
+Verify that:
+
+GW1 actual results
+→ historical database
+
+and:
+
+GW2
+→ current state
+
+The active state must be the actual GW2 state.
+
+Verify:
+
+GW1 snapshot remains immutable.
+
+GW2 snapshot exists.
+
+GW2 is active.
+
+GW2 fixtures are active.
+
+GW1 results are incorporated into current rolling features.
+
+Do not overwrite GW1 historical data.
+
+==================================================
+PART 4 — CURRENT PLAYER POOL
+==================================================
+
+Audit the COMPLETE current 2026/27 player pool.
+
+For every player report:
+
+player_id
+name
+current club
+position
+price
+availability
+chance of playing
+current role
+expected minutes
+GW2 fixture
+GW3 fixture
+GW4 fixture
+GW5 fixture
+raw xP
+expected_xp_calibrated_v2
+optimizer eligibility
+
+Identify:
+
+stale players
+stale clubs
+stale prices
+stale fixtures
+stale availability
+missing players
+duplicate players
+incorrect positions
+incorrect optimizer eligibility
+
+Do not only audit the example players listed below.
+
+Audit the entire pool.
+
+==================================================
+PART 5 — SPECIFIC REALITY TESTS
+==================================================
+
+Use these players as explicit diagnostic cases:
+
+ERLING HAALAND
+BRUNO FERNANDES
+KAI HAVERTZ
+GYÖKERES
+JOÃO PEDRO
+CALVERT-LEWIN
+MARM0USH
+TAIWO AWONIYI
+REISS NELSON
+EKITIKE
+NICK POPE
+MATETA
+
+For every player report:
+
+current club
+current position
+current price
+availability
+transfer status
+expected role
+expected minutes
+GW2 fixture
+GW3 fixture
+GW4 fixture
+GW5 fixture
+GW2 xP
+GW2-GW5 weighted xP
+optimizer eligibility
+
+==================================================
+PART 6 — EXPECTED-MINUTES AUDIT
+==================================================
+
+This is one of the most important parts of the entire phase.
+
+The current engine has previously produced suspiciously similar expected
+minutes values for players with very different role situations.
+
+For example, investigate any clustering around values such as:
+
+75.0 minutes
+
+Do NOT assume 75 is wrong.
+
+Determine whether it is:
+
+- a genuine model output
+- a default
+- a fallback
+- a midpoint
+- a hard-coded assumption
+- a consequence of missing role data
+
+For every player with exactly 75.0 expected minutes:
+
+report the underlying calculation and source features.
+
+If 75 is a fallback caused by missing information:
+
+FIX THE FALLBACK.
+
+Do not hide the issue.
+
+==================================================
+PART 7 — START PROBABILITY VS EXPECTED MINUTES
+==================================================
+
+Expected minutes must reflect the probability distribution of:
+
+START
+SUBSTITUTE APPEARANCE
+NO APPEARANCE
+
+If the architecture has start probability and substitute probability,
+show them.
+
+If it does not, determine whether the existing expected-minutes model
+can represent this distinction.
+
+Do NOT invent player-specific values.
+
+Do NOT hard-code current starting XIs.
+
+The system must use reproducible evidence.
+
+==================================================
+PART 8 — GYÖKERES VS HAVERTZ TEST
+==================================================
+
+This is a mandatory diagnostic.
+
+The current system has produced Gyökeres ahead of Havertz in a situation
+where current-role evidence may indicate Havertz has a higher probability
+of starting.
+
+DO NOT simply change the selection to Havertz.
+
+Instead calculate both from first principles.
+
+For Gyökeres:
+
+- availability
+- role
+- start probability
+- substitute probability
+- expected minutes
+- recent starts
+- recent minutes
+- historical minutes
+- current squad role
+- xG/90
+- xA/90
+- xP
+- fixture adjustment
+- multi-GW value
+
+Repeat exactly for Havertz.
+
+Then explain:
+
+WHY DOES THE MODEL PREFER ONE?
+
+If Gyökeres genuinely deserves the higher projection, demonstrate why.
+
+If Havertz should be higher because of role/minutes evidence:
+
+FIX THE UNDERLYING ROLE/MINUTES PIPELINE.
+
+Do not hard-code either player.
+
+==================================================
+PART 9 — TRANSFER UNCERTAINTY
+==================================================
+
+Mateta is a mandatory test case.
+
+Determine whether the system knows:
+
+current club
+transfer status
+registration status
+current availability
+current role
+expected minutes
+GW2 fixture
+future fixture validity
+
+A player whose future club/registration/role is uncertain should not
+blindly receive a normal multi-GW projection as though everything is
+certain.
+
+Implement a GENERAL transfer uncertainty mechanism if one does not
+already exist.
+
+Potential states may include:
+
+TRANSFER_UNCERTAIN
+CLUB_CHANGE_PENDING
+REGISTRATION_UNCERTAIN
+
+Use the project's existing architecture where possible.
+
+DO NOT hard-code Mateta.
+
+==================================================
+PART 10 — LONG-TERM INJURY
+==================================================
+
+Use Ekitike as a mandatory diagnostic.
+
+Verify:
+
+current injury/availability
+chance of playing
+expected minutes
+GW2 eligibility
+optimizer eligibility
+frontend status
+
+If unavailable:
+
+he must not be a normal optimizer candidate.
+
+But historical data must remain intact.
+
+Do not delete him from the historical database.
+
+==================================================
+PART 11 — CURRENT CLUB / TRANSFER RECONCILIATION
+==================================================
+
+Explicitly verify:
+
+Taiwo Awoniyi
+Reiss Nelson
+
+and every player whose club has changed.
+
+For each:
+
+historical club
+current club
+GW2 fixture
+GW3 fixture
+expected minutes
+
+The current fixture MUST derive from the current club.
+
+No stale historical club may influence current fixture selection.
+
+==================================================
+PART 12 — GOALKEEPER ROLE AUDIT
+==================================================
+
+Use Nick Pope as a mandatory diagnostic.
+
+Determine:
+
+current club
+current role
+expected first-choice probability
+expected minutes
+backup/rotation status
+GW2 fixture
+xP
+optimizer eligibility
+
+Do not manually blacklist Pope.
+
+If he is no longer first choice, the general role/expected-minutes
+mechanism must represent that.
+
+The same mechanism must work for all goalkeepers.
+
+==================================================
+PART 13 — RECENCY VS HISTORICAL ABILITY
+==================================================
+
+The model must distinguish:
+
+LONG-TERM ABILITY
+RECENT FORM
+CURRENT ROLE
+CURRENT AVAILABILITY
+
+Audit:
+
+Marmoush
+Calvert-Lewin
+
+as explicit examples.
+
+For each show:
+
+historical xG/xA
+recent xG/xA
+recent minutes
+recent starts
+current role
+current expected minutes
+current xP
+
+The purpose is NOT to manually boost or punish either player.
+
+The purpose is to verify that recent information can actually affect
+current projections.
+
+==================================================
+PART 14 — FIXTURE EFFECT
+==================================================
+
+Verify that fixtures actually influence xP.
+
+For at least 10 players across multiple positions calculate:
+
+base projection
+fixture-adjusted projection
+difference
+
+Show:
+
+player
+fixture
+base xP
+fixture xP
+delta
+
+Then perform neutral-fixture counterfactuals.
+
+The fixture adjustment must be traceable.
+
+Do not use ownership as fixture information.
+
+==================================================
+PART 15 — FULL PRICE INTEGRITY
+==================================================
+
+Every optimizer candidate must use the canonical current FPL price.
+
+Verify:
+
+database price
+projection price
+optimizer price
+API price
+frontend price
+
+all match.
+
+Run the check across the COMPLETE player pool.
+
+Do not only check Haaland.
+
+==================================================
+PART 16 — EXPECTED XP V2 INTEGRATION
+==================================================
+
+The production optimizer must use:
+
+expected_xp_calibrated_v2
+
+Verify this remains true after the current-state refresh.
+
+Trace:
+
+current state
+→ expected minutes
+→ xG/xA/CS/DEFCON
+→ expected_xp_calibrated_v2
+→ optimizer
+
+Do not change v2 calibration during this phase.
+
+==================================================
+PART 17 — MODE VALIDATION
+==================================================
+
+Verify the four modes:
+
+NEXT GW
+SHORT TERM
+MEDIUM TERM
+LONG TERM
+
+For each show:
+
+exact mathematical objective
+projection horizon
+weights
+selected squad
+objective value
+captain
+bank
+
+NEXT GW must optimize only GW2.
+
+SHORT TERM must optimize GW2-GW3.
+
+MEDIUM TERM must optimize GW2-GW5.
+
+LONG TERM must optimize GW2-GW8 or be clearly marked high uncertainty.
+
+Do not artificially force different squads.
+
+If two modes genuinely select the same squad, explain why.
+
+==================================================
+PART 18 — MY TEAM UI — ACTUALLY MAKE IT USABLE
+==================================================
+
+THIS IS NOT COMPLETE UNTIL THE USER CAN ACTUALLY ENTER THEIR TEAM
+THROUGH THE FRONTEND.
+
+The backend endpoints already exist.
+
+Now build the actual UI.
+
+Create a prominent:
+
+MY TEAM
+
+control in the main dashboard.
+
+The user must be able to:
+
+ADD PLAYER
+REMOVE PLAYER
+CHANGE PLAYER
+SET BANK
+SET FREE TRANSFERS
+SET AVAILABLE CHIPS
+
+The UI must enforce:
+
+2 GKP
+5 DEF
+5 MID
+3 FWD
+15 players total
+
+unless the user is intentionally editing an intermediate state.
+
+==================================================
+PART 19 — MY TEAM PLAYER SELECTION
+==================================================
+
+The player picker should use the CURRENT player state.
+
+It should show:
+
+name
+club
+position
+price
+availability
+fixture
+expected minutes
+
+Search by:
+
+name
+club
+
+Filter by:
+
+GKP
+DEF
+MID
+FWD
+
+Unavailable players should be clearly marked.
+
+Do not allow obviously unavailable players to be accidentally selected
+without an explicit warning.
+
+==================================================
+PART 20 — MY TEAM PERSISTENCE
+==================================================
+
+Test:
+
+enter squad
+save
+reload page
+retrieve squad
+display squad
+
+The squad must persist.
+
+Bank must persist.
+
+Free transfers must persist.
+
+Available chips must persist.
+
+Do not hard-code the user's squad into frontend JavaScript.
+
+==================================================
+PART 21 — MY TEAM VISUALIZATION
+==================================================
+
+Add a permanent MY TEAM panel alongside the optimizer.
+
+The user should be able to see:
+
+MY TEAM
+vs
+OPTIMAL TEAM
+
+simultaneously.
+
+Do not replace My Team when the optimizer runs.
+
+The user must always know:
+
+"What I currently own"
+
+versus:
+
+"What the model wants."
+
+==================================================
+PART 22 — MY TEAM VS OPTIMAL
+==================================================
+
+For every difference show:
+
+TRANSFER OUT
+TRANSFER IN
+KEEP
+BENCH CHANGE
+
+For transfer recommendations eventually expose:
+
+player out
+player in
+price difference
+GW2 xP difference
+multi-GW difference
+reason
+
+Do not make transfer recommendations in this phase.
+
+Only verify that the comparison engine can calculate them correctly.
+
+==================================================
+PART 23 — NO MY TEAM = NO FAKE COMPARISON
+==================================================
+
+If no user squad has been configured:
+
+display:
+
+MY TEAM NOT CONFIGURED
+
+and provide:
+
+SET UP MY TEAM
+
+Do NOT display a fake comparison.
+
+==================================================
+PART 24 — SELECTION TRACE
+==================================================
+
+The existing selection-trace engine must be used.
+
+For any selected player, the system must be able to answer:
+
+WHY WAS THIS PLAYER SELECTED?
+
+Show:
+
+expected minutes contribution
+attacking contribution
+defensive contribution
+fixture contribution
+price/budget contribution
+multi-GW contribution
+availability/role adjustment
+
+Also show:
+
+strongest alternative
+alternative xP
+selection delta
+
+Example:
+
+SELECTED: X
+ALTERNATIVE: Y
+
+X GW2 xP: A
+Y GW2 xP: B
+Difference: C
+
+Then explain the main reason.
+
+This is diagnostic.
+
+Do not create player-specific heuristics.
+
+==================================================
+PART 25 — "WHY NOT PLAYER X?"
+==================================================
+
+The system should also support:
+
+Why wasn't Player X selected?
+
+For a non-selected player report:
+
+xP
+expected minutes
+price
+fixture
+position constraints
+club constraints
+budget constraints
+stronger alternatives
+
+This will be critical for debugging the model.
+
+==================================================
+PART 26 — CURRENT GW2 DIAGNOSTIC RANKINGS
+==================================================
+
+After fixing the current-state issues, produce:
+
+TOP 20 GW2 xP
+TOP 20 GW2-GW3
+TOP 20 GW2-GW5
+TOP 20 GW2-GW8
+
+For each:
+
+player
+club
+position
+price
+fixture
+expected minutes
+role confidence
+availability
+xP
+
+This is diagnostic.
+
+Do NOT produce the user's final team.
+
+==================================================
+PART 27 — PLAYER REALITY FLAGS
+==================================================
+
+Add a current-state flag system.
+
+Examples:
+
+AVAILABLE
+EXPECTED_STARTER
+ROTATION
+BACKUP
+DOUBTFUL
+INJURED
+SUSPENDED
+TRANSFER_UNCERTAIN
+LOW_MINUTES_CONFIDENCE
+
+These flags must derive from data.
+
+Do not manually assign them to named players.
+
+The frontend should display them where useful.
+
+==================================================
+PART 28 — DATA QUALITY SCORE
+==================================================
+
+Every player should receive a data-quality status:
+
+GREEN
+YELLOW
+RED
+
+based on whether critical information is:
+
+complete
+stale
+uncertain
+missing
+
+A player with uncertain current role/availability should not look
+identical to a fully established starter.
+
+==================================================
+PART 29 — NO HIDDEN FPL CONSENSUS
+==================================================
+
+Do NOT introduce:
+
+ownership bonuses
+FPL community rankings
+YouTube consensus
+template-player bonuses
+manual Haaland bonuses
+manual Bruno bonuses
+
+during this phase.
+
+We are testing whether the model understands football and FPL mechanics
+from the information available to it.
+
+Consensus can be a future diagnostic signal, but it must not silently
+enter the production objective.
+
+==================================================
+PART 30 — NO PLAYER-SPECIFIC PATCHES
+==================================================
+
+Absolutely forbidden:
+
+if player == "Gyökeres"
+if player == "Havertz"
+if player == "Mateta"
+if player == "Pope"
+if player == "Haaland"
+
+to alter projections or eligibility.
+
+Fix the general mechanism.
+
+==================================================
+PART 31 — FULL END-TO-END TEST
+==================================================
+
+Run:
+
+AUTHORITATIVE CURRENT DATA
+        ↓
+CURRENT GAMEWEEK STATE
+        ↓
+PLAYER STATE
+        ↓
+EXPECTED MINUTES
+        ↓
+xG/xA/CS/DEFCON
+        ↓
+expected_xp_calibrated_v2
+        ↓
+OPTIMIZER
+        ↓
+API
+        ↓
+FRONTEND
+
+Verify that every stage uses the same current state.
+
+==================================================
+PART 32 — REALITY TEST CASES
+==================================================
+
+The following must all produce sensible diagnostic explanations:
+
+1. Why is Gyökeres ahead/behind Havertz?
+
+2. Why is Bruno's GW2 projection what it is?
+
+3. Why is Haaland's GW2 projection what it is?
+
+4. Why is Mateta eligible/ineligible?
+
+5. Why is Pope eligible/ineligible?
+
+6. Why is Ekitike eligible/ineligible?
+
+7. Why is Awoniyi associated with his current club?
+
+8. Why is Nelson associated with his current club?
+
+9. Why is a player with 75 expected minutes receiving exactly 75?
+
+10. Why is a player selected over his strongest alternative?
+
+If the system cannot answer these questions from its own data pipeline,
+the audit is NOT complete.
+
+==================================================
+PART 33 — FRONTEND UX
+==================================================
+
+The main dashboard should now clearly expose:
+
+CURRENT GAMEWEEK
+LAST SYNC
+MODEL VERSION
+OPTIMIZATION MODE
+
+MY TEAM
+OPTIMAL TEAM
+
+PLAYER STATUS
+
+EXPECTED MINUTES
+
+FIXTURE
+
+xP
+
+The UI should prioritize clarity over adding more cards.
+
+Do not overcrowd the existing dashboard.
+
+==================================================
+PART 34 — TEST SUITE
+==================================================
+
+Add/update automated tests for:
+
+current GW correctness
+GW1 → GW2 transition
+state freshness
+historical immutability
+current club reconciliation
+fixture reconciliation
+price reconciliation
+availability
+injury exclusion
+transfer uncertainty
+role classification
+expected-minutes calculation
+v2 integration
+fixture sensitivity
+mode horizon correctness
+My Team creation
+My Team persistence
+My Team retrieval
+My Team comparison
+selection trace
+alternative-player trace
+Haaland presence
+full-pool integrity
+frontend/backend state consistency
+
+ALL MUST PASS.
+
+==================================================
+PART 35 — DOCUMENTATION
+==================================================
+
+Create:
+
+docs/phases/PHASE_3N2_GW2_REALITY_AND_USER_DECISION_AUDIT.md
+
+Save this prompt:
+
+docs/prompts/PHASE_3N2_GW2_REALITY_AND_USER_DECISION_AUDIT.md
+
+Update:
+
+docs/PROJECT_STATE.md
+docs/ROADMAP.md
+docs/DATA_PIPELINE.md
+
+Document:
+
+- actual current GW
+- data freshness
+- player-state corrections
+- role/minutes findings
+- transfer uncertainty
+- injury handling
+- fixture handling
+- My Team UI
+- optimizer integration
+- selection trace
+- tests
+- unresolved issues
+
+==================================================
+PART 36 — FINAL ACCEPTANCE CRITERIA
+==================================================
+
+The phase is NOT complete merely because tests pass.
+
+Return:
+
+SAFE TO PROCEED TO GW2 DECISION OPTIMIZATION
+
+ONLY IF ALL OF THE FOLLOWING ARE TRUE:
+
+1. Actual authoritative current GW is identified correctly.
+
+2. Every production layer uses that current GW.
+
+3. Data freshness is acceptable for a current GW2 decision.
+
+4. GW1 is immutable historical state.
+
+5. GW2 is active current state.
+
+6. Current clubs are correct.
+
+7. Current prices are correct.
+
+8. Current fixtures are correct.
+
+9. Availability is current.
+
+10. Long-term unavailable players cannot enter optimizer.
+
+11. Current role affects expected minutes.
+
+12. Expected minutes affects xP.
+
+13. No suspicious unexplained default minutes remain.
+
+14. Transfer uncertainty is represented generally.
+
+15. Historical ability is separated from current role/form.
+
+16. expected_xp_calibrated_v2 reaches the optimizer.
+
+17. Fixture adjustments demonstrably affect projections.
+
+18. All four optimization modes use their intended horizons.
+
+19. My Team can actually be entered through the frontend.
+
+20. My Team persists after reload.
+
+21. Bank, FT and chips persist.
+
+22. My Team can be compared against Optimal Team.
+
+23. No fake comparison appears when My Team is unconfigured.
+
+24. Selection trace can explain player selection.
+
+25. Alternative-player trace can explain non-selection.
+
+26. No player-specific hacks were introduced.
+
+27. Haaland remains present and correctly represented.
+
+28. All critical tests pass.
+
+If ANY of these fail:
+
+FINAL VERDICT:
+
+NOT SAFE — DECISION ENGINE STILL HAS CRITICAL ISSUES
+
+Do not hide failures behind a generic "tests passed" statement.
+
+==================================================
+STOP CONDITION
+==================================================
+
+DO NOT:
+
+- make the user's final GW2 squad
+- recommend a transfer
+- recommend captain
+- activate Bench Boost
+- use ownership
+- use FPL consensus
+- manually boost players
+- manually blacklist players
+- hard-code current XIs
+- introduce player-specific patches
+- retrain the production model
+- change v2 calibration
+
+This phase exists to make the system trustworthy.
+
+ONLY AFTER THIS PHASE RETURNS:
+
+SAFE TO PROCEED TO GW2 DECISION OPTIMIZATION
+
+should we begin:
+
+PHASE 3N.3 — ACTUAL GW2 DECISION OPTIMIZATION
+
+where the system will finally answer:
+
+"Given my actual squad, my bank, my free transfers, my available chips,
+and the current GW2 state, what should I actually do?"

@@ -1,3 +1,6 @@
+import os
+import pickle
+import json
 import logging
 import math
 from typing import List, Dict, Any, Optional
@@ -60,6 +63,36 @@ class ProjectionEngine:
         self.cs_predictor = CSPredictor()
         self.defcon_predictor = DEFCONPredictor()
 
+        # Phase 3K Calibration Layer Loading (v2 preferred, v1 fallback)
+        self.cs_calibrator = None
+        self.calibration_meta = None
+        cs_cal_path = os.path.join(os.path.dirname(__file__), "..", "ml", "models", "cs_calibration_v1.pkl")
+        meta_v2_path = os.path.join(os.path.dirname(__file__), "..", "ml", "models", "expected_xp_calibrated_v2.json")
+        meta_v1_path = os.path.join(os.path.dirname(__file__), "..", "ml", "models", "expected_xp_calibrated_v1.json")
+
+        if os.path.exists(cs_cal_path):
+            try:
+                with open(cs_cal_path, "rb") as f:
+                    self.cs_calibrator = pickle.load(f)
+                logger.info("Successfully loaded Clean Sheet Calibration model.")
+            except Exception as e:
+                logger.warning(f"Failed to load CS calibration model: {e}")
+
+        if os.path.exists(meta_v2_path):
+            try:
+                with open(meta_v2_path, "r") as f:
+                    self.calibration_meta = json.load(f)
+                logger.info("Successfully loaded expected_xp_calibrated_v2 metadata.")
+            except Exception as e:
+                logger.warning(f"Failed to load v2 calibration metadata: {e}")
+        elif os.path.exists(meta_v1_path):
+            try:
+                with open(meta_v1_path, "r") as f:
+                    self.calibration_meta = json.load(f)
+                logger.info("Successfully loaded expected_xp_calibrated_v1 metadata.")
+            except Exception as e:
+                logger.warning(f"Failed to load v1 calibration metadata: {e}")
+
     def calculate_expected_minutes(self, player: Player) -> float:
         """Calculate deterministic baseline expected minutes."""
         if player.status in ["i", "u", "s"]:
@@ -72,20 +105,33 @@ class ProjectionEngine:
             chance_factor = 0.5
 
         cost = player.now_cost
-        if player.minutes >= 180:
-            estimated_games = max(1.0, player.minutes / 75.0)
-            avg_mins = min(90.0, max(30.0, player.minutes / estimated_games))
-        else:
-            if cost >= 90:
-                avg_mins = 84.0
-            elif cost >= 70:
-                avg_mins = 75.0
-            elif cost >= 55:
-                avg_mins = 65.0
-            elif cost >= 45:
-                avg_mins = 55.0
+        tot_mins = float(player.minutes)
+
+        if tot_mins >= 90:
+            # Estimate actual matches played based on starts and sub appearances
+            starts = float(getattr(player, 'starts', 0) or 0)
+            if starts > 0:
+                sub_mins = max(0.0, tot_mins - (starts * 75.0))
+                sub_apps = sub_mins / 25.0
+                est_games = max(1.0, starts + sub_apps)
             else:
-                avg_mins = 35.0
+                est_games = max(1.0, tot_mins / 80.0)
+            
+            avg_mins = min(90.0, max(15.0, tot_mins / est_games))
+        else:
+            # Dynamic role-based starting baseline for 0 or low minutes
+            if player.element_type == "GKP":
+                avg_mins = 85.0 if cost >= 45 else 45.0
+            elif cost >= 90:
+                avg_mins = 83.0
+            elif cost >= 70:
+                avg_mins = 72.0
+            elif cost >= 55:
+                avg_mins = 60.0
+            elif cost >= 45:
+                avg_mins = 45.0
+            else:
+                avg_mins = 20.0
 
         expected_mins = avg_mins * chance_factor
         return round(min(90.0, max(0.0, expected_mins)), 1)
@@ -144,6 +190,15 @@ class ProjectionEngine:
         opp_team: Optional[Team] = None
     ) -> Dict[str, Any]:
         """Calculate complete component breakdown for a player in a specific fixture."""
+        # Strict Current-Club Fixture Validation Check (Hard Failure on Mismatch)
+        if fixture is not None:
+            if player.team_id != fixture.team_h_id and player.team_id != fixture.team_a_id:
+                raise ValueError(
+                    f"CRITICAL FIXTURE VALIDATION FAILURE: Player '{player.web_name}' (team_id={player.team_id}) "
+                    f"is assigned fixture ID={fixture.id} between team_h_id={fixture.team_h_id} and team_a_id={fixture.team_a_id}. "
+                    f"Player's current team does not participate in this fixture."
+                )
+
         pos = player.element_type
         metrics = self.get_player_per_90_metrics(player)
         diff = (fixture.team_a_difficulty if is_home else fixture.team_h_difficulty) if fixture else 3
@@ -173,10 +228,21 @@ class ProjectionEngine:
 
         # ML Minutes Prediction (with safe fallback)
         tot_mins = float(player.minutes)
-        recent_mins_5 = float(min(450.0, tot_mins))
-        recent_apps_5 = float(min(5.0, tot_mins / 60.0)) if tot_mins > 0 else 0.0
-        recent_starts_5 = float(min(5.0, tot_mins / 80.0)) if tot_mins >= 80 else 0.0
-        avg_mins_5 = float(recent_mins_5 / max(1.0, recent_apps_5)) if recent_apps_5 > 0 else 0.0
+        starts_cnt = float(getattr(player, 'starts', 0) or 0)
+        if tot_mins > 0:
+            if starts_cnt > 0:
+                est_games_played = max(1.0, starts_cnt + max(0.0, tot_mins - starts_cnt * 75.0) / 25.0)
+            else:
+                est_games_played = max(1.0, tot_mins / 85.0)
+            avg_mins_5 = float(min(90.0, max(15.0, tot_mins / est_games_played)))
+            recent_apps_5 = float(min(5.0, est_games_played))
+            recent_starts_5 = float(min(5.0, starts_cnt if starts_cnt > 0 else est_games_played))
+            recent_mins_5 = float(min(450.0, tot_mins))
+        else:
+            avg_mins_5 = float(baseline_xMins)
+            recent_apps_5 = 0.0
+            recent_starts_5 = 0.0
+            recent_mins_5 = 0.0
 
         pdata = {
             'price': player.now_cost / 10.0,
@@ -215,6 +281,19 @@ class ProjectionEngine:
             x_mins = ml_pred["expected_minutes"]
         else:
             x_mins = baseline_xMins
+
+        # Role Competition Reconciliation: Reconcile mutually exclusive roles (GKP)
+        if pos == "GKP" and player.team_id:
+            gkps_on_team = self.db.query(Player).filter(
+                Player.team_id == player.team_id,
+                Player.element_type == "GKP"
+            ).all()
+            if len(gkps_on_team) > 1:
+                top_gkp = max(gkps_on_team, key=lambda g: (float(g.minutes), g.now_cost))
+                if player.id != top_gkp.id:
+                    x_mins = 0.0
+                else:
+                    x_mins = max(x_mins, 85.0)
 
         mins_ratio = min(1.0, max(0.0, x_mins / 90.0))
 
@@ -420,7 +499,58 @@ class ProjectionEngine:
         cards_xp = -0.10 * mins_ratio
 
         raw_total = appearance_xp + goals_xp + assists_xp + cs_xp + defcon_xp + saves_xp + bonus_xp + cards_xp
-        total_xp = max(0.0, round(raw_total, 2))
+        raw_xp = max(0.0, round(raw_total, 2))
+
+        if self.cs_calibrator is not None and self.calibration_meta is not None:
+            cs_val = 4.0 if pos in [ElementType.DEF.value, ElementType.GKP.value] else (1.0 if pos == ElementType.MID.value else 0.0)
+            cal_cs = float(self.cs_calibrator.predict([cs_prob])[0])
+            is_v2 = self.calibration_meta.get("model_version") == "expected_xp_calibrated_v2"
+            if is_v2 and pos in [ElementType.MID.value, ElementType.FWD.value]:
+                p_cost = player.now_cost / 10.0
+                p_factor = max(0.0, min(1.0, (p_cost - 4.5) / 7.5))
+                price_xg_m = 0.984 + (p_factor * 0.764)
+                price_xa_m = 1.446 + (p_factor * 1.574)
+
+                # Determine role proxy dynamically
+                role_ratios = self.calibration_meta.get("role_ratios", {})
+                xMins_calc = max(1.0, appearance_xp * 45.0) # approximate
+                xg90 = xg_match * (90.0 / xMins_calc)
+                xa90 = xa_match * (90.0 / xMins_calc)
+
+                if pos == ElementType.FWD.value:
+                    role_key = "Elite Striker" if xg90 >= 0.40 else "Standard Striker"
+                else:
+                    if xg90 >= 0.25 and xa90 < 0.20: role_key = "Inside Forward"
+                    elif xa90 >= 0.20: role_key = "Creative Playmaker"
+                    else: role_key = "Central Midfielder"
+
+                role_xg_ratio = role_ratios.get(role_key, {}).get("xg_ratio", 1.20)
+                role_adj = max(0.90, min(1.15, role_xg_ratio / 1.30))
+
+                xg_m = price_xg_m * role_adj
+                xa_m = price_xa_m
+            else:
+                is_prem_p = (player.now_cost >= 100) and (pos in [ElementType.MID.value, ElementType.FWD.value])
+                xg_m = self.calibration_meta.get("prem_xg_ratio", 1.882) if is_prem_p else self.calibration_meta.get("non_prem_xg_ratio", 0.984)
+                xa_m = self.calibration_meta.get("prem_xa_ratio", 3.020) if is_prem_p else self.calibration_meta.get("non_prem_xa_ratio", 1.446)
+
+            cal_xg = xg_match * xg_m
+            cal_xa = xa_match * xa_m
+            cal_defcon = defcon_prob * 0.65
+
+            c_goals_xp = cal_xg * goal_val * mins_ratio
+            c_assists_xp = cal_xa * 3.0 * mins_ratio
+            c_cs_xp = cal_cs * cs_val * mins_ratio
+            c_defcon_xp = cal_defcon * 2.0 * mins_ratio
+            c_bonus_xp = (c_goals_xp * 0.4) + (c_assists_xp * 0.3)
+
+            calibrated_xp = max(0.0, round(appearance_xp + c_goals_xp + c_assists_xp + c_cs_xp + c_defcon_xp + saves_xp + c_bonus_xp + cards_xp, 2))
+            total_xp = calibrated_xp
+            adjustment = round(calibrated_xp - raw_xp, 2)
+        else:
+            calibrated_xp = raw_xp
+            total_xp = raw_xp
+            adjustment = 0.0
 
         return {
             "web_name": player.web_name,
@@ -465,27 +595,47 @@ class ProjectionEngine:
             "assists_xp": round(assists_xp, 2),
             "cs_xp": round(cs_xp, 2),
             "defcon_xp": round(defcon_xp, 2),
-            "goals_xp": round(goals_xp, 2),
-            "assists_xp": round(assists_xp, 2),
-            "cs_xp": round(cs_xp, 2),
-            "defcon_xp": round(defcon_xp, 2),
             "saves_xp": round(saves_xp, 2),
             "bonus_xp": round(bonus_xp, 2),
             "cards_xp": round(cards_xp, 2),
+            "raw_xp": raw_xp,
+            "calibrated_xp": calibrated_xp,
+            "adjustment": adjustment,
             "total_xp": total_xp,
             "xp_per_m": round(total_xp / max(4.0, player.now_cost / 10.0), 2)
         }
 
-    def run_projections(self, start_gw: int = 1, end_gw: int = 8, source: str = "internal") -> int:
+    def run_projections(self, start_gw: int = 1, end_gw: int = 8, source: str = "internal", force: bool = False) -> int:
         """Generate and store fixture-specific base projections for all players across specified gameweeks."""
+        players = self.db.query(Player).all()
+        expected_total = len(players) * (end_gw - start_gw + 1)
+        
+        if not force and expected_total > 0:
+            existing_count = self.db.query(PlayerProjection).filter(
+                PlayerProjection.gameweek_id >= start_gw,
+                PlayerProjection.gameweek_id <= end_gw
+            ).count()
+            if existing_count >= expected_total:
+                logger.info(f"Reusing {existing_count} existing pre-calculated projection records for GW{start_gw} to GW{end_gw}.")
+                return existing_count
+
         logger.info(f"Updating team ratings before running projections...")
         rating_calc = TeamRatingCalculator(self.db)
         rating_calc.calculate_and_update_team_ratings()
 
         logger.info(f"Running team-strength fixture projection engine for GW{start_gw} to GW{end_gw} (Source: {source})")
-        players = self.db.query(Player).all()
         teams_map = {t.id: t for t in self.db.query(Team).all()}
         
+        # Bulk fetch existing projections to avoid 2400 individual DB queries & flushes
+        existing_projs = {
+            (p.player_id, p.gameweek_id, p.source): p 
+            for p in self.db.query(PlayerProjection).filter(
+                PlayerProjection.gameweek_id >= start_gw,
+                PlayerProjection.gameweek_id <= end_gw,
+                PlayerProjection.source == source
+            ).all()
+        }
+
         saved_count = 0
 
         for gw_id in range(start_gw, end_gw + 1):
@@ -515,11 +665,8 @@ class ProjectionEngine:
                         total_xMins += res["xMins"]
                         total_xP += res["total_xp"]
 
-                proj = self.db.query(PlayerProjection).filter(
-                    PlayerProjection.player_id == player.id,
-                    PlayerProjection.gameweek_id == gw_id,
-                    PlayerProjection.source == source
-                ).first()
+                key = (player.id, gw_id, source)
+                proj = existing_projs.get(key)
 
                 if not proj:
                     proj = PlayerProjection(
@@ -528,6 +675,7 @@ class ProjectionEngine:
                         source=source
                     )
                     self.db.add(proj)
+                    existing_projs[key] = proj
 
                 proj.expected_minutes = round(total_xMins, 1)
                 proj.expected_points = round(total_xP, 2)

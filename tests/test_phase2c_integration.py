@@ -89,7 +89,7 @@ def test_engine_integration_no_double_counting():
                 bd["cs_xp"] + bd["defcon_xp"] + bd["saves_xp"] +
                 bd["bonus_xp"] + bd["cards_xp"], 2
             )
-            assert abs(bd["total_xp"] - max(0.0, comp_sum)) < 0.05
+            assert abs(bd.get("raw_xp", bd["total_xp"]) - max(0.0, comp_sum)) < 0.05
     finally:
         db.close()
 

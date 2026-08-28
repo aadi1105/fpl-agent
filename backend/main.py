@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from pydantic import BaseModel
 
 from backend.config import settings
 from backend.database import get_db, engine, Base
@@ -78,26 +79,50 @@ def run_projections(req: ProjectionRunRequest, db: Session = Depends(get_db)):
         logger.error(f"Error running projections: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+_DIAGNOSTICS_CACHE = None
+_DIAGNOSTICS_CACHE_GW = None
+
+def invalidate_diagnostics_cache():
+    global _DIAGNOSTICS_CACHE, _DIAGNOSTICS_CACHE_GW
+    _DIAGNOSTICS_CACHE = None
+    _DIAGNOSTICS_CACHE_GW = None
+
 @app.get("/api/v1/projections/diagnostics", tags=["Projections"])
-def get_projection_diagnostics(
-    target_gw: int = Query(1, description="Gameweek to inspect"),
-    position: Optional[str] = Query(None, description="Filter by position (GKP, DEF, MID, FWD)"),
+def get_diagnostics(
+    target_gw: int = Query(1, description="Target Gameweek"),
+    position: Optional[str] = Query(None, description="Filter by position"),
+    mode: Optional[str] = Query(None, description="Optimization mode"),
     sort_by: str = Query("weighted_xp", description="Sort field: weighted_xp, total_xp, xp_per_m, price, xMins"),
     limit: int = Query(100, description="Max players to return"),
     db: Session = Depends(get_db)
 ):
     """
-    Returns full component breakdown and 4-GW fixture outlook for every player for arithmetic validation and auditing.
+    Returns full component breakdown and horizon outlook for every player matching selected optimization mode.
     """
+    global _DIAGNOSTICS_CACHE, _DIAGNOSTICS_CACHE_GW
+    cache_key = f"{target_gw}_{mode}_{position}"
+    if _DIAGNOSTICS_CACHE is not None and _DIAGNOSTICS_CACHE_GW == cache_key:
+        return _DIAGNOSTICS_CACHE[:limit]
+
     engine = ProjectionEngine(db)
-    query = db.query(Player)
+    query = db.query(Player).order_by(Player.total_points.desc(), Player.now_cost.desc())
     if position:
         query = query.filter(Player.element_type == position.upper())
 
-    players = query.all()
+    players = query.limit(max(150, limit * 2)).all()
     teams_map = {t.id: t for t in db.query(Team).all()}
-    horizon_gws = [target_gw + k for k in range(4) if (target_gw + k) <= 38]
-    weights = settings.DEFAULT_HORIZON_WEIGHTS[:len(horizon_gws)]
+    
+    # Determine horizon GWs based on mode (Optimization target starting at GW2)
+    if mode in ["NEXT_GW", "CURRENT_GW_ONLY", "MODE_1"]:
+        horizon_gws = [target_gw + 1]
+        weights = [1.0]
+    elif mode in ["LONG_TERM", "MODE_4"]:
+        horizon_gws = [target_gw + k for k in range(1, 8) if (target_gw + k) <= 38]
+        weights = [0.30, 0.20, 0.15, 0.12, 0.10, 0.08, 0.05][:len(horizon_gws)]
+    else:
+        horizon_gws = [target_gw + k for k in range(1, 5) if (target_gw + k) <= 38]
+        weights = [0.55, 0.20, 0.15, 0.10][:len(horizon_gws)]
+
     w_sum = sum(weights)
     weights = [w / w_sum for w in weights]
 
@@ -137,6 +162,8 @@ def get_projection_diagnostics(
             gw_breakdowns[gw] = bd
             gw_opponents[f"gw{idx}_opponent"] = bd.get("opponent", "BYE")
             gw_xps[f"gw{idx}_xp"] = bd.get("total_xp", 0.0)
+            gw_opponents[f"gw{gw}_opponent"] = bd.get("opponent", "BYE")
+            gw_xps[f"gw{gw}_xp"] = bd.get("total_xp", 0.0)
             weighted_xp += bd.get("total_xp", 0.0) * weights[idx]
 
         gw0_bd = gw_breakdowns.get(target_gw, {})
@@ -183,6 +210,9 @@ def get_projection_diagnostics(
             "saves_xp": gw0_bd.get("saves_xp", 0.0),
             "bonus_xp": gw0_bd.get("bonus_xp", 0.0),
             "cards_xp": gw0_bd.get("cards_xp", 0.0),
+            "raw_xp": gw0_bd.get("raw_xp", gw0_bd.get("total_xp", 0.0)),
+            "calibrated_xp": gw0_bd.get("calibrated_xp", gw0_bd.get("total_xp", 0.0)),
+            "adjustment": gw0_bd.get("adjustment", 0.0),
             "total_xp": gw0_bd.get("total_xp", 0.0),
             "xp_per_m": gw0_bd.get("xp_per_m", 0.0),
             "weighted_xp": round(weighted_xp, 2),
@@ -199,7 +229,7 @@ def get_projection_diagnostics(
             entry["cs_xp"] + entry["defcon_xp"] + entry["saves_xp"] +
             entry["bonus_xp"] + entry["cards_xp"], 2
         )
-        entry["arithmetic_valid"] = abs(entry["total_xp"] - max(0.0, component_sum)) < 0.05
+        entry["arithmetic_valid"] = abs(entry.get("raw_xp", entry["total_xp"]) - max(0.0, component_sum)) < 0.05
         report.append(entry)
 
     # Compute Position-Relative Percentiles
@@ -281,31 +311,12 @@ def get_consensus_audit(target_gw: int = Query(1), db: Session = Depends(get_db)
             
             audited.append(p)
 
-    return audited
+    if position is None:
+        _DIAGNOSTICS_CACHE = audited
+        _DIAGNOSTICS_CACHE_GW = cache_key
+    return audited[:limit]
 
-    team_fixture_map = {}
-    for f in fixtures:
-        if f.team_h_id not in team_fixture_map: team_fixture_map[f.team_h_id] = []
-        team_fixture_map[f.team_h_id].append((f, True, teams_map.get(f.team_a_id)))
-
-        if f.team_a_id not in team_fixture_map: team_fixture_map[f.team_a_id] = []
-        team_fixture_map[f.team_a_id].append((f, False, teams_map.get(f.team_h_id)))
-
-    benchmark_list = []
-    for player in players:
-        p_fixtures = team_fixture_map.get(player.team_id, [])
-        if p_fixtures:
-            f, is_home, opp_team = p_fixtures[0]
-            bd = engine.calculate_player_xp_breakdown(player, f, is_home, opp_team)
-            bd["id"] = player.id
-            bd["team_name"] = player.team.short_name if player.team else ""
-            benchmark_list.append(bd)
-
-    benchmark_list.sort(key=lambda x: x["total_xp"], reverse=True)
-    return {
-        "benchmark_count": len(benchmark_list),
-        "rankings": benchmark_list
-    }
+get_projection_diagnostics = get_diagnostics
 
 @app.get("/api/v1/players", tags=["Players"])
 def list_players(
@@ -460,7 +471,7 @@ def compare_optimization_modes(req: OptimizationRequest, db: Session = Depends(g
     """
     Side-by-side mode comparison evaluating all 4 optimization modes against EXACTLY THE SAME projection snapshot.
     """
-    modes = ["CURRENT_GW_PLUS_3", "STRONG_XI_DUMP_BENCH", "BALANCED_BENCH", "MAXIMUM_SQUAD"]
+    modes = ["CURRENT_GW_ONLY", "SHORT_TERM", "MEDIUM_TERM", "LONG_TERM"]
     
     # 1. Freeze projection snapshot once
     current_gw = req.current_gw
@@ -503,6 +514,166 @@ def compare_optimization_modes(req: OptimizationRequest, db: Session = Depends(g
         "modes_compared": len(comparison_results),
         "comparison": comparison_results
     }
+
+@app.get("/api/v1/state/status", tags=["Gameweek State"])
+def get_current_state_status(db: Session = Depends(get_db)):
+    """Returns current active gameweek state, snapshot metadata, and data quality status."""
+    from backend.ingestion.current_state import CurrentGameStateManager
+    mgr = CurrentGameStateManager(db)
+    current_gw = mgr.get_current_gameweek()
+    snapshot = mgr.generate_current_state_snapshot()
+    dq = mgr.run_data_quality_audit()
+    return {
+        "status": "READY",
+        "current_gw": current_gw,
+        "snapshot_version": snapshot["snapshot_version"],
+        "generated_at": snapshot["generated_at"],
+        "summary": snapshot["summary"],
+        "data_quality": dq
+    }
+
+@app.post("/api/v1/state/refresh", tags=["Gameweek State"])
+def refresh_current_state(target_gw: Optional[int] = Query(None), db: Session = Depends(get_db)):
+    """Execute idempotent gameweek state refresh pipeline and advance gameweek if target_gw specified."""
+    try:
+        from backend.ingestion.current_state import CurrentGameStateManager
+        mgr = CurrentGameStateManager(db)
+        res = mgr.refresh_current_gameweek(force_gw=target_gw)
+        return res
+    except Exception as e:
+        logger.error(f"Error refreshing gameweek state: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/user-squad", tags=["User Squad"])
+def get_user_squad(db: Session = Depends(get_db)):
+    """Get persistent My Team user squad."""
+    from backend.user.user_squad import UserSquadManager
+    from backend.ingestion.current_state import CurrentGameStateManager
+    gw = CurrentGameStateManager(db).get_current_gameweek()
+    mgr = UserSquadManager(db)
+    return mgr.get_user_squad_dict(current_gw=gw)
+
+class UserSquadUpdateRequest(BaseModel):
+    player_ids: List[int]
+    bank: int = 0
+    free_transfers: int = 1
+    active_chip: Optional[str] = None
+    captain_id: Optional[int] = None
+    vice_captain_id: Optional[int] = None
+    starter_ids: Optional[List[int]] = None
+
+@app.post("/api/v1/user-squad", tags=["User Squad"])
+def update_user_squad(
+    req: UserSquadUpdateRequest,
+    db: Session = Depends(get_db)
+):
+    """Update persistent My Team user squad with 15 player IDs, captain, vice-captain, and starters."""
+    try:
+        from backend.user.user_squad import UserSquadManager
+        from backend.ingestion.current_state import CurrentGameStateManager
+        gw = CurrentGameStateManager(db).get_current_gameweek()
+        mgr = UserSquadManager(db)
+        mgr.update_user_squad(
+            player_ids=req.player_ids, 
+            bank=req.bank, 
+            free_transfers=req.free_transfers, 
+            active_chip=req.active_chip,
+            captain_id=req.captain_id,
+            vice_captain_id=req.vice_captain_id,
+            starter_ids=req.starter_ids
+        )
+        return mgr.get_user_squad_dict(current_gw=gw)
+    except Exception as e:
+        logger.error(f"Error updating user squad: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/v1/user-squad/compare", tags=["User Squad"])
+def compare_user_squad_with_optimal(
+    mode: str = Query("MEDIUM_TERM"),
+    db: Session = Depends(get_db)
+):
+    """Compare user's actual squad vs optimizer's optimal squad for specified mode."""
+    try:
+        from backend.user.user_squad import UserSquadManager
+        from backend.ingestion.current_state import CurrentGameStateManager
+        gw = CurrentGameStateManager(db).get_current_gameweek()
+        
+        optimizer = SquadOptimizer(db)
+        opt_res = optimizer.solve_squad_selection(mode=mode, current_gw=gw)
+
+        mgr = UserSquadManager(db)
+        comp = mgr.compare_with_optimal_squad(optimal_result=opt_res, current_gw=gw)
+        return {
+            "mode": mode,
+            "comparison": comp,
+            "optimal_squad": opt_res
+        }
+    except Exception as e:
+        logger.error(f"Error comparing user squad with optimal: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/diagnostics/trace/{player_query}", tags=["Diagnostics"])
+def get_player_selection_trace(player_query: str, db: Session = Depends(get_db)):
+    """Backend selection trace engine explaining why a player was selected or projected."""
+    try:
+        from backend.diagnostics.reality_audit import DecisionEngineRealityAuditor
+        auditor = DecisionEngineRealityAuditor(db)
+        return auditor.trace_player_selection(player_query)
+    except Exception as e:
+        logger.error(f"Error executing selection trace: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/diagnostics/why-not/{player_query}", tags=["Diagnostics"])
+def get_player_non_selection_trace(player_query: str, mode: str = Query("MEDIUM_TERM"), db: Session = Depends(get_db)):
+    """Backend diagnostic engine explaining why a player was NOT selected in the optimal squad."""
+    try:
+        from backend.diagnostics.reality_audit import DecisionEngineRealityAuditor
+        from backend.models import Player
+        
+        p = db.query(Player).filter(
+            (Player.web_name.ilike(f"%{player_query}%")) | (Player.id == int(player_query) if player_query.isdigit() else False)
+        ).first()
+
+        if not p:
+            raise HTTPException(status_code=404, detail=f"Player '{player_query}' not found.")
+
+        auditor = DecisionEngineRealityAuditor(db)
+        trace = auditor.trace_player_selection(p.web_name)
+
+        optimizer = SquadOptimizer(db)
+        opt_res = optimizer.solve_squad_selection(mode=mode, current_gw=auditor.state_mgr.get_current_gameweek())
+        
+        full_squad = opt_res.get("starting_xi", []) + opt_res.get("bench", [])
+        selected_ids = [sp["id"] for sp in full_squad]
+        is_selected = (p.id in selected_ids)
+
+        pos_alternatives = [sp for sp in full_squad if sp.get("element_type", sp.get("position")) == p.element_type]
+        best_alt = max(pos_alternatives, key=lambda x: x.get("current_gw_xp", x.get("gw0_xp", x.get("total_xp", 0.0)))) if pos_alternatives else None
+
+        return {
+            "player_id": p.id,
+            "web_name": p.web_name,
+            "position": p.element_type,
+            "club": p.team.short_name if p.team else "",
+            "price_str": f"£{p.now_cost/10.0:.1f}m",
+            "is_selected_in_optimal_squad": is_selected,
+            "player_xp": trace.get("v2_calibrated_xp", 0.0),
+            "expected_minutes": trace.get("expected_minutes", 0.0),
+            "best_positional_alternative": best_alt,
+            "selection_delta_xp": round((best_alt.get("current_gw_xp", best_alt.get("gw0_xp", best_alt.get("total_xp", 0.0))) - trace.get("v2_calibrated_xp", 0.0)), 2) if best_alt else 0.0,
+            "non_selection_reason": (
+                f"Player '{p.web_name}' is ALREADY SELECTED in the optimal squad." if is_selected else
+                f"Player '{p.web_name}' was not selected because '{best_alt.get('web_name', best_alt.get('name', 'Alternative'))}' "
+                f"offers higher projected expected points ({best_alt.get('current_gw_xp', best_alt.get('gw0_xp', best_alt.get('total_xp', 0.0))):.2f} vs {trace.get('v2_calibrated_xp', 0.0):.2f}) "
+                f"or better budget efficiency for position {p.element_type}."
+            ),
+            "full_trace": trace
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error executing non-selection trace: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Static files for Frontend dashboard
 frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
