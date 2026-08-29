@@ -64,17 +64,16 @@
 | **Phase 3N.19**| Player Data Explorer + Current GW Leaders + Model Audit Loading Fix | **COMPLETED (VERIFIED)** | August 2026 |
 | **Phase 3N.20**| My Team Projection Integrity + Model Audit Repair + Default Landing Page | **COMPLETED (VERIFIED)** | August 2026 |
 | **Phase 3N.21**| My Team Gameweek History + Live FPL Scoring | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.22**| Fix Gameweek History Using Correct FPL Manager + Current Gameweek | **COMPLETED (VERIFIED)** | August 2026 |
 
 ---
 
 ## 📑 Completed Phases Detail
 
-### Phase 3N.21 — My Team Gameweek History + Live FPL Scoring
-* Created `FPLHistoryService` in `backend/services/fpl_history_service.py` consuming official FPL entry picks and live scoring endpoints.
-* Added Gameweek Selector, History Strip, and Scoreboard Panel to My Team Command Center.
-* Rendered Actual Points and Projected xP side-by-side on pitch cards.
-* Implemented Captain multipliers, Vice-Captain takeover, auto-subs, and 60-second live auto-polling.
-* Future GWs display upcoming projected squad with no fabricated actual points.
-* Protected editable current squad state in DB from historical browsing.
-* Added test suite [`tests/test_phase3n21_gameweek_history_and_live_scoring.py`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/tests/test_phase3n21_gameweek_history_and_live_scoring.py) (113/113 total tests passing).
-* Full details in [`docs/phases/PHASE_3N21_GAMEWEEK_HISTORY_AND_LIVE_SCORING.md`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/docs/phases/PHASE_3N21_GAMEWEEK_HISTORY_AND_LIVE_SCORING.md).
+### Phase 3N.22 — Fix Gameweek History Using Correct FPL Manager + Current Gameweek
+* Eliminated arbitrary fallback to Entry ID `1` (stranger squad).
+* Bound Gameweek snapshots to the user's actual saved squad (`Haaland, B.Fernandes, Mbeumo, Raya, Calafiori, Szoboszlai...`).
+* Fixed Gameweek status labeling (`GW1 COMPLETED`, `GW2 🔴 LIVE`, `GW3 UPCOMING`).
+* Isolated cache keys by manager `entry_id` & `gameweek`.
+* Added test suite [`tests/test_phase3n22_manager_id_and_gameweek_fix.py`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/tests/test_phase3n22_manager_id_and_gameweek_fix.py) (120/120 total tests passing).
+* Full details in [`docs/phases/PHASE_3N22_MANAGER_ID_AND_GAMEWEEK_FIX.md`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/docs/phases/PHASE_3N22_MANAGER_ID_AND_GAMEWEEK_FIX.md).

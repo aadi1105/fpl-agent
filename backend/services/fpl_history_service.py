@@ -29,22 +29,23 @@ class FPLHistoryService:
     def get_all_gameweeks(self) -> List[Dict[str, Any]]:
         """Return list of all 38 Gameweeks with active current GW detection."""
         gws = self.db.query(Gameweek).order_by(Gameweek.id.asc()).all()
-        current_gw_id = CurrentGameStateManager(self.db).get_current_gameweek()
+        active_gw_obj = self.db.query(Gameweek).filter(Gameweek.finished == False).order_by(Gameweek.id.asc()).first()
+        active_gw_id = active_gw_obj.id if active_gw_obj else (CurrentGameStateManager(self.db).get_current_gameweek() + 1)
 
         results = []
         for g in gws:
-            if g.id < current_gw_id:
+            if g.finished:
                 status = "COMPLETED"
-            elif g.id == current_gw_id:
-                status = "LIVE" if not g.finished else "COMPLETED"
+            elif g.id == active_gw_id:
+                status = "LIVE"
             else:
                 status = "UPCOMING"
 
             results.append({
                 "id": g.id,
                 "name": g.name or f"Gameweek {g.id}",
-                "is_current": (g.id == current_gw_id),
-                "is_next": (g.id == current_gw_id + 1),
+                "is_current": (g.id == active_gw_id),
+                "is_next": (g.id == active_gw_id + 1),
                 "finished": g.finished,
                 "deadline_time": g.deadline_time.isoformat() if g.deadline_time else None,
                 "average_entry_score": g.average_entry_score or 0,
@@ -123,7 +124,7 @@ class FPLHistoryService:
 
     def fetch_fpl_entry_picks(self, entry_id: int, gw: int) -> Optional[Dict[str, Any]]:
         """Fetch FPL manager entry picks for given GW from official FPL API."""
-        cache_key = f"entry_picks_{entry_id}_gw{gw}"
+        cache_key = f"entry_picks_{entry_id}_gw_{gw}"
         now = time.time()
         
         if cache_key in _HISTORY_CACHE:
@@ -150,22 +151,40 @@ class FPLHistoryService:
         """
         Build complete Gameweek Snapshot without mutating the user's saved current squad.
         """
-        current_gw_id = CurrentGameStateManager(self.db).get_current_gameweek()
-        is_current_gw = (gw == current_gw_id)
-        is_completed_gw = (gw < current_gw_id)
-        is_future_gw = (gw > current_gw_id)
+        active_gw_obj = self.db.query(Gameweek).filter(Gameweek.finished == False).order_by(Gameweek.id.asc()).first()
+        active_gw_id = active_gw_obj.id if active_gw_obj else 2
+
+        target_gw_obj = self.db.query(Gameweek).filter(Gameweek.id == gw).first()
+
+        is_completed_gw = target_gw_obj.finished if target_gw_obj else (gw < active_gw_id)
+        is_current_gw = (gw == active_gw_id) and not is_completed_gw
+        is_future_gw = (gw > active_gw_id) and not is_completed_gw
 
         # Get DB UserSquad to find default entry ID or fallback picks
-        db_squad = self.db.query(UserSquad).first()
-        effective_entry_id = fpl_entry_id or (db_squad.fpl_entry_id if db_squad else None) or 1
+        from backend.user.user_squad import UserSquadManager
+        db_squad = UserSquadManager(self.db).get_or_create_user_squad()
+        configured_entry_id = db_squad.fpl_entry_id if db_squad else None
+
+        # Validate requested entry ID against configured manager entry ID
+        if fpl_entry_id is not None and configured_entry_id is not None:
+            if fpl_entry_id != configured_entry_id:
+                return {
+                    "error": True,
+                    "error_code": "MANAGER_MISMATCH",
+                    "message": f"FPL Manager Data Mismatch: Expected Entry ID {configured_entry_id}, got {fpl_entry_id}"
+                }
+
+        target_entry_id = fpl_entry_id or configured_entry_id
 
         # FUTURE GAMEWEEK: Show upcoming/projected squad with projected xP (NO FAKE ACTUAL POINTS)
         if is_future_gw:
             return self._build_future_gameweek_snapshot(gw, db_squad)
 
         # COMPLETED OR LIVE GAMEWEEK:
-        # 1. Attempt fetching official FPL entry picks
-        fpl_picks_data = self.fetch_fpl_entry_picks(effective_entry_id, gw)
+        # 1. Attempt fetching official FPL entry picks ONLY if explicit entry_id is configured
+        fpl_picks_data = None
+        if target_entry_id is not None:
+            fpl_picks_data = self.fetch_fpl_entry_picks(target_entry_id, gw)
         
         # 2. Fetch live/actual player statistics
         live_stats_map = self.fetch_fpl_live_elements(gw)
@@ -205,8 +224,9 @@ class FPLHistoryService:
                 })
         else:
             # Fallback to local DB UserSquad picks
-            if db_squad and db_squad.picks:
-                for pick in db_squad.picks:
+            user_picks = db_squad.picks if (db_squad and db_squad.picks) else []
+            if user_picks:
+                for pick in user_picks:
                     p = pick.player
                     is_starter = (pick.position <= 11) or (pick.multiplier > 0)
                     picks_list.append({
@@ -223,6 +243,30 @@ class FPLHistoryService:
                         "multiplier": pick.multiplier
                     })
                 chip_used = db_squad.active_chip
+            else:
+                # Unconfigured default squad fallback
+                gkps = self.db.query(Player).filter(Player.element_type == "GKP").limit(2).all()
+                defs = self.db.query(Player).filter(Player.element_type == "DEF").limit(5).all()
+                mids = self.db.query(Player).filter(Player.element_type == "MID").limit(5).all()
+                fwds = self.db.query(Player).filter(Player.element_type == "FWD").limit(3).all()
+                all_15 = gkps + defs + mids + fwds
+                starters_set = set(gkps[:1] + defs[:3] + mids[:4] + fwds[:3])
+                
+                for idx, p in enumerate(all_15, start=1):
+                    is_starter = p in starters_set
+                    picks_list.append({
+                        "id": p.id,
+                        "web_name": p.web_name,
+                        "position": p.element_type,
+                        "team_name": p.team.short_name if p.team else "",
+                        "now_cost": p.now_cost,
+                        "now_cost_str": f"£{p.now_cost / 10.0:.1f}m",
+                        "position_order": idx,
+                        "is_starter": is_starter,
+                        "is_captain": (idx == 1),
+                        "is_vice_captain": (idx == 2),
+                        "multiplier": 2 if idx == 1 else (1 if is_starter else 0)
+                    })
 
         # Determine Captain / Vice-Captain Takeover
         cap_player = next((p for p in picks_list if p["is_captain"]), None)
