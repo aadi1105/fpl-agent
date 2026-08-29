@@ -1,8 +1,8 @@
 # PROJECT STATE — SINGLE SOURCE OF TRUTH
 
-**Last Updated**: 2026-08-29  
-**Phase**: Phase 3N.20 — My Team Projection Integrity + Model Audit Repair + Default Landing Page  
-**Current Directive**: **`VERDICT: ACCEPTANCE PASSED. FIXED PROPERTY-NAME MISMATCHES IN BACKEND USER SQUAD PICK SERIALIZATION AND FRONTEND PLAYER CARD CREATION, RESTORING NON-ZERO XP ON MY TEAM PITCH CARDS (E.G. HAALAND 6.30 XP, BRUNO 6.92 XP, MBEUMO 4.76 XP) AND STARTING XI TOTAL XP (44.86 XP). FIXED GAMEWEEK KEY LOOKUP IN BACKEND GET_DIAGNOSTICS TO PROPERLY RESOLVE GAMEWEEK 2 HORIZON DATA FOR MODEL AUDIT, RESTORING REAL EXPECTED-MINUTES OUTPUTS (HAALAND: 76.2M XMINS, 84.9% P(START), 6.30 XP; ISAK: 76.2M XMINS, 85.0% P(START), 6.58 XP; JOAO PEDRO: 68.2M XMINS, 77.1% P(START), 4.14 XP). MADE MY TEAM COMMAND CENTER THE DEFAULT LANDING PAGE UPON VISITING ROOT URL. ADDED TEST SUITE (TESTS/TEST_PHASE3N20_PROJECTION_INTEGRITY_AND_LANDING_PAGE.PY). ALL 108 TESTS PASSING CLEANLY ACROSS ALL 24 TEST SUITES.`**  
+**Last Updated**: 2026-08-30  
+**Phase**: Phase 3N.21 — My Team Gameweek History + Live FPL Scoring  
+**Current Directive**: **`VERDICT: ACCEPTANCE PASSED. CREATED FPLHISTORYSERVICE (BACKEND/SERVICES/FPL_HISTORY_SERVICE.PY) CONSUMING OFFICIAL FPL ENDPOINTS (/API/ENTRY/{ENTRY_ID}/EVENT/{GW}/PICKS/ AND /API/EVENT/{GW}/LIVE/). ADDED GAMEWEEK SELECTOR (< GW1 | GW1 LIVE | GW2 >), HISTORY STRIP, AND SCOREBOARD PANEL TO MY TEAM COMMAND CENTER. RENDERED ACTUAL POINTS (8 PTS) AND PROJECTED XP (5.62 XP) SIDE-BY-SIDE ON PITCH CARDS. IMPLEMENTED CAPTAIN MULTIPLIERS, AUTOMATIC SUBS, AND VICE-CAPTAIN TAKEOVER (IF CAPTAIN PLAYED 0 MINS). IMPLEMENTED 60-SECOND LIVE AUTO-POLLING. FUTURE GAMEWEEKS (GW3+) DISPLAY UPCOMING PROJECTED SQUAD WITH NO FABRICATED ACTUAL POINTS (PTS: —). ENSURED HISTORICAL BROWSING NEVER OVERWRITES OR MUTATES THE EDITABLE CURRENT SQUAD IN DB. ADDED EXPLICIT ERROR/RETRY STATES. ADDED TEST SUITE (TESTS/TEST_PHASE3N21_GAMEWEEK_HISTORY_AND_LIVE_SCORING.PY). ALL 113 TESTS PASSING CLEANLY ACROSS ALL 25 TEST SUITES.`**  
 
 ---
 
@@ -30,25 +30,27 @@ The active production pipeline evaluates player projections via `backend/project
 | **CS Calibrator** | `IsotonicRegression` | `cs_calibration_v1.pkl` | `backend/ml/models/cs_calibration_v1.pkl` | `f8237b16f806065b263bbf4df9eb5fcae135bc078b54e3d360faad2515b630b1` |
 | **xP Calibrator Layer v2**| `ProjectionEngine` | `expected_xp_calibrated_v2.json`| `backend/ml/models/expected_xp_calibrated_v2.json` | `Model D Piecewise + Role Active` |
 | **Current State Engine**| `CurrentGameStateManager`| `2026_27_GW1_STATE_v1` | `backend/ingestion/current_state.py` | `Active State Snapshot Layer` |
-| **Player Explorer API**| `PlayerExplorer` | REST Explorer Engine | `backend/main.py` | `Search, Leaderboard & Detail Engine` |
+| **FPL History Service**| `FPLHistoryService` | Gameweek History & Live API | `backend/services/fpl_history_service.py` | `Historical Picks & Live Scoring Service` |
 | **User Squad Manager** | `UserSquadManager` | Persistent My Team V2 | `backend/user/user_squad.py` | `Persistent User Squad View V2` |
 
 ---
 
 ## C. VALIDATED COMPONENTS & EMPIRICAL RESULTS
 
-1. **Phase 3N.20 My Team Projection Integrity + Model Audit Repair + Default Landing Page**:
-   - Fixed My Team player card property key resolution (`gw_xp`, `total_xp`, `expected_points_gw`).
-   - Fixed Model Audit horizon key lookup (`target_gw_key`).
-   - Made My Team Command Center default landing page.
-   - Verified real expected-minutes probabilities and total $xP$.
-   - Test suite passing: **108 / 108 tests passing**.
+1. **Phase 3N.21 My Team Gameweek History + Live FPL Scoring**:
+   - Built `FPLHistoryService` consuming FPL entry picks and live scoring APIs.
+   - Added Gameweek Selector, History Strip, and Scoreboard Panel.
+   - Rendered Actual Points and Projected xP side-by-side on pitch cards.
+   - Handled Captain multipliers, Vice-Captain takeover, and auto-subs.
+   - Implemented 60s live auto-polling and future GW projection snapshots without fake points.
+   - Protected editable current squad state in DB from historical browsing.
+   - Test suite passing: **113 / 113 tests passing**.
    - Safety verdict: **`ACCEPTANCE PASSED`**.
 
 ---
 
 ## D. CURRENT STOP CONDITION
 
-**WE HAVE COMPLETED PHASE 3N.20 MY TEAM PROJECTION INTEGRITY + MODEL AUDIT REPAIR + DEFAULT LANDING PAGE.**  
+**WE HAVE COMPLETED PHASE 3N.21 MY TEAM GAMEWEEK HISTORY + LIVE FPL SCORING.**  
 **SAFETY VERDICT: ACCEPTANCE PASSED.**  
 **AWAITING USER DIRECTION FOR NEXT PHASE.**

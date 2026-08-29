@@ -829,6 +829,44 @@ def compare_user_squad_with_optimal(
         logger.error(f"Error comparing user squad with optimal: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/v1/gameweeks", tags=["Gameweeks"])
+def get_gameweeks(db: Session = Depends(get_db)):
+    """Get list of all 38 season Gameweeks with active current GW flag."""
+    from backend.services.fpl_history_service import FPLHistoryService
+    service = FPLHistoryService(db)
+    return service.get_all_gameweeks()
+
+@app.get("/api/v1/user-squad/gameweek/{gw}", tags=["User Squad"])
+def get_user_squad_gameweek_snapshot(
+    gw: int,
+    fpl_entry_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Get Gameweek Snapshot for a specific GW.
+    Returns official historical picks + actual/live points for completed/live GWs,
+    or upcoming projected squad for future GWs.
+    DOES NOT mutate saved current squad.
+    """
+    try:
+        from backend.services.fpl_history_service import FPLHistoryService
+        service = FPLHistoryService(db)
+        return service.get_gameweek_snapshot(gw=gw, fpl_entry_id=fpl_entry_id)
+    except Exception as e:
+        logger.error(f"Error fetching GW{gw} snapshot: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Gameweek snapshot unavailable: {e}")
+
+@app.get("/api/v1/fpl/live/{gw}", tags=["FPL Live"])
+def get_fpl_live_scoring(gw: int, db: Session = Depends(get_db)):
+    """Fetch live/actual FPL player scores for specified Gameweek."""
+    try:
+        from backend.services.fpl_history_service import FPLHistoryService
+        service = FPLHistoryService(db)
+        return service.fetch_fpl_live_elements(gw=gw)
+    except Exception as e:
+        logger.error(f"Error fetching live FPL scores for GW{gw}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Live FPL scoring unavailable: {e}")
+
 @app.get("/api/v1/diagnostics/trace/{player_query}", tags=["Diagnostics"])
 def get_player_selection_trace(player_query: str, db: Session = Depends(get_db)):
     """Backend selection trace engine explaining why a player was selected or projected."""

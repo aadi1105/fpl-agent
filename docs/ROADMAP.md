@@ -63,14 +63,18 @@
 | **Phase 3N.18**| My Team Substitution Flow + State Reliability Fix | **COMPLETED (VERIFIED)** | August 2026 |
 | **Phase 3N.19**| Player Data Explorer + Current GW Leaders + Model Audit Loading Fix | **COMPLETED (VERIFIED)** | August 2026 |
 | **Phase 3N.20**| My Team Projection Integrity + Model Audit Repair + Default Landing Page | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.21**| My Team Gameweek History + Live FPL Scoring | **COMPLETED (VERIFIED)** | August 2026 |
 
 ---
 
 ## 📑 Completed Phases Detail
 
-### Phase 3N.20 — My Team Projection Integrity + Model Audit Repair + Default Landing Page
-* Fixed property key resolution in frontend `createPlayerCard` and backend user squad pick serialization, restoring real non-zero xP on My Team pitch cards and Starting XI total xP (44.86 xP).
-* Fixed horizon key lookup in `backend/main.py` `get_diagnostics`, restoring real expected-minutes ML probabilities ($P(\text{Start})$ 84.9%, $P(60+)$ 81.1%, $xMins$ 76.2m, $xP$ 6.30 for Haaland).
-* Configured My Team Command Center (`#tab-my-team`) as default landing page on root URL `/`.
-* Added test suite [`tests/test_phase3n20_projection_integrity_and_landing_page.py`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/tests/test_phase3n20_projection_integrity_and_landing_page.py) (108/108 total tests passing).
-* Full details in [`docs/phases/PHASE_3N20_MY_TEAM_PROJECTION_INTEGRITY_AND_DEFAULT_LANDING.md`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/docs/phases/PHASE_3N20_MY_TEAM_PROJECTION_INTEGRITY_AND_DEFAULT_LANDING.md).
+### Phase 3N.21 — My Team Gameweek History + Live FPL Scoring
+* Created `FPLHistoryService` in `backend/services/fpl_history_service.py` consuming official FPL entry picks and live scoring endpoints.
+* Added Gameweek Selector, History Strip, and Scoreboard Panel to My Team Command Center.
+* Rendered Actual Points and Projected xP side-by-side on pitch cards.
+* Implemented Captain multipliers, Vice-Captain takeover, auto-subs, and 60-second live auto-polling.
+* Future GWs display upcoming projected squad with no fabricated actual points.
+* Protected editable current squad state in DB from historical browsing.
+* Added test suite [`tests/test_phase3n21_gameweek_history_and_live_scoring.py`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/tests/test_phase3n21_gameweek_history_and_live_scoring.py) (113/113 total tests passing).
+* Full details in [`docs/phases/PHASE_3N21_GAMEWEEK_HISTORY_AND_LIVE_SCORING.md`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/docs/phases/PHASE_3N21_GAMEWEEK_HISTORY_AND_LIVE_SCORING.md).

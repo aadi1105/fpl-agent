@@ -457,6 +457,63 @@
                 </div>
             </div>
 
+            <!-- Gameweek History Selector & Status Bar -->
+            <div class="pitch-card" style="margin-bottom:16px; padding:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <span style="font-size:0.75rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.05em;">GAMEWEEK HISTORY</span>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <button onclick="navigateGameweek(-1)" style="background:#1a2234; border:1px solid var(--bg-border); color:#fff; padding:6px 12px; border-radius:6px; font-weight:800; cursor:pointer;">←</button>
+                            <select id="my-team-gw-select" onchange="onGameweekSelectChange(this.value)" style="background:#121824; border:1px solid var(--accent-cyan); color:#fff; padding:6px 14px; border-radius:6px; font-weight:800; font-size:0.95rem;">
+                                <option value="1">GW1</option>
+                            </select>
+                            <button onclick="navigateGameweek(1)" style="background:#1a2234; border:1px solid var(--bg-border); color:#fff; padding:6px 12px; border-radius:6px; font-weight:800; cursor:pointer;">→</button>
+                        </div>
+                        <span id="gw-status-badge" class="player-pos-badge pos-MID" style="font-size:0.75rem; padding:4px 10px;">GW1 COMPLETED</span>
+                    </div>
+
+                    <div id="gw-history-strip" style="display:flex; gap:8px; overflow-x:auto; max-width:100%; padding-bottom:2px;">
+                        <!-- Dynamically populated pills -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gameweek Scoreboard Panel -->
+            <div id="gw-scoreboard-card" class="pitch-card" style="margin-bottom:16px; background:linear-gradient(135deg, rgba(20,28,45,0.95), rgba(12,18,32,0.98)); border:1px solid var(--bg-border);">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+                    <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+                        <div>
+                            <div style="font-size:0.7rem; font-weight:800; text-transform:uppercase; color:var(--accent-cyan); letter-spacing:0.05em;" id="scoreboard-title">GAMEWEEK 1 SCOREBOARD</div>
+                            <div style="display:flex; align-items:baseline; gap:8px; margin-top:2px;">
+                                <span id="scoreboard-score" style="font-size:2.2rem; font-family:var(--font-display); font-weight:900; color:#fff;">—</span>
+                                <span id="scoreboard-score-unit" style="font-size:1.0rem; font-weight:800; color:var(--accent-green);">PTS</span>
+                            </div>
+                        </div>
+
+                        <div style="height:36px; width:1px; background:var(--bg-border);" class="hide-mobile"></div>
+
+                        <div style="display:flex; gap:20px; font-size:0.82rem; flex-wrap:wrap;">
+                            <div><div style="color:var(--text-muted); font-size:0.7rem;">CAPTAIN BONUS</div><div id="scoreboard-captain-bonus" style="font-weight:800; color:#fff;">+0 pts</div></div>
+                            <div><div style="color:var(--text-muted); font-size:0.7rem;">BENCH</div><div id="scoreboard-bench" style="font-weight:800; color:#fff;">0 pts</div></div>
+                            <div><div style="color:var(--text-muted); font-size:0.7rem;">TRANSFERS</div><div id="scoreboard-transfers" style="font-weight:800; color:#fff;">0 (0 pts)</div></div>
+                            <div><div style="color:var(--text-muted); font-size:0.7rem;">OVERALL PTS</div><div id="scoreboard-overall" style="font-weight:800; color:var(--accent-cyan);">—</div></div>
+                            <div><div style="color:var(--text-muted); font-size:0.7rem;">CHIP USED</div><div id="scoreboard-chip" style="font-weight:800; color:var(--accent-yellow);">None</div></div>
+                        </div>
+                    </div>
+
+                    <div id="scoreboard-live-indicator" style="display:none; align-items:center; gap:6px; background:rgba(239, 68, 68, 0.15); border:1px solid rgba(239, 68, 68, 0.4); color:#ef4444; padding:6px 12px; border-radius:20px; font-weight:800; font-size:0.75rem;">
+                        <span class="status-dot" style="background:#ef4444; box-shadow:0 0 8px #ef4444;"></span>
+                        <span>LIVE SCORING ACTIVE</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error / Retry Banner for Gameweek History -->
+            <div id="gw-snapshot-error-banner" style="display:none; margin-bottom:16px; background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.3); padding:12px 16px; border-radius:10px; color:#fca5a5; font-size:0.88rem; align-items:center; justify-content:space-between;">
+                <span id="gw-snapshot-error-msg">⚠️ GAMEWEEK DATA UNAVAILABLE — Network or API Timeout</span>
+                <button onclick="retryGameweekSnapshot()" style="background:#ef4444; color:#fff; border:none; padding:6px 14px; border-radius:6px; font-weight:800; cursor:pointer;">🔄 RETRY LOADING</button>
+            </div>
+
             <!-- My Team Pitch View -->
             <div class="dashboard-grid">
                 <div class="pitch-card">
@@ -713,9 +770,16 @@
         let allPlayersCache = [];
         let currentPollInterval = null;
 
+        let allGameweeksCache = [];
+        let activeCurrentGameweek = 1;
+        let currentSelectedGameweek = 1;
+        let livePollingInterval = null;
+        let currentSnapshotCache = null;
+
         document.addEventListener('DOMContentLoaded', () => {
             initControls();
             fetchStateStatus();
+            fetchGameweeksList();
             fetchUserSquad();
             fetchDiagnostics();
             fetchConsensusAudit();
@@ -741,9 +805,174 @@
 
             if (tabName === 'optimizer' && lastOptimizerResult) {
                 renderSquad(lastOptimizerResult);
-            } else if (tabName === 'my-team' && userSquadCache) {
-                renderUserSquadPage(userSquadCache);
+                stopLivePolling();
+            } else if (tabName === 'my-team') {
+                if (currentSnapshotCache) {
+                    renderGameweekSnapshotPage(currentSnapshotCache);
+                } else if (userSquadCache) {
+                    renderUserSquadPage(userSquadCache);
+                }
+                if (currentSelectedGameweek === activeCurrentGameweek) {
+                    startLivePolling();
+                }
+            } else {
+                stopLivePolling();
             }
+        }
+
+        async function fetchGameweeksList() {
+            try {
+                const res = await fetch('/api/v1/gameweeks');
+                if (res.ok) {
+                    allGameweeksCache = await res.json();
+                    const currObj = allGameweeksCache.find(g => g.is_current) || allGameweeksCache[0];
+                    if (currObj) {
+                        activeCurrentGameweek = currObj.id;
+                        currentSelectedGameweek = currObj.id;
+                    }
+                    renderGameweekSelector();
+                    renderGameweekHistoryStrip();
+                    loadGameweekSnapshot(currentSelectedGameweek);
+                }
+            } catch (e) {
+                console.error('Error fetching gameweeks list:', e);
+            }
+        }
+
+        function renderGameweekSelector() {
+            const sel = document.getElementById('my-team-gw-select');
+            if (!sel) return;
+            sel.innerHTML = allGameweeksCache.map(g => {
+                let tag = g.is_current ? '🔴 LIVE' : (g.finished ? 'Done' : 'Upcoming');
+                return `<option value="${g.id}" ${g.id === currentSelectedGameweek ? 'selected' : ''}>GW${g.id} (${tag})</option>`;
+            }).join('');
+        }
+
+        function renderGameweekHistoryStrip() {
+            const strip = document.getElementById('gw-history-strip');
+            if (!strip) return;
+            strip.innerHTML = allGameweeksCache.slice(0, Math.min(12, activeCurrentGameweek + 3)).map(g => {
+                const isActive = (g.id === currentSelectedGameweek);
+                let badge = g.is_current ? '🔴 LIVE' : (g.finished ? 'pts' : '—');
+                let style = isActive ? 'background:var(--accent-cyan); color:#0c1220; font-weight:800;' : 'background:#141c2d; color:#fff;';
+                return `<button onclick="onGameweekSelectChange(${g.id})" style="${style} border:1px solid var(--bg-border); padding:4px 10px; border-radius:6px; font-size:0.75rem; cursor:pointer; white-space:nowrap;">GW${g.id} ${badge}</button>`;
+            }).join('');
+        }
+
+        async function loadGameweekSnapshot(gw) {
+            const errBanner = document.getElementById('gw-snapshot-error-banner');
+            if (errBanner) errBanner.style.display = 'none';
+
+            if (gw === activeCurrentGameweek) {
+                startLivePolling();
+            } else {
+                stopLivePolling();
+            }
+
+            try {
+                const res = await fetch(`/api/v1/user-squad/gameweek/${gw}`);
+                if (!res.ok) {
+                    if (errBanner) {
+                        errBanner.style.display = 'flex';
+                        document.getElementById('gw-snapshot-error-msg').innerText = `⚠️ GAMEWEEK ${gw} DATA UNAVAILABLE (${res.status})`;
+                    }
+                    return;
+                }
+                const snap = await res.json();
+                currentSnapshotCache = snap;
+                renderGameweekSnapshotPage(snap);
+            } catch (e) {
+                console.error(`Error loading snapshot for GW${gw}:`, e);
+                if (errBanner) {
+                    errBanner.style.display = 'flex';
+                    document.getElementById('gw-snapshot-error-msg').innerText = `⚠️ GAMEWEEK ${gw} DATA UNAVAILABLE — Network Error`;
+                }
+            }
+        }
+
+        function renderGameweekSnapshotPage(snap) {
+            if (!snap) return;
+            currentSelectedGameweek = snap.gw;
+
+            const badge = document.getElementById('gw-status-badge');
+            if (badge) {
+                if (snap.is_live) {
+                    badge.className = 'player-pos-badge pos-FWD';
+                    badge.innerHTML = '🔴 GW' + snap.gw + ' LIVE';
+                } else if (snap.is_completed) {
+                    badge.className = 'player-pos-badge pos-MID';
+                    badge.innerHTML = 'GW' + snap.gw + ' COMPLETED';
+                } else {
+                    badge.className = 'player-pos-badge pos-DEF';
+                    badge.innerHTML = 'GW' + snap.gw + ' UPCOMING';
+                }
+            }
+
+            const sbTitle = document.getElementById('scoreboard-title');
+            const sbScore = document.getElementById('scoreboard-score');
+            const sbCap = document.getElementById('scoreboard-captain-bonus');
+            const sbBench = document.getElementById('scoreboard-bench');
+            const sbXfer = document.getElementById('scoreboard-transfers');
+            const sbOverall = document.getElementById('scoreboard-overall');
+            const sbChip = document.getElementById('scoreboard-chip');
+            const sbLiveInd = document.getElementById('scoreboard-live-indicator');
+
+            if (sbTitle) sbTitle.innerText = `GAMEWEEK ${snap.gw} SCOREBOARD`;
+            if (sbLiveInd) sbLiveInd.style.display = snap.is_live ? 'flex' : 'none';
+
+            if (snap.is_future) {
+                if (sbScore) sbScore.innerText = (snap.starting_xi_xp || 0).toFixed(2);
+                if (document.getElementById('scoreboard-score-unit')) document.getElementById('scoreboard-score-unit').innerText = 'xP (PROJECTED)';
+                if (sbCap) sbCap.innerText = '—';
+                if (sbBench) sbBench.innerText = '—';
+                if (sbXfer) sbXfer.innerText = '—';
+                if (sbOverall) sbOverall.innerText = '—';
+                if (sbChip) sbChip.innerText = snap.active_chip || 'None';
+            } else {
+                if (sbScore) sbScore.innerText = snap.starting_xi_points !== null ? snap.starting_xi_points : '—';
+                if (document.getElementById('scoreboard-score-unit')) document.getElementById('scoreboard-score-unit').innerText = 'PTS';
+                if (sbCap) sbCap.innerText = `+${snap.captain_bonus || 0} pts`;
+                if (sbBench) sbBench.innerText = `${snap.bench_points || 0} pts`;
+                if (sbXfer) sbXfer.innerText = `${snap.transfers_count || 0} (-${snap.points_cost || 0} pts)`;
+                if (sbOverall) sbOverall.innerText = snap.overall_points !== null ? `${snap.overall_points} pts` : '—';
+                if (sbChip) sbChip.innerText = snap.active_chip ? snap.active_chip.toUpperCase() : 'None';
+            }
+
+            renderUserSquadPage(snap);
+        }
+
+        function onGameweekSelectChange(gwVal) {
+            currentSelectedGameweek = parseInt(gwVal);
+            renderGameweekSelector();
+            renderGameweekHistoryStrip();
+            loadGameweekSnapshot(currentSelectedGameweek);
+        }
+
+        function navigateGameweek(delta) {
+            const nextGw = currentSelectedGameweek + delta;
+            if (nextGw >= 1 && nextGw <= 38) {
+                onGameweekSelectChange(nextGw);
+            }
+        }
+
+        function startLivePolling() {
+            stopLivePolling();
+            livePollingInterval = setInterval(() => {
+                if (currentSelectedGameweek === activeCurrentGameweek) {
+                    loadGameweekSnapshot(activeCurrentGameweek);
+                }
+            }, 60000);
+        }
+
+        function stopLivePolling() {
+            if (livePollingInterval) {
+                clearInterval(livePollingInterval);
+                livePollingInterval = null;
+            }
+        }
+
+        function retryGameweekSnapshot() {
+            loadGameweekSnapshot(currentSelectedGameweek);
         }
 
         function initControls() {
@@ -1836,15 +2065,29 @@
             else if (p.is_vice_captain) capBadge = '<div class="badge-vc">V</div>';
 
             const shirtSvg = getClubShirtSvg(p.team_name, p.position === 'GKP' || p.element_type === 'GKP');
-            const rawXp = (p.gw_xp !== undefined ? p.gw_xp : (p.expected_points_gw !== undefined ? p.expected_points_gw : (p.gw0_xp !== undefined ? p.gw0_xp : (p.total_xp !== undefined ? p.total_xp : 0.0))));
+            const rawXp = (p.projected_xp !== undefined ? p.projected_xp : (p.gw_xp !== undefined ? p.gw_xp : (p.expected_points_gw !== undefined ? p.expected_points_gw : (p.gw0_xp !== undefined ? p.gw0_xp : (p.total_xp !== undefined ? p.total_xp : 0.0)))));
             const xpDisplay = typeof rawXp === 'number' ? rawXp.toFixed(2) : parseFloat(rawXp || 0).toFixed(2);
+
+            let scoreBoxHtml = '';
+            if (p.actual_pts !== undefined && p.actual_pts !== null) {
+                const mult = p.effective_multiplier !== undefined ? p.effective_multiplier : (p.is_captain ? 2 : (p.multiplier || 1));
+                const scoredPts = p.actual_pts * mult;
+                scoreBoxHtml = `
+                    <div style="margin-top:4px; display:flex; justify-content:center; gap:4px; align-items:center; flex-wrap:wrap;">
+                        <span style="background:var(--accent-green); color:#0c1220; font-weight:800; padding:2px 7px; border-radius:5px; font-size:0.75rem;">${scoredPts} pts</span>
+                        <span style="font-size:0.68rem; color:var(--text-muted); font-weight:700;">${xpDisplay} xP</span>
+                    </div>
+                `;
+            } else {
+                scoreBoxHtml = `<div class="player-xp-badge">${xpDisplay} xP</div>`;
+            }
 
             div.innerHTML = `
                 ${capBadge}
                 <div style="margin-bottom:4px;">${shirtSvg} <span class="player-pos-badge pos-${p.position || p.element_type}">${p.position || p.element_type}</span></div>
                 <div class="player-name">${p.web_name}</div>
                 <div class="player-team-cost">${p.team_name} • ${p.now_cost_str || '£' + (p.now_cost/10).toFixed(1) + 'm'}</div>
-                <div class="player-xp-badge">${xpDisplay} xP</div>
+                ${scoreBoxHtml}
             `;
             div.addEventListener('click', () => openPlayerDetailModal(p.id));
             return div;
