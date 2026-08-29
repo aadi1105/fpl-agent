@@ -106,7 +106,7 @@ def get_diagnostics(
 
     engine = ProjectionEngine(db)
     query = db.query(Player).order_by(Player.total_points.desc(), Player.now_cost.desc())
-    if position:
+    if position and isinstance(position, str):
         query = query.filter(Player.element_type == position.upper())
 
     players = query.limit(max(150, limit * 2)).all()
@@ -114,13 +114,15 @@ def get_diagnostics(
     
     # Determine horizon GWs based on mode (Optimization target starting at GW2)
     if mode in ["NEXT_GW", "CURRENT_GW_ONLY", "MODE_1"]:
-        horizon_gws = [target_gw + 1]
+        horizon_gws = [target_gw + 1] if target_gw == 1 else [target_gw]
         weights = [1.0]
     elif mode in ["LONG_TERM", "MODE_4"]:
-        horizon_gws = [target_gw + k for k in range(1, 8) if (target_gw + k) <= 38]
+        start_gw = target_gw + 1 if target_gw == 1 else target_gw
+        horizon_gws = [start_gw + k for k in range(0, 7) if (start_gw + k) <= 38]
         weights = [0.30, 0.20, 0.15, 0.12, 0.10, 0.08, 0.05][:len(horizon_gws)]
     else:
-        horizon_gws = [target_gw + k for k in range(1, 5) if (target_gw + k) <= 38]
+        start_gw = target_gw + 1 if target_gw == 1 else target_gw
+        horizon_gws = [start_gw + k for k in range(0, 4) if (start_gw + k) <= 38]
         weights = [0.55, 0.20, 0.15, 0.10][:len(horizon_gws)]
 
     w_sum = sum(weights)
@@ -166,7 +168,8 @@ def get_diagnostics(
             gw_xps[f"gw{gw}_xp"] = bd.get("total_xp", 0.0)
             weighted_xp += bd.get("total_xp", 0.0) * weights[idx]
 
-        gw0_bd = gw_breakdowns.get(target_gw, {})
+        target_gw_key = target_gw if target_gw in horizon_gws else horizon_gws[0]
+        gw0_bd = gw_breakdowns.get(target_gw_key, {})
         entry = {
             "id": player.id,
             "web_name": player.web_name,

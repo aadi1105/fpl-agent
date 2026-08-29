@@ -11,8 +11,7 @@ class UserSquadManager:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_or_create_user_squad(self) -> UserSquad:
-        """Retrieve existing user squad. Returns empty unconfigured squad if none exists."""
+    def _get_squad_raw(self) -> UserSquad:
         squad = self.db.query(UserSquad).first()
         if not squad:
             squad = UserSquad(
@@ -24,8 +23,11 @@ class UserSquadManager:
             self.db.add(squad)
             self.db.commit()
             self.db.refresh(squad)
-
         return squad
+
+    def get_or_create_user_squad(self) -> UserSquad:
+        """Retrieve existing user squad. Returns empty unconfigured squad if none exists."""
+        return self._get_squad_raw()
 
     def update_user_squad(
         self, 
@@ -41,7 +43,7 @@ class UserSquadManager:
         if len(player_ids) != 15:
             raise ValueError("User squad must contain exactly 15 player IDs.")
 
-        squad = self.get_or_create_user_squad()
+        squad = self._get_squad_raw()
         squad.bank = bank
         squad.free_transfers = free_transfers
         squad.active_chip = active_chip
@@ -117,12 +119,16 @@ class UserSquadManager:
                 "id": p.id,
                 "web_name": p.web_name,
                 "element_type": p.element_type,
+                "position": p.element_type,
                 "team_name": p.team.short_name if p.team else "",
                 "now_cost": p.now_cost,
                 "now_cost_str": f"£{p.now_cost / 10.0:.1f}m",
                 "status": p.status,
                 "chance_of_playing": p.chance_of_playing_next_round,
                 "gw_xp": gw_xp,
+                "total_xp": gw_xp,
+                "expected_points_gw": gw_xp,
+                "gw0_xp": gw_xp,
                 "position_order": pick.position,
                 "is_starter": is_starter,
                 "is_captain": pick.is_captain,

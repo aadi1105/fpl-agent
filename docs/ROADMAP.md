@@ -62,16 +62,15 @@
 | **Phase 3N.17**| My Team Squad Persistence + Rendering Failure | **COMPLETED (VERIFIED)** | August 2026 |
 | **Phase 3N.18**| My Team Substitution Flow + State Reliability Fix | **COMPLETED (VERIFIED)** | August 2026 |
 | **Phase 3N.19**| Player Data Explorer + Current GW Leaders + Model Audit Loading Fix | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.20**| My Team Projection Integrity + Model Audit Repair + Default Landing Page | **COMPLETED (VERIFIED)** | August 2026 |
 
 ---
 
 ## 📑 Completed Phases Detail
 
-### Phase 3N.19 — Player Data Explorer + Current GW Leaders + Model Audit Loading Fix
-* Fixed backend `NameError` in `get_consensus_audit` that caused permanent "Loading..." states on Player Data and Model Audit pages.
-* Built Player Explorer search & position filtering tool (`ALL`, `GKP`, `DEF`, `MID`, `FWD`).
-* Built Current GW Leaders section ranked exclusively by actual FPL points (`event_points`), completely distinct from xP projections, with TOP 5 / TOP 10 controls.
-* Built unified Player Detail view with upcoming 4-GW fixture run (no GW0), difficulty ratings, production model breakdown ($xG$, $xA$, $CS$, $xMins$, DEFCON), and actual scores.
-* Implemented explicit loading, success, and retry error banners (`🔄 RETRY LOADING`).
-* Added test suite [`tests/test_phase3n19_player_explorer_and_audit.py`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/tests/test_phase3n19_player_explorer_and_audit.py) (105/105 total tests passing).
-* Full details in [`docs/phases/PHASE_3N19_PLAYER_DATA_EXPLORER_AND_MODEL_AUDIT_FIX.md`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/docs/phases/PHASE_3N19_PLAYER_DATA_EXPLORER_AND_MODEL_AUDIT_FIX.md).
+### Phase 3N.20 — My Team Projection Integrity + Model Audit Repair + Default Landing Page
+* Fixed property key resolution in frontend `createPlayerCard` and backend user squad pick serialization, restoring real non-zero xP on My Team pitch cards and Starting XI total xP (44.86 xP).
+* Fixed horizon key lookup in `backend/main.py` `get_diagnostics`, restoring real expected-minutes ML probabilities ($P(\text{Start})$ 84.9%, $P(60+)$ 81.1%, $xMins$ 76.2m, $xP$ 6.30 for Haaland).
+* Configured My Team Command Center (`#tab-my-team`) as default landing page on root URL `/`.
+* Added test suite [`tests/test_phase3n20_projection_integrity_and_landing_page.py`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/tests/test_phase3n20_projection_integrity_and_landing_page.py) (108/108 total tests passing).
+* Full details in [`docs/phases/PHASE_3N20_MY_TEAM_PROJECTION_INTEGRITY_AND_DEFAULT_LANDING.md`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/docs/phases/PHASE_3N20_MY_TEAM_PROJECTION_INTEGRITY_AND_DEFAULT_LANDING.md).

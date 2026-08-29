@@ -290,8 +290,8 @@
             </div>
 
             <div class="header-nav">
-                <button class="nav-btn active" onclick="switchMainTab('optimizer')">OPTIMIZER VIEW</button>
-                <button class="nav-btn" onclick="switchMainTab('my-team')">MY TEAM COMMAND CENTER</button>
+                <button class="nav-btn" onclick="switchMainTab('optimizer')">OPTIMIZER VIEW</button>
+                <button class="nav-btn active" onclick="switchMainTab('my-team')">MY TEAM COMMAND CENTER</button>
                 <button class="nav-btn" onclick="switchMainTab('consensus')">PLAYER DATA</button>
                 <button class="nav-btn" onclick="switchMainTab('role-audit')">MODEL AUDIT</button>
             </div>
@@ -305,7 +305,7 @@
 
     <main>
         <!-- OPTIMIZER VIEW PAGE -->
-        <div id="tab-optimizer" class="tab-content" style="display:block;">
+        <div id="tab-optimizer" class="tab-content" style="display:none;">
             
             <!-- Hero Scoreboard Control Bar -->
             <div class="hero-scoreboard">
@@ -435,7 +435,7 @@
         </div>
 
         <!-- MY TEAM COMMAND CENTER TAB -->
-        <div id="tab-my-team" class="tab-content" style="display:none;">
+        <div id="tab-my-team" class="tab-content" style="display:block;">
             <div class="pitch-card" style="margin-bottom:24px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
                     <div>
@@ -1835,17 +1835,18 @@
             if (p.is_captain) capBadge = '<div class="badge-cap">C</div>';
             else if (p.is_vice_captain) capBadge = '<div class="badge-vc">V</div>';
 
-            const shirtSvg = getClubShirtSvg(p.team_name, p.element_type === 'GKP');
-            const xpDisplay = p.gw0_xp !== undefined ? p.gw0_xp.toFixed(2) : (p.total_xp !== undefined ? p.total_xp.toFixed(2) : '0.00');
+            const shirtSvg = getClubShirtSvg(p.team_name, p.position === 'GKP' || p.element_type === 'GKP');
+            const rawXp = (p.gw_xp !== undefined ? p.gw_xp : (p.expected_points_gw !== undefined ? p.expected_points_gw : (p.gw0_xp !== undefined ? p.gw0_xp : (p.total_xp !== undefined ? p.total_xp : 0.0))));
+            const xpDisplay = typeof rawXp === 'number' ? rawXp.toFixed(2) : parseFloat(rawXp || 0).toFixed(2);
 
             div.innerHTML = `
                 ${capBadge}
-                <div style="margin-bottom:4px;">${shirtSvg} <span class="player-pos-badge pos-${p.element_type}">${p.element_type}</span></div>
+                <div style="margin-bottom:4px;">${shirtSvg} <span class="player-pos-badge pos-${p.position || p.element_type}">${p.position || p.element_type}</span></div>
                 <div class="player-name">${p.web_name}</div>
                 <div class="player-team-cost">${p.team_name} • ${p.now_cost_str || '£' + (p.now_cost/10).toFixed(1) + 'm'}</div>
                 <div class="player-xp-badge">${xpDisplay} xP</div>
             `;
-            div.addEventListener('click', () => openModal(p));
+            div.addEventListener('click', () => openPlayerDetailModal(p.id));
             return div;
         }
 
