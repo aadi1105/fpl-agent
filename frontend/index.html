@@ -203,12 +203,55 @@
         .pos-MID { background: var(--pos-mid); }
         .pos-FWD { background: var(--pos-fwd); }
 
-        .badge-cap, .badge-vc {
-            position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.7rem; color: #000; z-index: 5;
+        /* Phase 3N.25 — Broadcast Management UI Styles */
+        .team-control-strip {
+            background: rgba(15, 21, 33, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 12px 20px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 14px;
         }
-        .badge-cap { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
-        .badge-vc { background: var(--accent-cyan); box-shadow: 0 0 8px var(--accent-cyan); }
+
+        .team-identity-group { display: flex; align-items: center; gap: 12px; }
+        .team-title-text { font-family: var(--font-display); font-weight: 900; font-size: 1.25rem; letter-spacing: -0.01em; color: #ffffff; }
+        .team-meta-pill { background: rgba(0, 210, 255, 0.08); border: 1px solid rgba(0, 210, 255, 0.2); color: var(--accent-cyan); font-size: 0.76rem; font-weight: 800; padding: 4px 10px; border-radius: 6px; letter-spacing: 0.03em; }
+
+        .matchweek-nav-group { display: flex; align-items: center; gap: 10px; }
+        .gw-nav-arrow { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); color: #fff; width: 32px; height: 32px; border-radius: 6px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s ease; }
+        .gw-nav-arrow:hover { background: rgba(0, 255, 135, 0.15); border-color: var(--accent-green); color: var(--accent-green); }
+
+        .ctrl-action-btn { border: none; font-family: var(--font-display); font-weight: 800; font-size: 0.85rem; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.15s ease; }
+        .ctrl-action-btn.primary { background: linear-gradient(135deg, var(--accent-cyan), #0088cc); color: #080d1a; box-shadow: 0 2px 12px rgba(0, 210, 255, 0.25); }
+        .ctrl-action-btn.primary:hover { transform: translateY(-1px); box-shadow: 0 4px 18px rgba(0, 210, 255, 0.4); }
+        .ctrl-action-btn.secondary { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #ffffff; }
+        .ctrl-action-btn.secondary:hover { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.25); }
+
+        .broadcast-scoreboard-strip {
+            background: linear-gradient(135deg, #0e1422 0%, #090d16 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 14px 20px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .hero-score-box { display: flex; align-items: center; gap: 16px; }
+        .hero-score-number { font-family: var(--font-display); font-size: 2.4rem; font-weight: 900; line-height: 1; color: #ffffff; letter-spacing: -0.03em; }
+        .hero-score-unit { font-size: 0.9rem; font-weight: 900; color: var(--accent-green); text-transform: uppercase; }
+
+        .scoreboard-metrics-strip { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+        .scoreboard-stat-item { border-left: 1px solid rgba(255, 255, 255, 0.08); padding-left: 16px; }
+        .scoreboard-stat-label { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.06em; }
+        .scoreboard-stat-value { font-size: 0.92rem; font-weight: 800; color: #ffffff; margin-top: 2px; }
 
         /* Bench Section */
         .bench-container {
@@ -436,75 +479,81 @@
 
         <!-- MY TEAM COMMAND CENTER TAB -->
         <div id="tab-my-team" class="tab-content" style="display:block;">
-            <div class="pitch-card" style="margin-bottom:24px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+            
+            <!-- 1. COMPACT INTEGRATED CONTROL BAR -->
+            <div class="team-control-strip">
+                <div class="team-identity-group">
+                    <div class="team-title-text">MY TEAM</div>
+                    <div id="my-team-header-stats" class="team-meta-pill">
+                        <span id="my-team-count-stat">15 PLAYERS</span> · <span id="my-team-bank-stat">£0.0M BANK</span> · <span id="my-team-ft-stat">1 FT</span>
+                    </div>
+                </div>
+
+                <!-- Matchweek Navigation Strip -->
+                <div class="matchweek-nav-group">
+                    <button onclick="navigateGameweek(-1)" class="gw-nav-arrow" title="Previous Gameweek">‹</button>
+                    <div style="position:relative; display:none;">
+                        <select id="my-team-gw-select" onchange="onGameweekSelectChange(this.value)">
+                            <option value="1">GW1</option>
+                        </select>
+                    </div>
+                    <div id="gw-history-strip" style="display:flex; gap:6px; align-items:center; overflow-x:auto; max-width:400px;">
+                        <!-- Filled by JS -->
+                    </div>
+                    <button onclick="navigateGameweek(1)" class="gw-nav-arrow" title="Next Gameweek">›</button>
+                    <span id="gw-status-badge" class="player-pos-badge pos-MID" style="font-size:0.75rem; padding:4px 10px; border-radius:6px; text-transform:uppercase;">GW1 COMPLETED</span>
+                </div>
+
+                <!-- Right-aligned action controls -->
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <button id="edit-my-team-btn" class="ctrl-action-btn primary" onclick="openEditSquadModal()">
+                        <span>⚙ EDIT SQUAD</span>
+                    </button>
+                    <button id="compare-my-team-btn" class="ctrl-action-btn secondary" onclick="compareUserSquad()">
+                        <span>📊 COMPARE</span>
+                    </button>
+                    <button id="setup-my-team-btn" style="display:none;"></button>
+                </div>
+            </div>
+
+            <!-- 2. FOOTBALL BROADCAST SCOREBOARD OVERLAY -->
+            <div id="gw-scoreboard-card" class="broadcast-scoreboard-strip">
+                <div class="hero-score-box">
                     <div>
-                        <h2 style="font-family:var(--font-display); font-weight:800; font-size:1.4rem;">MY TEAM COMMAND CENTER</h2>
-                        <div id="my-team-header-stats" style="font-size:0.85rem; color:var(--text-secondary); margin-top:2px;">
-                            <span id="my-team-count-stat">15 Players</span> • <span id="my-team-bank-stat">£0.0m Bank</span> • <span id="my-team-ft-stat">1 FT</span>
+                        <div class="scoreboard-stat-label" id="scoreboard-title">GAMEWEEK 1 SCOREBOARD</div>
+                        <div style="display:flex; align-items:baseline; gap:8px; margin-top:2px;">
+                            <span id="scoreboard-score" class="hero-score-number">—</span>
+                            <span id="scoreboard-score-unit" class="hero-score-unit">PTS</span>
                         </div>
-                    </div>
-
-                    <div style="display:flex; gap:12px; align-items:center;">
-                        <button id="edit-my-team-btn" class="solve-btn" style="padding:10px 22px; font-size:0.95rem; background:linear-gradient(135deg, var(--accent-cyan), #00a0e3);" onclick="openEditSquadModal()">
-                            <span>✏️ EDIT SQUAD</span>
-                        </button>
-                        <button id="compare-my-team-btn" class="solve-btn" style="padding:10px 22px; font-size:0.95rem;" onclick="compareUserSquad()">
-                            <span>⚡ COMPARE VS OPTIMAL XI</span>
-                        </button>
-                        <button id="setup-my-team-btn" style="display:none;"></button>
                     </div>
                 </div>
-            </div>
 
-            <!-- Gameweek History Selector & Status Bar -->
-            <div class="pitch-card" style="margin-bottom:16px; padding:16px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-                    <div style="display:flex; align-items:center; gap:12px;">
-                        <span style="font-size:0.75rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.05em;">GAMEWEEK HISTORY</span>
-                        <div style="display:flex; align-items:center; gap:6px;">
-                            <button onclick="navigateGameweek(-1)" style="background:#1a2234; border:1px solid var(--bg-border); color:#fff; padding:6px 12px; border-radius:6px; font-weight:800; cursor:pointer;">←</button>
-                            <select id="my-team-gw-select" onchange="onGameweekSelectChange(this.value)" style="background:#121824; border:1px solid var(--accent-cyan); color:#fff; padding:6px 14px; border-radius:6px; font-weight:800; font-size:0.95rem;">
-                                <option value="1">GW1</option>
-                            </select>
-                            <button onclick="navigateGameweek(1)" style="background:#1a2234; border:1px solid var(--bg-border); color:#fff; padding:6px 12px; border-radius:6px; font-weight:800; cursor:pointer;">→</button>
-                        </div>
-                        <span id="gw-status-badge" class="player-pos-badge pos-MID" style="font-size:0.75rem; padding:4px 10px;">GW1 COMPLETED</span>
+                <div class="scoreboard-metrics-strip">
+                    <div class="scoreboard-stat-item">
+                        <div class="scoreboard-stat-label">CAPTAIN BONUS</div>
+                        <div id="scoreboard-captain-bonus" class="scoreboard-stat-value">+0 pts</div>
                     </div>
-
-                    <div id="gw-history-strip" style="display:flex; gap:8px; overflow-x:auto; max-width:100%; padding-bottom:2px;">
-                        <!-- Dynamically populated pills -->
+                    <div class="scoreboard-stat-item">
+                        <div class="scoreboard-stat-label">BENCH</div>
+                        <div id="scoreboard-bench" class="scoreboard-stat-value">0 pts</div>
+                    </div>
+                    <div class="scoreboard-stat-item">
+                        <div class="scoreboard-stat-label">TRANSFERS</div>
+                        <div id="scoreboard-transfers" class="scoreboard-stat-value">0 (-0pts)</div>
+                    </div>
+                    <div class="scoreboard-stat-item">
+                        <div class="scoreboard-stat-label">SEASON TOTAL</div>
+                        <div id="scoreboard-overall" class="scoreboard-stat-value" style="color:var(--accent-cyan);">—</div>
+                    </div>
+                    <div class="scoreboard-stat-item">
+                        <div class="scoreboard-stat-label">ACTIVE CHIP</div>
+                        <div id="scoreboard-chip" class="scoreboard-stat-value" style="color:var(--accent-warning);">None</div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Gameweek Scoreboard Panel -->
-            <div id="gw-scoreboard-card" class="pitch-card" style="margin-bottom:16px; background:linear-gradient(135deg, rgba(20,28,45,0.95), rgba(12,18,32,0.98)); border:1px solid var(--bg-border);">
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-                    <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
-                        <div>
-                            <div style="font-size:0.7rem; font-weight:800; text-transform:uppercase; color:var(--accent-cyan); letter-spacing:0.05em;" id="scoreboard-title">GAMEWEEK 1 SCOREBOARD</div>
-                            <div style="display:flex; align-items:baseline; gap:8px; margin-top:2px;">
-                                <span id="scoreboard-score" style="font-size:2.2rem; font-family:var(--font-display); font-weight:900; color:#fff;">—</span>
-                                <span id="scoreboard-score-unit" style="font-size:1.0rem; font-weight:800; color:var(--accent-green);">PTS</span>
-                            </div>
-                        </div>
-
-                        <div style="height:36px; width:1px; background:var(--bg-border);" class="hide-mobile"></div>
-
-                        <div style="display:flex; gap:20px; font-size:0.82rem; flex-wrap:wrap;">
-                            <div><div style="color:var(--text-muted); font-size:0.7rem;">CAPTAIN BONUS</div><div id="scoreboard-captain-bonus" style="font-weight:800; color:#fff;">+0 pts</div></div>
-                            <div><div style="color:var(--text-muted); font-size:0.7rem;">BENCH</div><div id="scoreboard-bench" style="font-weight:800; color:#fff;">0 pts</div></div>
-                            <div><div style="color:var(--text-muted); font-size:0.7rem;">TRANSFERS</div><div id="scoreboard-transfers" style="font-weight:800; color:#fff;">0 (0 pts)</div></div>
-                            <div><div style="color:var(--text-muted); font-size:0.7rem;">OVERALL PTS</div><div id="scoreboard-overall" style="font-weight:800; color:var(--accent-cyan);">—</div></div>
-                            <div><div style="color:var(--text-muted); font-size:0.7rem;">CHIP USED</div><div id="scoreboard-chip" style="font-weight:800; color:var(--accent-yellow);">None</div></div>
-                        </div>
-                    </div>
-
-                    <div id="scoreboard-live-indicator" style="display:none; align-items:center; gap:6px; background:rgba(239, 68, 68, 0.15); border:1px solid rgba(239, 68, 68, 0.4); color:#ef4444; padding:6px 12px; border-radius:20px; font-weight:800; font-size:0.75rem;">
-                        <span class="status-dot" style="background:#ef4444; box-shadow:0 0 8px #ef4444;"></span>
-                        <span>LIVE SCORING ACTIVE</span>
-                    </div>
+                <div id="scoreboard-live-indicator" style="display:none; align-items:center; gap:6px; background:rgba(239, 68, 68, 0.15); border:1px solid rgba(239, 68, 68, 0.4); color:#ef4444; padding:6px 12px; border-radius:20px; font-weight:800; font-size:0.75rem;">
+                    <span class="status-dot" style="background:#ef4444; box-shadow:0 0 8px #ef4444;"></span>
+                    <span>🔴 LIVE SCORING ACTIVE</span>
                 </div>
             </div>
 
@@ -514,12 +563,15 @@
                 <button onclick="retryGameweekSnapshot()" style="background:#ef4444; color:#fff; border:none; padding:6px 14px; border-radius:6px; font-weight:800; cursor:pointer;">🔄 RETRY LOADING</button>
             </div>
 
-            <!-- My Team Pitch View -->
+            <!-- 3. MAIN OPERATIONAL AREA: PITCH + TECHNICAL HUB -->
             <div class="dashboard-grid">
-                <div class="pitch-card">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div style="font-weight:800;">My Squad Formation Pitch</div>
-                        <span id="my-team-formation" style="color:var(--accent-cyan); font-weight:800;">3-5-2</span>
+                <!-- Left Column: The Hero Pitch -->
+                <div class="pitch-card" style="padding:16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <div style="font-family:var(--font-display); font-weight:800; font-size:1.05rem; letter-spacing:0.02em; color:#fff;">⚽ MY XI</div>
+                        <div style="font-family:var(--font-display); font-weight:800; font-size:0.85rem; color:var(--accent-cyan); background:rgba(0,210,255,0.08); padding:3px 10px; border-radius:6px; border:1px solid rgba(0,210,255,0.2);">
+                            FORMATION: <span id="my-team-formation">3-5-2</span>
+                        </div>
                     </div>
 
                     <div class="pitch-container">
@@ -529,48 +581,59 @@
                         <div id="my-team-fwd" class="pitch-row"></div>
                     </div>
 
-                    <div class="bench-container">
-                        <div style="font-size:0.75rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">Substitutes Bench</div>
+                    <!-- Substitutes Technical Strip -->
+                    <div class="bench-container" style="margin-top:12px;">
+                        <div style="font-size:0.72rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.06em; margin-bottom:10px;">SUBSTITUTES</div>
                         <div id="my-team-bench" class="pitch-row"></div>
                     </div>
                 </div>
 
-                <div class="diagnostics-card">
-                    <div style="font-family:var(--font-display); font-weight:800; font-size:1.05rem;">My Team Financial & Chip State</div>
-                    <div class="breakdown-row"><span class="breakdown-label">Bank Available</span><span id="my-team-bank" class="breakdown-val" style="color:var(--accent-green);">£0.0m</span></div>
-                    <div class="breakdown-row"><span class="breakdown-label">Free Transfers</span><span id="my-team-fts" class="breakdown-val">1 FT</span></div>
-                    <div class="breakdown-row"><span class="breakdown-label">Current GW Starting XI xP</span><span id="my-team-starting-xp" class="breakdown-val" style="color:var(--accent-cyan);">41.95 xP</span></div>
+                <!-- Right Column: Technical & Tactical Hub -->
+                <div class="diagnostics-card" style="display:flex; flex-direction:column; gap:16px; padding:18px;">
+                    <div>
+                        <div style="font-family:var(--font-display); font-weight:800; font-size:0.95rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-secondary); margin-bottom:10px; border-bottom:1px solid var(--bg-border); padding-bottom:8px;">
+                            📋 SQUAD STATUS & FINANCIALS
+                        </div>
+                        <div class="breakdown-row"><span class="breakdown-label">Bank Available</span><span id="my-team-bank" class="breakdown-val" style="color:var(--accent-green); font-weight:800;">£0.0m</span></div>
+                        <div class="breakdown-row"><span class="breakdown-label">Free Transfers</span><span id="my-team-fts" class="breakdown-val" style="font-weight:800;">1 FT</span></div>
+                        <div class="breakdown-row"><span class="breakdown-label">Starting XI Projected xP</span><span id="my-team-starting-xp" class="breakdown-val" style="color:var(--accent-cyan); font-weight:800;">41.95 xP</span></div>
+                    </div>
 
-                    <div style="margin-top:16px;" id="comp-transfers-table-container"></div>
+                    <div style="border-top:1px solid var(--bg-border); padding-top:14px;">
+                        <div style="font-family:var(--font-display); font-weight:800; font-size:0.95rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--accent-cyan); margin-bottom:10px;">
+                            ⚡ TRANSFER INTELLIGENCE
+                        </div>
+                        <div id="comp-transfers-table-container"></div>
+                    </div>
                 </div>
             </div>
 
-            <!-- DEDICATED CHIP STATUS SECTION -->
-            <div class="pitch-card" style="margin-top:20px; margin-bottom:20px;">
-                <div style="font-family:var(--font-display); font-weight:800; font-size:1.1rem; color:#fff; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between;">
-                    <span>🎟️ CHIP STATUS & AVAILABILITY</span>
-                    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Official FPL Season Chip History</span>
+            <!-- 4. SEASON CHIPS SECTION -->
+            <div class="pitch-card" style="margin-top:20px; margin-bottom:20px; padding:16px;">
+                <div style="font-family:var(--font-display); font-weight:800; font-size:1.0rem; color:#fff; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between;">
+                    <span>🎟️ SEASON CHIPS</span>
+                    <span style="font-size:0.72rem; color:var(--text-muted); font-weight:600;">Official FPL Season Chip History</span>
                 </div>
 
                 <div id="chips-status-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:12px;">
-                    <!-- Dynamically filled by JS -->
+                    <!-- Filled by JS -->
                 </div>
             </div>
 
-            <!-- SEASON SUMMARY & GAMEWEEK HISTORY TABLE -->
-            <div class="pitch-card" style="margin-bottom:24px;">
-                <div style="font-family:var(--font-display); font-weight:800; font-size:1.2rem; color:#fff; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                    <span>📊 SEASON GAMEWEEK HISTORY & PERFORMANCE</span>
-                    <span style="font-size:0.75rem; color:var(--accent-cyan); font-weight:700;">Click any row to view full Gameweek squad snapshot</span>
+            <!-- 5. SEASON GAMEWEEK HISTORY & PERFORMANCE -->
+            <div class="pitch-card" style="margin-bottom:24px; padding:16px;">
+                <div style="font-family:var(--font-display); font-weight:800; font-size:1.1rem; color:#fff; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                    <span>📊 SEASON GAMEWEEK LOG</span>
+                    <span style="font-size:0.75rem; color:var(--accent-cyan); font-weight:700;">Click any row to view historical Gameweek snapshot</span>
                 </div>
 
                 <!-- Compact Season Summary Bar -->
-                <div style="display:flex; gap:20px; background:#121824; border:1px solid var(--bg-border); padding:12px 18px; border-radius:10px; margin-bottom:16px; flex-wrap:wrap; font-size:0.82rem;">
+                <div style="display:flex; gap:20px; background:rgba(18, 24, 36, 0.9); border:1px solid var(--bg-border); padding:12px 18px; border-radius:10px; margin-bottom:16px; flex-wrap:wrap; font-size:0.82rem;">
                     <div><div style="color:var(--text-muted); font-size:0.68rem; font-weight:800;">TOTAL POINTS</div><div id="hist-sum-total" style="font-weight:900; font-size:1.1rem; color:#fff;">—</div></div>
                     <div><div style="color:var(--text-muted); font-size:0.68rem; font-weight:800;">GW AVG</div><div id="hist-sum-avg" style="font-weight:900; font-size:1.1rem; color:var(--accent-cyan);">—</div></div>
                     <div><div style="color:var(--text-muted); font-size:0.68rem; font-weight:800;">BEST GW</div><div id="hist-sum-best" style="font-weight:900; font-size:1.1rem; color:var(--accent-green);">—</div></div>
                     <div><div style="color:var(--text-muted); font-size:0.68rem; font-weight:800;">WORST GW</div><div id="hist-sum-worst" style="font-weight:900; font-size:1.1rem; color:#fca5a5;">—</div></div>
-                    <div><div style="color:var(--text-muted); font-size:0.68rem; font-weight:800;">OVERALL RANK</div><div id="hist-sum-rank" style="font-weight:900; font-size:1.1rem; color:var(--accent-yellow);">—</div></div>
+                    <div><div style="color:var(--text-muted); font-size:0.68rem; font-weight:800;">OVERALL RANK</div><div id="hist-sum-rank" style="font-weight:900; font-size:1.1rem; color:var(--accent-warning);">—</div></div>
                     <div><div style="color:var(--text-muted); font-size:0.68rem; font-weight:800;">TOTAL TRANSFERS</div><div id="hist-sum-xfers" style="font-weight:900; font-size:1.1rem; color:#fff;">—</div></div>
                 </div>
 
@@ -597,6 +660,7 @@
                     </table>
                 </div>
             </div>
+
         </div>
 
         <!-- PLAYER DATA TAB (PLAYER EXPLORER & RESEARCH TOOL) -->
@@ -907,9 +971,9 @@
             if (!strip) return;
             strip.innerHTML = allGameweeksCache.slice(0, Math.min(12, activeCurrentGameweek + 3)).map(g => {
                 const isActive = (g.id === currentSelectedGameweek);
-                let badge = g.is_current ? '🔴 LIVE' : (g.finished ? 'pts' : '—');
-                let style = isActive ? 'background:var(--accent-cyan); color:#0c1220; font-weight:800;' : 'background:#141c2d; color:#fff;';
-                return `<button onclick="onGameweekSelectChange(${g.id})" style="${style} border:1px solid var(--bg-border); padding:4px 10px; border-radius:6px; font-size:0.75rem; cursor:pointer; white-space:nowrap;">GW${g.id} ${badge}</button>`;
+                let badge = g.is_current ? '🔴 LIVE' : (g.finished ? '✓' : '—');
+                let bgStyle = isActive ? 'background:linear-gradient(135deg, var(--accent-cyan), #00a0e3); color:#080d1a; font-weight:900; border-color:var(--accent-cyan); box-shadow:0 0 10px rgba(0,210,255,0.3);' : 'background:rgba(255,255,255,0.05); color:#94a3b8; border-color:rgba(255,255,255,0.1);';
+                return `<button onclick="onGameweekSelectChange(${g.id})" style="${bgStyle} border:1px solid; padding:4px 10px; border-radius:6px; font-size:0.75rem; cursor:pointer; white-space:nowrap; transition:all 0.15s ease;">GW${g.id} ${badge}</button>`;
             }).join('');
         }
 
