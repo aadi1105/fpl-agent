@@ -22,7 +22,7 @@ class DecisionEngineRealityAuditor:
         """Verify layer-by-layer gameweek consistency across all production components."""
         state_gw = self.state_mgr.get_current_gameweek()
         
-        db_curr_gw_obj = self.db.query(Gameweek).filter(Gameweek.is_current == True).first()
+        db_curr_gw_obj = self.db.query(Gameweek).filter(Gameweek.finished == False).order_by(Gameweek.id.asc()).first() or self.db.query(Gameweek).filter(Gameweek.is_current == True).first()
         db_curr_gw = db_curr_gw_obj.id if db_curr_gw_obj else state_gw
 
         snapshot = self.state_mgr.generate_current_state_snapshot()

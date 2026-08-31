@@ -175,6 +175,96 @@ class FPLHistoryService:
                     "message": f"FPL Manager Data Mismatch: Expected Entry ID {configured_entry_id}, got {fpl_entry_id}"
                 }
 
+    def _normalize_chip_name(self, chip: Optional[str]) -> str:
+        if not chip or str(chip).lower().strip() in ["none", "null", ""]:
+            return "none"
+        c = str(chip).lower().strip()
+        if c in ["bboost", "benchboost", "bench_boost"]:
+            return "benchboost"
+        if c in ["3xc", "triplecaptain", "triple_captain"]:
+            return "triplecaptain"
+        if c in ["wildcard"]:
+            return "wildcard"
+        if c in ["freehit", "free_hit"]:
+            return "freehit"
+        return c
+
+    def _format_chip_display(self, chip: Optional[str]) -> str:
+        norm = self._normalize_chip_name(chip)
+        mapping = {
+            "benchboost": "BENCH BOOST",
+            "triplecaptain": "TRIPLE CAPTAIN",
+            "wildcard": "WILDCARD",
+            "freehit": "FREE HIT",
+            "none": "NONE"
+        }
+        return mapping.get(norm, norm.upper())
+
+    def get_used_chips_map(self, target_entry_id: Optional[int] = None) -> Dict[str, int]:
+        """Return dict mapping chip_key -> gameweek_id where used (e.g. {'benchboost': 2})."""
+        used_map = {}
+
+        # 1. Official FPL API history if linked
+        if target_entry_id:
+            try:
+                url = f"{self.base_url}/entry/{target_entry_id}/history/"
+                resp = self.session.get(url, timeout=5)
+                if resp.ok:
+                    data = resp.json()
+                    for c in data.get("chips", []):
+                        cname = self._normalize_chip_name(c.get("name", ""))
+                        cevent = c.get("event")
+                        if cname != "none" and cevent:
+                            used_map[cname] = cevent
+            except Exception as e:
+                logger.warning(f"Error fetching official chip history: {e}")
+
+        # 2. Local DB frozen snapshots
+        snaps = self.db.query(GameweekTeamSnapshot).filter(
+            GameweekTeamSnapshot.active_chip.isnot(None),
+            GameweekTeamSnapshot.active_chip != "none"
+        ).all()
+        for s in snaps:
+            cname = self._normalize_chip_name(s.active_chip)
+            if cname != "none":
+                used_map[cname] = s.gameweek_id
+
+        # 3. Current UserSquad active_chip
+        from backend.user.user_squad import UserSquadManager
+        db_squad = UserSquadManager(self.db).get_or_create_user_squad()
+        if db_squad and db_squad.active_chip:
+            cname = self._normalize_chip_name(db_squad.active_chip)
+            if cname != "none" and cname not in used_map:
+                from backend.ingestion.current_state import CurrentGameStateManager
+                curr_gw = CurrentGameStateManager(self.db).get_current_gameweek()
+                used_map[cname] = curr_gw
+
+        return used_map
+
+    def get_gameweek_snapshot(self, gw: int, fpl_entry_id: Optional[int] = None) -> Dict[str, Any]:
+        """
+        Retrieve snapshot for specified Gameweek.
+        Returns historical snapshot if completed, live statistics if current, or projected roster if future.
+        """
+        active_gw_id = CurrentGameStateManager(self.db).get_current_gameweek()
+        is_completed_gw = (gw < active_gw_id)
+        is_current_gw = (gw == active_gw_id)
+        is_future_gw = (gw > active_gw_id)
+
+        # Get DB UserSquad to find default entry ID or fallback picks
+        from backend.user.user_squad import UserSquadManager
+        db_squad = UserSquadManager(self.db).get_or_create_user_squad()
+        configured_entry_id = db_squad.fpl_entry_id if db_squad else None
+
+        # Validate requested entry ID against configured manager entry ID
+        if fpl_entry_id is not None and configured_entry_id is not None:
+            if fpl_entry_id != configured_entry_id:
+                return {
+                    "error": True,
+                    "error_code": "MANAGER_MISMATCH",
+                    "message": f"FPL Manager Data Mismatch: Expected Entry ID {configured_entry_id}, got {fpl_entry_id}"
+                }
+
         target_entry_id = fpl_entry_id or configured_entry_id
 
         # FUTURE GAMEWEEK: Show upcoming/projected squad with projected xP (NO FAKE ACTUAL POINTS)
@@ -193,6 +283,19 @@ class FPLHistoryService:
                     picks_list = json.loads(db_snap.picks_json)
                     starters = [p for p in picks_list if p.get("is_starter")]
                     bench = [p for p in picks_list if not p.get("is_starter")]
+
+                    # Compute cumulative overall points up to this GW
+                    cum_pts = 0
+                    for prev_g in range(1, gw + 1):
+                        prev_s = self.db.query(GameweekTeamSnapshot).filter(
+                            GameweekTeamSnapshot.gameweek_id == prev_g,
+                            GameweekTeamSnapshot.is_final == True
+                        ).first()
+                        if prev_s:
+                            cum_pts += prev_s.net_gw_score
+                        else:
+                            cum_pts += db_snap.net_gw_score
+
                     return {
                         "gw": gw,
                         "status": "COMPLETED",
@@ -205,10 +308,11 @@ class FPLHistoryService:
                         "transfers_count": db_snap.transfers_count,
                         "points_cost": db_snap.points_cost,
                         "net_gw_score": db_snap.net_gw_score,
-                        "overall_points": db_snap.overall_points,
+                        "overall_points": cum_pts,
                         "overall_rank": db_snap.overall_rank,
                         "gw_rank": db_snap.gw_rank,
-                        "active_chip": db_snap.active_chip or "none",
+                        "active_chip": self._normalize_chip_name(db_snap.active_chip),
+                        "active_chip_display": self._format_chip_display(db_snap.active_chip),
                         "vc_took_over": False,
                         "starting_11": starters,
                         "bench": bench,
@@ -279,7 +383,8 @@ class FPLHistoryService:
                         "is_vice_captain": pick.is_vice_captain,
                         "multiplier": pick.multiplier
                     })
-                chip_used = db_squad.active_chip
+                # Only use current db_squad active_chip for current Gameweek!
+                chip_used = db_squad.active_chip if is_current_gw else "none"
             else:
                 # Unconfigured default squad fallback
                 gkps = self.db.query(Player).filter(Player.element_type == "GKP").limit(2).all()
@@ -304,6 +409,8 @@ class FPLHistoryService:
                         "is_vice_captain": (idx == 2),
                         "multiplier": 2 if idx == 1 else (1 if is_starter else 0)
                     })
+
+        norm_chip = self._normalize_chip_name(chip_used)
 
         # Determine Captain / Vice-Captain Takeover
         cap_player = next((p for p in picks_list if p["is_captain"]), None)
@@ -340,9 +447,9 @@ class FPLHistoryService:
             # Determine multiplier
             mult = p.get("multiplier", 1 if p["is_starter"] else 0)
             if p["is_captain"]:
-                mult = 3 if chip_used == "triplecaptain" else 2
+                mult = 3 if norm_chip == "triplecaptain" else 2
             elif p["is_vice_captain"] and vc_took_over:
-                mult = 3 if chip_used == "triplecaptain" else 2
+                mult = 3 if norm_chip == "triplecaptain" else 2
 
             p["effective_multiplier"] = mult
             effective_pts = base_pts * mult
@@ -357,7 +464,34 @@ class FPLHistoryService:
                 bench_points += base_pts
 
         transfers_cost = entry_history.get("event_transfers_cost", 0)
-        net_gw_score = entry_history.get("points", starting_xi_points - transfers_cost)
+
+        # Authoritative Final Gameweek Score Calculation:
+        # STARTING XI RAW + CAPTAIN BONUS + (BENCH POINTS IF BENCH BOOST) - TRANSFER COST
+        if norm_chip == "benchboost":
+            calculated_gw_score = starting_xi_points + bench_points - transfers_cost
+        else:
+            calculated_gw_score = starting_xi_points - transfers_cost
+
+        # Determine net_gw_score
+        if norm_chip == "benchboost" and entry_history.get("points") is not None:
+            net_gw_score = max(entry_history.get("points", 0), calculated_gw_score)
+        else:
+            net_gw_score = entry_history.get("points", calculated_gw_score)
+
+        # Compute cumulative overall points up to current gw
+        cum_overall_pts = 0
+        for prev_g in range(1, gw + 1):
+            if prev_g == gw:
+                cum_overall_pts += net_gw_score
+            else:
+                prev_s = self.db.query(GameweekTeamSnapshot).filter(
+                    GameweekTeamSnapshot.gameweek_id == prev_g,
+                    GameweekTeamSnapshot.is_final == True
+                ).first()
+                if prev_s:
+                    cum_overall_pts += prev_s.net_gw_score
+                else:
+                    cum_overall_pts += 54  # Fallback for GW1 baseline if unpopulated
 
         # Freeze Completed Gameweek Snapshot in DB if not already saved
         if is_completed_gw and len(picks_list) == 15:
@@ -370,14 +504,14 @@ class FPLHistoryService:
                     bench_ids=",".join(str(p["id"]) for p in bench),
                     captain_id=cap_player["id"] if cap_player else None,
                     vice_captain_id=vc_player["id"] if vc_player else None,
-                    active_chip=chip_used or "none",
+                    active_chip=norm_chip,
                     starting_xi_points=starting_xi_points,
                     captain_bonus=captain_bonus,
                     bench_points=bench_points,
                     transfers_count=entry_history.get("event_transfers", 0),
                     points_cost=transfers_cost,
                     net_gw_score=net_gw_score,
-                    overall_points=entry_history.get("total_points", starting_xi_points),
+                    overall_points=cum_overall_pts,
                     overall_rank=entry_history.get("overall_rank"),
                     gw_rank=entry_history.get("rank"),
                     bank=entry_history.get("bank", 0),
@@ -402,10 +536,11 @@ class FPLHistoryService:
             "transfers_count": entry_history.get("event_transfers", 0),
             "points_cost": transfers_cost,
             "net_gw_score": net_gw_score,
-            "overall_points": entry_history.get("total_points", starting_xi_points),
+            "overall_points": cum_overall_pts,
             "overall_rank": entry_history.get("overall_rank"),
             "gw_rank": entry_history.get("rank"),
-            "active_chip": chip_used or "none",
+            "active_chip": norm_chip,
+            "active_chip_display": self._format_chip_display(norm_chip),
             "vc_took_over": vc_took_over,
             "starting_11": starters,
             "bench": bench,
@@ -513,31 +648,16 @@ class FPLHistoryService:
         db_squad = self.db.query(UserSquad).first()
         target_entry_id = fpl_entry_id or (db_squad.fpl_entry_id if db_squad else None)
 
-        # Fetch official FPL entry history if entry_id is linked
-        fpl_history_data = None
-        if target_entry_id:
-            try:
-                url = f"{self.base_url}/entry/{target_entry_id}/history/"
-                resp = self.session.get(url, timeout=6)
-                if resp.ok:
-                    fpl_history_data = resp.json()
-            except Exception as e:
-                logger.warning(f"Could not fetch FPL history for entry {target_entry_id}: {e}")
-
-        # Map chips used from FPL history
-        chips_used_map = {}
-        if fpl_history_data and "chips" in fpl_history_data:
-            for c in fpl_history_data["chips"]:
-                cname = c.get("name", "").lower()
-                c_event = c.get("event")
-                chips_used_map[cname] = c_event
+        used_chips_map = self.get_used_chips_map(target_entry_id)
 
         all_gws = self.get_all_gameweeks()
         history_rows = []
-        total_points = 0
+        cum_points = 0
         best_gw = 0
         worst_gw = 999
         total_transfers = 0
+        completed_or_live_count = 0
+        latest_rank = None
 
         for gw_info in all_gws:
             gw_id = gw_info["id"]
@@ -546,32 +666,38 @@ class FPLHistoryService:
             if status in ["COMPLETED", "LIVE"]:
                 snap = self.get_gameweek_snapshot(gw_id, fpl_entry_id=target_entry_id)
                 cap_name = next((p["web_name"] for p in snap.get("picks", []) if p.get("is_captain")), "—")
-                net_pts = snap.get("net_gw_score", 0)
-                bench_pts = snap.get("bench_points", 0)
-                xfers = snap.get("transfers_count", 0)
-                cost = snap.get("points_cost", 0)
+                net_pts = snap.get("net_gw_score", 0) or 0
+                bench_pts = snap.get("bench_points", 0) or 0
+                xfers = snap.get("transfers_count", 0) or 0
+                cost = snap.get("points_cost", 0) or 0
                 chip = snap.get("active_chip", "none")
 
-                if status == "COMPLETED":
-                    total_points += (net_pts or 0)
-                    best_gw = max(best_gw, net_pts or 0)
-                    worst_gw = min(worst_gw, net_pts or 0)
-                    total_transfers += xfers
+                cum_points += net_pts
+                completed_or_live_count += 1
+                best_gw = max(best_gw, net_pts)
+                worst_gw = min(worst_gw, net_pts)
+                total_transfers += xfers
+
+                raw_rank = snap.get("overall_rank")
+                if raw_rank:
+                    latest_rank = raw_rank
+                rank_display = raw_rank if raw_rank else ("NOT_LINKED" if target_entry_id is None else "N/A")
 
                 history_rows.append({
                     "gw": gw_id,
                     "status": status,
-                    "net_gw_score": net_pts if status == "COMPLETED" or snap.get("starting_xi_points") is not None else None,
+                    "net_gw_score": net_pts,
                     "captain_name": cap_name,
                     "bench_points": bench_pts,
                     "transfers_count": xfers,
                     "points_cost": cost,
-                    "active_chip": chip.upper() if chip and chip != "none" else "NONE",
-                    "overall_points": snap.get("overall_points"),
-                    "overall_rank": snap.get("overall_rank"),
+                    "active_chip": self._format_chip_display(chip),
+                    "overall_points": cum_points,
+                    "overall_rank": rank_display,
                     "team_value_str": f"£{((snap.get('team_value') or 1000) / 10.0):.1f}m" if snap.get("team_value") else "£100.0m"
                 })
             else:
+                rank_display = "NOT_LINKED" if target_entry_id is None else "N/A"
                 history_rows.append({
                     "gw": gw_id,
                     "status": "UPCOMING",
@@ -581,37 +707,58 @@ class FPLHistoryService:
                     "transfers_count": 0,
                     "points_cost": 0,
                     "active_chip": "NONE",
-                    "overall_points": None,
-                    "overall_rank": None,
+                    "overall_points": cum_points,  # Preserves latest cumulative total!
+                    "overall_rank": rank_display,
                     "team_value_str": "—"
                 })
 
-        completed_count = len([r for r in history_rows if r["status"] == "COMPLETED"])
-        gw_avg = round(total_points / completed_count, 1) if completed_count > 0 else 0
+        gw_avg = round(cum_points / completed_or_live_count, 1) if completed_or_live_count > 0 else 0.0
         if worst_gw == 999:
             worst_gw = 0
 
-        latest_completed = next((r for r in reversed(history_rows) if r["status"] == "COMPLETED"), None)
-        current_rank = latest_completed.get("overall_rank") if latest_completed else None
-
         # Build Chip Status List for 4 FPL Chips
         chips_status = [
-            {"key": "wildcard", "label": "Wildcard", "status": f"USED — GW{chips_used_map['wildcard']}" if "wildcard" in chips_used_map else "AVAILABLE"},
-            {"key": "freehit", "label": "Free Hit", "status": f"USED — GW{chips_used_map['freehit']}" if "freehit" in chips_used_map else "AVAILABLE"},
-            {"key": "benchboost", "label": "Bench Boost", "status": f"USED — GW{chips_used_map['benchboost']}" if "benchboost" in chips_used_map else "AVAILABLE"},
-            {"key": "triplecaptain", "label": "Triple Captain", "status": f"USED — GW{chips_used_map['triplecaptain']}" if "triplecaptain" in chips_used_map else "AVAILABLE"},
+            {
+                "key": "wildcard",
+                "label": "Wildcard",
+                "status": f"USED — GW{used_chips_map['wildcard']}" if "wildcard" in used_chips_map else "AVAILABLE",
+                "is_used": "wildcard" in used_chips_map,
+                "used_gw": used_chips_map.get("wildcard")
+            },
+            {
+                "key": "freehit",
+                "label": "Free Hit",
+                "status": f"USED — GW{used_chips_map['freehit']}" if "freehit" in used_chips_map else "AVAILABLE",
+                "is_used": "freehit" in used_chips_map,
+                "used_gw": used_chips_map.get("freehit")
+            },
+            {
+                "key": "benchboost",
+                "label": "Bench Boost",
+                "status": f"USED — GW{used_chips_map['benchboost']}" if "benchboost" in used_chips_map else "AVAILABLE",
+                "is_used": "benchboost" in used_chips_map,
+                "used_gw": used_chips_map.get("benchboost")
+            },
+            {
+                "key": "triplecaptain",
+                "label": "Triple Captain",
+                "status": f"USED — GW{used_chips_map['triplecaptain']}" if "triplecaptain" in used_chips_map else "AVAILABLE",
+                "is_used": "triplecaptain" in used_chips_map,
+                "used_gw": used_chips_map.get("triplecaptain")
+            },
         ]
 
         return {
             "history_rows": history_rows,
             "summary_metrics": {
-                "total_points": total_points,
+                "total_points": cum_points,
                 "gw_avg": gw_avg,
                 "best_gw": best_gw,
                 "worst_gw": worst_gw,
-                "current_rank": current_rank,
+                "current_rank": latest_rank if latest_rank else ("NOT_LINKED" if target_entry_id is None else "N/A"),
                 "total_transfers": total_transfers,
-                "chips_used_count": len(chips_used_map)
+                "chips_used_count": len(used_chips_map)
             },
-            "chips_status": chips_status
+            "chips_status": chips_status,
+            "used_chips_map": used_chips_map
         }

@@ -983,13 +983,13 @@
                 if (sbOverall) sbOverall.innerText = '—';
                 if (sbChip) sbChip.innerText = snap.active_chip || 'None';
             } else {
-                if (sbScore) sbScore.innerText = snap.starting_xi_points !== null ? snap.starting_xi_points : '—';
+                if (sbScore) sbScore.innerText = snap.net_gw_score !== undefined && snap.net_gw_score !== null ? snap.net_gw_score : (snap.starting_xi_points !== null ? snap.starting_xi_points : '—');
                 if (document.getElementById('scoreboard-score-unit')) document.getElementById('scoreboard-score-unit').innerText = 'PTS';
                 if (sbCap) sbCap.innerText = `+${snap.captain_bonus || 0} pts`;
                 if (sbBench) sbBench.innerText = `${snap.bench_points || 0} pts`;
                 if (sbXfer) sbXfer.innerText = `${snap.transfers_count || 0} (-${snap.points_cost || 0} pts)`;
                 if (sbOverall) sbOverall.innerText = snap.overall_points !== null ? `${snap.overall_points} pts` : '—';
-                if (sbChip) sbChip.innerText = snap.active_chip ? snap.active_chip.toUpperCase() : 'None';
+                if (sbChip) sbChip.innerText = snap.active_chip_display ? snap.active_chip_display : (snap.active_chip ? snap.active_chip.toUpperCase() : 'None');
             }
 
             renderUserSquadPage(snap);
@@ -1014,7 +1014,16 @@
             if (document.getElementById('hist-sum-avg')) document.getElementById('hist-sum-avg').innerText = metrics.gw_avg ? metrics.gw_avg.toFixed(1) : '—';
             if (document.getElementById('hist-sum-best')) document.getElementById('hist-sum-best').innerText = `${metrics.best_gw || 0} PTS`;
             if (document.getElementById('hist-sum-worst')) document.getElementById('hist-sum-worst').innerText = `${metrics.worst_gw || 0} PTS`;
-            if (document.getElementById('hist-sum-rank')) document.getElementById('hist-sum-rank').innerText = metrics.current_rank ? `#${metrics.current_rank.toLocaleString()}` : '—';
+            
+            const rankEl = document.getElementById('hist-sum-rank');
+            if (rankEl) {
+                if (metrics.current_rank === 'NOT_LINKED' || !metrics.current_rank) {
+                    rankEl.innerText = 'Not linked';
+                    rankEl.style.fontSize = '0.9rem';
+                } else {
+                    rankEl.innerText = `#${metrics.current_rank.toLocaleString()}`;
+                }
+            }
             if (document.getElementById('hist-sum-xfers')) document.getElementById('hist-sum-xfers').innerText = `${metrics.total_transfers || 0}`;
 
             const chipGrid = document.getElementById('chips-status-grid');
@@ -1045,7 +1054,15 @@
 
                     const ptsDisplay = r.net_gw_score !== null ? `<span style="font-weight:900; color:var(--accent-green);">${r.net_gw_score}</span>` : '—';
                     const xferDisplay = r.status !== 'UPCOMING' ? `${r.transfers_count} (-${r.points_cost}pts)` : '—';
-                    const rankDisplay = r.overall_rank ? `#${r.overall_rank.toLocaleString()}` : '—';
+                    
+                    let rankDisplay = '—';
+                    if (r.overall_rank === 'NOT_LINKED') {
+                        rankDisplay = '<span style="font-size:0.72rem; color:var(--text-muted); font-weight:600;" title="Connect an FPL Manager ID to display official overall rank">NOT LINKED</span>';
+                    } else if (typeof r.overall_rank === 'number') {
+                        rankDisplay = `#${r.overall_rank.toLocaleString()}`;
+                    } else if (r.overall_rank) {
+                        rankDisplay = r.overall_rank;
+                    }
 
                     return `
                         <tr onclick="onGameweekSelectChange(${r.gw})" style="${rowStyle} border-bottom:1px solid var(--bg-border); cursor:pointer;" class="history-row-hover">
@@ -1243,7 +1260,27 @@
 
             if (bankInput) bankInput.value = ((userSquadCache.bank || 0) / 10.0).toFixed(1);
             if (ftInput) ftInput.value = userSquadCache.free_transfers || 1;
-            if (chipInput) chipInput.value = userSquadCache.active_chip || 'none';
+
+            if (chipInput) {
+                const usedMap = userSquadCache.used_chips_map || {};
+                const active = (userSquadCache.active_chip || 'none').toLowerCase();
+                const chips = [
+                    { key: 'none', label: 'None' },
+                    { key: 'wildcard', label: 'Wildcard' },
+                    { key: 'freehit', label: 'Free Hit' },
+                    { key: 'benchboost', label: 'Bench Boost' },
+                    { key: 'triplecaptain', label: 'Triple Captain' }
+                ];
+                chipInput.innerHTML = chips.map(c => {
+                    const usedGw = usedMap[c.key];
+                    const isCurr = (active === c.key);
+                    const isDis = usedGw && !isCurr;
+                    const disAttr = isDis ? 'disabled' : '';
+                    const selAttr = isCurr ? 'selected' : '';
+                    const labelText = isDis ? `${c.label} (USED — GW${usedGw})` : c.label;
+                    return `<option value="${c.key}" ${disAttr} ${selAttr}>${labelText}</option>`;
+                }).join('');
+            }
 
             renderEditorSquadList();
             renderEditorPlayerPicker();

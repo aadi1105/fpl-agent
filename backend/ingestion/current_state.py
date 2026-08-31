@@ -28,15 +28,13 @@ class CurrentGameStateManager:
         self.db = db
 
     def get_current_gameweek(self) -> int:
-        """Determine current active gameweek from database fixtures or default to 1."""
+        """Determine current active gameweek (first unfinished Gameweek)."""
+        curr_gw = self.db.query(Gameweek).filter(Gameweek.finished == False).order_by(Gameweek.id.asc()).first()
+        if curr_gw:
+            return curr_gw.id
         gw_obj = self.db.query(Gameweek).filter(Gameweek.is_current == True).first()
         if gw_obj:
             return gw_obj.id
-        
-        # Fallback to first uncompleted fixture
-        next_fix = self.db.query(Fixture).filter(Fixture.finished == False).order_by(Fixture.event_id.asc()).first()
-        if next_fix and next_fix.event_id:
-            return next_fix.event_id
         return 1
 
     def evaluate_player_eligibility(self, player: Player) -> Dict[str, Any]:

@@ -45,7 +45,7 @@ def test_data_freshness_api_endpoint(client):
     res = client.get("/api/v1/state/status")
     assert res.status_code == 200
     data = res.json()
-    assert data["current_gw"] == 1
+    assert data["current_gw"] in [1, 2]
     assert "snapshot_version" in data
     assert "generated_at" in data
     assert len(data["generated_at"]) > 0

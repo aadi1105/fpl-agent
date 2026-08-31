@@ -167,6 +167,9 @@ class UserSquadManager:
         cap_obj = next((p for p in starters if p["is_captain"]), None)
         vc_obj = next((p for p in starters if p["is_vice_captain"]), None)
 
+        from backend.services.fpl_history_service import FPLHistoryService
+        used_chips_map = FPLHistoryService(self.db).get_used_chips_map(squad.fpl_entry_id)
+
         return {
             "squad_id": squad.id,
             "name": squad.name,
@@ -177,6 +180,7 @@ class UserSquadManager:
             "bank_str": f"£{squad.bank / 10.0:.1f}m",
             "free_transfers": squad.free_transfers,
             "active_chip": squad.active_chip,
+            "used_chips_map": used_chips_map,
             "starting_xi_xp": round(starting_xi_xp, 2),
             "bench_xp": round(bench_xp, 2),
             "squad_total_xp": round(starting_xi_xp + bench_xp, 2),
