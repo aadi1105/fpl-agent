@@ -1,8 +1,8 @@
 # PROJECT STATE — SINGLE SOURCE OF TRUTH
 
-**Last Updated**: 2026-08-30  
-**Phase**: Phase 3N.22 — Fix Gameweek History Using Correct FPL Manager + Current Gameweek  
-**Current Directive**: **`VERDICT: ACCEPTANCE PASSED. FIXED MANAGER ENTRY ID RESOLUTION IN FPLHISTORYSERVICE (BACKEND/SERVICES/FPL_HISTORY_SERVICE.PY). ELIMINATED FALLBACK TO ENTRY ID 1 (STRANGER SQUAD). FOR UNLINKED ACCOUNTS, GAMEWEEK SNAPSHOT CONSUMES THE USER'S OWN SAVED SQUAD (HAALAND, B.FERNANDES, MBEUMO, RAYA, CALAFIORI, SZOBOSZLAI...). FOR LINKED ACCOUNTS, VALIDATED REQUESTED_ENTRY_ID == CONFIGURED_ENTRY_ID (RETURNING EXPLICIT MANAGER_MISMATCH ERROR ON UNLINKED IDS). FIXED GAMEWEEK STATUS LABELING: GW1 IS COMPLETED, GW2 IS LIVE, GW3+ IS UPCOMING. ISOLATED CACHE KEYS BY ENTRY_ID AND GAMEWEEK (ENTRY_PICKS_{ENTRY_ID}_GW_{GW}). CREATED TEST SUITE (TESTS/TEST_PHASE3N22_MANAGER_ID_AND_GAMEWEEK_FIX.PY). ALL 120 TESTS PASSING CLEANLY ACROSS ALL 26 TEST SUITES.`**  
+**Last Updated**: 2026-08-31  
+**Phase**: Phase 3N.23 — Immutable Gameweek Team History + Bench Points + Season History + Chips  
+**Current Directive**: **`VERDICT: ACCEPTANCE PASSED. CREATED GAMEWEEKTEAMSNAPSHOT DB MODEL (BACKEND/MODELS.PY). FIXED BENCH PLAYER POINTS CALCULATION IN CREATEPLAYERCARD (FRONTEND/INDEX.HTML), RESOLVING RAW ACTUAL POINTS (SANGARÉ 14 PTS, THOMAS 3 PTS, VAN EWIJK 1 PT, KINSKY 3 PTS -> 21 BENCH PTS TOTAL). IMPLEMENTED IMMUTABLE GAMEWEEK SNAPSHOT FREEZING FOR COMPLETED GAMEWEEKS. ISOLATED CURRENT EDITABLE SQUAD FROM HISTORICAL SNAPSHOTS (MUTATING CURRENT SQUAD NEVER MUTATES GW1 SNAPSHOT). ADDED GET_SEASON_HISTORY IN FPLHISTORYSERVICE AND REGISTERED GET /API/V1/USER-SQUAD/SEASON-HISTORY ENDPOINT. ADDED DEDICATED CHIP STATUS PANEL, SEASON SUMMARY BAR, AND CLICKABLE GAMEWEEK SEASON HISTORY TABLE TO MY TEAM COMMAND CENTER. CREATED TEST SUITE (TESTS/TEST_PHASE3N23_IMMUTABLE_SNAPSHOTS_AND_SEASON_HISTORY.PY). ALL 126 TESTS PASSING CLEANLY ACROSS ALL 27 TEST SUITES.`**  
 
 ---
 
@@ -32,23 +32,25 @@ The active production pipeline evaluates player projections via `backend/project
 | **Current State Engine**| `CurrentGameStateManager`| `2026_27_GW1_STATE_v1` | `backend/ingestion/current_state.py` | `Active State Snapshot Layer` |
 | **FPL History Service**| `FPLHistoryService` | Gameweek History & Live API | `backend/services/fpl_history_service.py` | `Historical Picks & Live Scoring Service` |
 | **User Squad Manager** | `UserSquadManager` | Persistent My Team V2 | `backend/user/user_squad.py` | `Persistent User Squad View V2` |
+| **Gameweek Snapshot** | `GameweekTeamSnapshot` | Frozen Historical Snapshots | `backend/models.py` | `Immutable Gameweek Snapshot DB Model` |
 
 ---
 
 ## C. VALIDATED COMPONENTS & EMPIRICAL RESULTS
 
-1. **Phase 3N.22 Manager Entry ID & Gameweek Detection Fix**:
-   - Eliminated fallback to Entry ID `1` (stranger squad).
-   - Bound Gameweek snapshots to the user's actual saved squad (`Haaland, B.Fernandes, Mbeumo, Raya, Calafiori, Szoboszlai...`).
-   - Fixed Gameweek status labeling (`GW1 COMPLETED`, `GW2 🔴 LIVE`, `GW3 UPCOMING`).
-   - Isolated cache keys by manager `entry_id` & `gameweek`.
-   - Test suite passing: **120 / 120 tests passing**.
+1. **Phase 3N.23 Immutable Gameweek Team History + Bench Points + Season History + Chips**:
+   - Resolved raw bench player actual points (21 pts total).
+   - Created `GameweekTeamSnapshot` model for freezing completed Gameweek snapshots.
+   - Enforced complete isolation between Current Editable Squad and Historical Snapshots.
+   - Built Season Gameweek History Table, Season Summary Metrics, and Chip Status panel.
+   - Registered `GET /api/v1/user-squad/season-history` REST endpoint.
+   - Test suite passing: **126 / 126 tests passing**.
    - Safety verdict: **`ACCEPTANCE PASSED`**.
 
 ---
 
 ## D. CURRENT STOP CONDITION
 
-**WE HAVE COMPLETED PHASE 3N.22 FIX GAMEWEEK HISTORY USING CORRECT FPL MANAGER + CURRENT GAMEWEEK.**  
+**WE HAVE COMPLETED PHASE 3N.23 IMMUTABLE GAMEWEEK TEAM HISTORY + BENCH POINTS + SEASON HISTORY + CHIPS.**  
 **SAFETY VERDICT: ACCEPTANCE PASSED.**  
 **AWAITING USER DIRECTION FOR NEXT PHASE.**

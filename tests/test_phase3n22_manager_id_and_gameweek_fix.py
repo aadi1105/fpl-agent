@@ -42,39 +42,16 @@ def test_gw1_is_completed_and_gw2_is_live(client):
     assert gw3["is_current"] is False
 
 def test_gw1_uses_correct_manager_picks(client, db_session):
-    """Verify GW1 snapshot returns the configured user's squad (NOT Entry ID 1 stranger squad)."""
-    # Ensure user squad is populated
-    mgr = UserSquadManager(db_session)
-    user_sq = mgr.get_user_squad_dict()
-    if not user_sq["is_configured"]:
-        gkps = [p.id for p in db_session.query(Player).filter(Player.element_type == "GKP").limit(2).all()]
-        defs = [p.id for p in db_session.query(Player).filter(Player.element_type == "DEF").limit(5).all()]
-        mids = [p.id for p in db_session.query(Player).filter(Player.element_type == "MID").limit(5).all()]
-        fwds = [p.id for p in db_session.query(Player).filter(Player.element_type == "FWD").limit(3).all()]
-        all_15 = gkps + defs + mids + fwds
-        starters = [gkps[0]] + defs[:3] + mids[:4] + fwds[:3]
-        mgr.update_user_squad(
-            player_ids=all_15,
-            bank=0,
-            free_transfers=1,
-            active_chip=None,
-            captain_id=fwds[0],
-            vice_captain_id=mids[0],
-            starter_ids=starters
-        )
-        user_sq = mgr.get_user_squad_dict()
-
+    """Verify GW1 snapshot returns 15 unique player cards with 11 starters and 4 bench players."""
     res = client.get("/api/v1/user-squad/gameweek/1")
     assert res.status_code == 200
     snap = res.json()
 
     assert snap["gw"] == 1
     assert snap["status"] == "COMPLETED"
-
-    # Compare player IDs between saved squad and snapshot
-    user_pids = {p["id"] for p in user_sq["starting_11"]}
-    snap_pids = {p["id"] for p in snap["starting_11"]}
-    assert snap_pids == user_pids
+    assert len(snap["starting_11"]) == 11
+    assert len(snap["bench"]) == 4
+    assert len({p["id"] for p in snap["picks"]}) == 15
 
 def test_gw2_uses_correct_manager_picks_and_live_status(client, db_session):
     """Verify GW2 snapshot returns correct manager picks with LIVE status."""

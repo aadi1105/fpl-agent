@@ -65,15 +65,17 @@
 | **Phase 3N.20**| My Team Projection Integrity + Model Audit Repair + Default Landing Page | **COMPLETED (VERIFIED)** | August 2026 |
 | **Phase 3N.21**| My Team Gameweek History + Live FPL Scoring | **COMPLETED (VERIFIED)** | August 2026 |
 | **Phase 3N.22**| Fix Gameweek History Using Correct FPL Manager + Current Gameweek | **COMPLETED (VERIFIED)** | August 2026 |
+| **Phase 3N.23**| Immutable Gameweek Team History + Bench Points + Season History + Chips | **COMPLETED (VERIFIED)** | August 2026 |
 
 ---
 
 ## 📑 Completed Phases Detail
 
-### Phase 3N.22 — Fix Gameweek History Using Correct FPL Manager + Current Gameweek
-* Eliminated arbitrary fallback to Entry ID `1` (stranger squad).
-* Bound Gameweek snapshots to the user's actual saved squad (`Haaland, B.Fernandes, Mbeumo, Raya, Calafiori, Szoboszlai...`).
-* Fixed Gameweek status labeling (`GW1 COMPLETED`, `GW2 🔴 LIVE`, `GW3 UPCOMING`).
-* Isolated cache keys by manager `entry_id` & `gameweek`.
-* Added test suite [`tests/test_phase3n22_manager_id_and_gameweek_fix.py`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/tests/test_phase3n22_manager_id_and_gameweek_fix.py) (120/120 total tests passing).
-* Full details in [`docs/phases/PHASE_3N22_MANAGER_ID_AND_GAMEWEEK_FIX.md`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/docs/phases/PHASE_3N22_MANAGER_ID_AND_GAMEWEEK_FIX.md).
+### Phase 3N.23 — Immutable Gameweek Team History + Bench Points + Season History + Chips
+* Created `GameweekTeamSnapshot` DB model in `backend/models.py` for freezing completed Gameweek snapshots.
+* Fixed bench player actual points display in `createPlayerCard` in `frontend/index.html` (Sangaré 14 pts, Thomas 3 pts, van Ewijk 1 pt, Kinsky 3 pts -> 21 bench pts total).
+* Enforced 100% isolation between Current Editable Squad and Historical Gameweek Snapshots.
+* Built Season Gameweek History Table, Season Summary Metrics, and Chip Status panel.
+* Added REST endpoint `GET /api/v1/user-squad/season-history`.
+* Added test suite [`tests/test_phase3n23_immutable_snapshots_and_season_history.py`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/tests/test_phase3n23_immutable_snapshots_and_season_history.py) (126/126 total tests passing).
+* Full details in [`docs/phases/PHASE_3N23_IMMUTABLE_SNAPSHOTS_AND_SEASON_HISTORY.md`](file:///C:/Users/RAJIV%20KUMAR/fpl-agent/docs/phases/PHASE_3N23_IMMUTABLE_SNAPSHOTS_AND_SEASON_HISTORY.md).

@@ -544,6 +544,59 @@
                     <div style="margin-top:16px;" id="comp-transfers-table-container"></div>
                 </div>
             </div>
+
+            <!-- DEDICATED CHIP STATUS SECTION -->
+            <div class="pitch-card" style="margin-top:20px; margin-bottom:20px;">
+                <div style="font-family:var(--font-display); font-weight:800; font-size:1.1rem; color:#fff; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between;">
+                    <span>🎟️ CHIP STATUS & AVAILABILITY</span>
+                    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Official FPL Season Chip History</span>
+                </div>
+
+                <div id="chips-status-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:12px;">
+                    <!-- Dynamically filled by JS -->
+                </div>
+            </div>
+
+            <!-- SEASON SUMMARY & GAMEWEEK HISTORY TABLE -->
+            <div class="pitch-card" style="margin-bottom:24px;">
+                <div style="font-family:var(--font-display); font-weight:800; font-size:1.2rem; color:#fff; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                    <span>📊 SEASON GAMEWEEK HISTORY & PERFORMANCE</span>
+                    <span style="font-size:0.75rem; color:var(--accent-cyan); font-weight:700;">Click any row to view full Gameweek squad snapshot</span>
+                </div>
+
+                <!-- Compact Season Summary Bar -->
+                <div style="display:flex; gap:20px; background:#121824; border:1px solid var(--bg-border); padding:12px 18px; border-radius:10px; margin-bottom:16px; flex-wrap:wrap; font-size:0.82rem;">
+                    <div><div style="color:var(--text-muted); font-size:0.68rem; font-weight:800;">TOTAL POINTS</div><div id="hist-sum-total" style="font-weight:900; font-size:1.1rem; color:#fff;">—</div></div>
+                    <div><div style="color:var(--text-muted); font-size:0.68rem; font-weight:800;">GW AVG</div><div id="hist-sum-avg" style="font-weight:900; font-size:1.1rem; color:var(--accent-cyan);">—</div></div>
+                    <div><div style="color:var(--text-muted); font-size:0.68rem; font-weight:800;">BEST GW</div><div id="hist-sum-best" style="font-weight:900; font-size:1.1rem; color:var(--accent-green);">—</div></div>
+                    <div><div style="color:var(--text-muted); font-size:0.68rem; font-weight:800;">WORST GW</div><div id="hist-sum-worst" style="font-weight:900; font-size:1.1rem; color:#fca5a5;">—</div></div>
+                    <div><div style="color:var(--text-muted); font-size:0.68rem; font-weight:800;">OVERALL RANK</div><div id="hist-sum-rank" style="font-weight:900; font-size:1.1rem; color:var(--accent-yellow);">—</div></div>
+                    <div><div style="color:var(--text-muted); font-size:0.68rem; font-weight:800;">TOTAL TRANSFERS</div><div id="hist-sum-xfers" style="font-weight:900; font-size:1.1rem; color:#fff;">—</div></div>
+                </div>
+
+                <!-- Season History Table -->
+                <div style="overflow-x:auto;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.85rem; text-align:left;">
+                        <thead>
+                            <tr style="border-bottom:1px solid var(--bg-border); color:var(--text-muted); font-size:0.72rem; text-transform:uppercase;">
+                                <th style="padding:10px;">GW</th>
+                                <th style="padding:10px;">STATUS</th>
+                                <th style="padding:10px;">GW POINTS</th>
+                                <th style="padding:10px;">CAPTAIN</th>
+                                <th style="padding:10px;">BENCH PTS</th>
+                                <th style="padding:10px;">TRANSFERS</th>
+                                <th style="padding:10px;">CHIP</th>
+                                <th style="padding:10px;">OVERALL PTS</th>
+                                <th style="padding:10px;">OVERALL RANK</th>
+                                <th style="padding:10px;">TEAM VALUE</th>
+                            </tr>
+                        </thead>
+                        <tbody id="season-history-tbody">
+                            <!-- Filled dynamically by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <!-- PLAYER DATA TAB (PLAYER EXPLORER & RESEARCH TOOL) -->
@@ -780,6 +833,7 @@
             initControls();
             fetchStateStatus();
             fetchGameweeksList();
+            fetchSeasonHistory();
             fetchUserSquad();
             fetchDiagnostics();
             fetchConsensusAudit();
@@ -941,11 +995,82 @@
             renderUserSquadPage(snap);
         }
 
+        async function fetchSeasonHistory() {
+            try {
+                const res = await fetch('/api/v1/user-squad/season-history');
+                if (!res.ok) return;
+                const data = await res.json();
+                renderSeasonHistory(data);
+            } catch (e) {
+                console.error('Error fetching season history:', e);
+            }
+        }
+
+        function renderSeasonHistory(data) {
+            if (!data) return;
+
+            const metrics = data.summary_metrics || {};
+            if (document.getElementById('hist-sum-total')) document.getElementById('hist-sum-total').innerText = `${metrics.total_points || 0} PTS`;
+            if (document.getElementById('hist-sum-avg')) document.getElementById('hist-sum-avg').innerText = metrics.gw_avg ? metrics.gw_avg.toFixed(1) : '—';
+            if (document.getElementById('hist-sum-best')) document.getElementById('hist-sum-best').innerText = `${metrics.best_gw || 0} PTS`;
+            if (document.getElementById('hist-sum-worst')) document.getElementById('hist-sum-worst').innerText = `${metrics.worst_gw || 0} PTS`;
+            if (document.getElementById('hist-sum-rank')) document.getElementById('hist-sum-rank').innerText = metrics.current_rank ? `#${metrics.current_rank.toLocaleString()}` : '—';
+            if (document.getElementById('hist-sum-xfers')) document.getElementById('hist-sum-xfers').innerText = `${metrics.total_transfers || 0}`;
+
+            const chipGrid = document.getElementById('chips-status-grid');
+            if (chipGrid && data.chips_status) {
+                chipGrid.innerHTML = data.chips_status.map(c => {
+                    const isUsed = c.status.startsWith('USED');
+                    const color = isUsed ? 'var(--accent-yellow)' : 'var(--accent-green)';
+                    const bg = isUsed ? 'rgba(234, 179, 8, 0.08)' : 'rgba(34, 197, 94, 0.08)';
+                    const border = isUsed ? 'rgba(234, 179, 8, 0.3)' : 'rgba(34, 197, 94, 0.3)';
+                    return `
+                        <div style="background:${bg}; border:1px solid ${border}; padding:12px; border-radius:10px; text-align:center;">
+                            <div style="font-size:0.72rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">${c.label}</div>
+                            <div style="font-weight:900; font-size:0.88rem; color:${color}; margin-top:4px;">${c.status}</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            const tbody = document.getElementById('season-history-tbody');
+            if (tbody && data.history_rows) {
+                tbody.innerHTML = data.history_rows.map(r => {
+                    const isCurr = (r.gw === currentSelectedGameweek);
+                    const rowStyle = isCurr ? 'background:rgba(0, 160, 227, 0.15); font-weight:800;' : 'background:transparent;';
+                    let statusBadge = '';
+                    if (r.status === 'COMPLETED') statusBadge = '<span class="player-pos-badge pos-MID" style="font-size:0.7rem;">✓ COMPLETED</span>';
+                    else if (r.status === 'LIVE') statusBadge = '<span class="player-pos-badge pos-FWD" style="font-size:0.7rem;">🔴 LIVE</span>';
+                    else statusBadge = '<span class="player-pos-badge pos-DEF" style="font-size:0.7rem;">UPCOMING</span>';
+
+                    const ptsDisplay = r.net_gw_score !== null ? `<span style="font-weight:900; color:var(--accent-green);">${r.net_gw_score}</span>` : '—';
+                    const xferDisplay = r.status !== 'UPCOMING' ? `${r.transfers_count} (-${r.points_cost}pts)` : '—';
+                    const rankDisplay = r.overall_rank ? `#${r.overall_rank.toLocaleString()}` : '—';
+
+                    return `
+                        <tr onclick="onGameweekSelectChange(${r.gw})" style="${rowStyle} border-bottom:1px solid var(--bg-border); cursor:pointer;" class="history-row-hover">
+                            <td style="padding:10px; font-weight:800; color:var(--accent-cyan);">GW${r.gw}</td>
+                            <td style="padding:10px;">${statusBadge}</td>
+                            <td style="padding:10px; font-size:0.95rem;">${ptsDisplay}</td>
+                            <td style="padding:10px; font-weight:700;">${r.captain_name}</td>
+                            <td style="padding:10px;">${r.bench_points !== null ? r.bench_points + ' pts' : '—'}</td>
+                            <td style="padding:10px;">${xferDisplay}</td>
+                            <td style="padding:10px; color:var(--accent-yellow); font-weight:700;">${r.active_chip}</td>
+                            <td style="padding:10px; font-weight:700;">${r.overall_points !== null ? r.overall_points + ' pts' : '—'}</td>
+                            <td style="padding:10px;">${rankDisplay}</td>
+                            <td style="padding:10px;">${r.team_value_str}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+
         function onGameweekSelectChange(gwVal) {
             currentSelectedGameweek = parseInt(gwVal);
             renderGameweekSelector();
             renderGameweekHistoryStrip();
             loadGameweekSnapshot(currentSelectedGameweek);
+            fetchSeasonHistory();
         }
 
         function navigateGameweek(delta) {
@@ -2070,8 +2195,13 @@
 
             let scoreBoxHtml = '';
             if (p.actual_pts !== undefined && p.actual_pts !== null) {
-                const mult = p.effective_multiplier !== undefined ? p.effective_multiplier : (p.is_captain ? 2 : (p.multiplier || 1));
-                const scoredPts = p.actual_pts * mult;
+                let scoredPts = 0;
+                if (p.is_starter) {
+                    const mult = p.effective_multiplier !== undefined ? p.effective_multiplier : (p.is_captain ? 2 : (p.multiplier || 1));
+                    scoredPts = p.actual_pts * (mult > 0 ? mult : 1);
+                } else {
+                    scoredPts = p.actual_pts;
+                }
                 scoreBoxHtml = `
                     <div style="margin-top:4px; display:flex; justify-content:center; gap:4px; align-items:center; flex-wrap:wrap;">
                         <span style="background:var(--accent-green); color:#0c1220; font-weight:800; padding:2px 7px; border-radius:5px; font-size:0.75rem;">${scoredPts} pts</span>

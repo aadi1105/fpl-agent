@@ -127,6 +127,38 @@ class Fixture(Base):
     home_team = relationship("Team", foreign_keys=[team_h_id], back_populates="home_fixtures")
     away_team = relationship("Team", foreign_keys=[team_a_id], back_populates="away_fixtures")
 
+class GameweekTeamSnapshot(Base):
+    __tablename__ = "gameweek_team_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    fpl_entry_id = Column(Integer, nullable=True, index=True)
+    gameweek_id = Column(Integer, ForeignKey("gameweeks.id"), nullable=False, index=True)
+
+    picks_json = Column(Text, nullable=False)
+    starting_xi_ids = Column(Text, nullable=False)
+    bench_ids = Column(Text, nullable=False)
+
+    captain_id = Column(Integer, nullable=True)
+    vice_captain_id = Column(Integer, nullable=True)
+    active_chip = Column(String(50), default="none")
+
+    starting_xi_points = Column(Integer, default=0)
+    captain_bonus = Column(Integer, default=0)
+    bench_points = Column(Integer, default=0)
+    transfers_count = Column(Integer, default=0)
+    points_cost = Column(Integer, default=0)
+    net_gw_score = Column(Integer, default=0)
+
+    overall_points = Column(Integer, nullable=True)
+    overall_rank = Column(Integer, nullable=True)
+    gw_rank = Column(Integer, nullable=True)
+    bank = Column(Integer, default=0)
+    team_value = Column(Integer, default=1000)
+
+    is_final = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 class PlayerProjection(Base):
     __tablename__ = "player_projections"
 

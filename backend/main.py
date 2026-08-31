@@ -928,6 +928,15 @@ def get_player_non_selection_trace(player_query: str, mode: str = Query("MEDIUM_
         raise
     except Exception as e:
         logger.error(f"Error executing non-selection trace: {e}", exc_info=True)
+@app.get("/api/v1/user-squad/season-history", tags=["User Squad"])
+def get_season_history_data(fpl_entry_id: Optional[int] = Query(None), db: Session = Depends(get_db)):
+    """Return Season Gameweek History table, summary metrics, and chip status list."""
+    try:
+        from backend.services.fpl_history_service import FPLHistoryService
+        service = FPLHistoryService(db)
+        return service.get_season_history(fpl_entry_id=fpl_entry_id)
+    except Exception as e:
+        logger.error(f"Error fetching season history: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 # Static files for Frontend dashboard
