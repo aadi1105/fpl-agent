@@ -614,6 +614,33 @@ def optimize_squad(req: OptimizationRequest, db: Session = Depends(get_db)):
         logger.error(f"Error optimizing squad: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/v1/optimize/debug", tags=["Optimization"])
+def explain_optimization_get(
+    mode: str = "NEXT_GW",
+    current_gw: int = 1,
+    projection_source: str = "internal",
+    db: Session = Depends(get_db)
+):
+    """Return forensic explanation and debug audit report for an optimizer run."""
+    try:
+        from backend.ingestion.current_state import CurrentGameStateManager
+        state_mgr = CurrentGameStateManager(db)
+        if current_gw == 1:
+            current_gw = state_mgr.get_current_gameweek()
+            
+        proj_engine = ProjectionEngine(db)
+        proj_engine.run_projections(start_gw=current_gw, end_gw=min(38, current_gw + 3), source=projection_source)
+
+        optimizer = SquadOptimizer(db)
+        return optimizer.explain_optimization(
+            mode=mode,
+            current_gw=current_gw,
+            projection_source=projection_source
+        )
+    except Exception as e:
+        logger.error(f"Error in optimization debug: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
 from backend.optimizer.progress_manager import progress_manager, OPTIMIZATION_STAGES
 import threading
 

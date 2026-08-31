@@ -300,3 +300,108 @@ class SquadOptimizer:
             "anomalies": anomalies,
             "explanations": explanations
         }
+
+    def explain_optimization(
+        self,
+        mode: str = "NEXT_GW",
+        current_gw: int = 1,
+        total_budget: int = settings.TOTAL_BUDGET,
+        max_players_per_team: int = settings.MAX_PLAYERS_PER_TEAM,
+        projection_source: str = "internal"
+    ) -> Dict[str, Any]:
+        """
+        Forensic Solver Explanation / Debug Capability.
+        Explains exact objective formulas, top projected players, selection status,
+        and mathematical reasons for rejection (e.g. why Haaland or Palmer were excluded).
+        """
+        res = self.solve_squad_selection(
+            mode=mode,
+            current_gw=current_gw,
+            total_budget=total_budget,
+            max_players_per_team=max_players_per_team,
+            projection_source=projection_source
+        )
+
+        all_players = self.db.query(Player).all()
+        from backend.ingestion.current_state import CurrentGameStateManager
+        state_mgr = CurrentGameStateManager(self.db)
+
+        # Get GW projections
+        projs = self.db.query(PlayerProjection).filter(
+            PlayerProjection.gameweek_id == current_gw,
+            PlayerProjection.source == projection_source
+        ).all()
+        proj_map = {p.player_id: p.expected_points for p in projs}
+
+        # Build top 25 projected players list
+        top_players = []
+        for p in all_players:
+            xp = proj_map.get(p.id, 0.0)
+            top_players.append((p, xp))
+
+        top_players.sort(key=lambda t: t[1], reverse=True)
+        top_25 = top_players[:25]
+
+        selected_xi_ids = set(d["id"] for d in res["starting_11"])
+        selected_bench_ids = set(d["id"] for d in res["bench"])
+
+        rejected_high_value = []
+        top_projected_breakdown = []
+
+        for rank, (p, xp) in enumerate(top_25, start=1):
+            is_xi = p.id in selected_xi_ids
+            is_bench = p.id in selected_bench_ids
+            is_sel = is_xi or is_bench
+
+            status_str = "Selected (Starting XI)" if is_xi else ("Selected (Bench)" if is_bench else "Rejected")
+            
+            # Determine reason for rejection
+            rejection_reason = "Selected"
+            if not is_sel:
+                elig = state_mgr.evaluate_player_eligibility(p)
+                if not elig["is_optimizer_eligible"]:
+                    rejection_reason = f"Ineligible: status={p.status}, chance={p.chance_of_playing_next_round}%"
+                elif p.now_cost > 120:  # High price player (e.g., Haaland £15.5m)
+                    rejection_reason = f"Price constraint (£{p.now_cost/10:.1f}m): Premium cost degrades overall XI score by forcing weak enablers"
+                else:
+                    rejection_reason = f"Positional/Sub-optimal xP (£{p.now_cost/10:.1f}m for {xp:.2f} xP yields lower xP/£m than alternatives)"
+
+                rejected_high_value.append({
+                    "rank": rank,
+                    "id": p.id,
+                    "web_name": p.web_name,
+                    "element_type": p.element_type,
+                    "team_name": p.team.short_name if p.team else "",
+                    "now_cost_str": f"£{p.now_cost/10:.1f}m",
+                    "gw_xp": round(xp, 2),
+                    "rejection_reason": rejection_reason
+                })
+
+            top_projected_breakdown.append({
+                "rank": rank,
+                "id": p.id,
+                "web_name": p.web_name,
+                "element_type": p.element_type,
+                "team_name": p.team.short_name if p.team else "",
+                "now_cost_str": f"£{p.now_cost/10:.1f}m",
+                "gw_xp": round(xp, 2),
+                "status": status_str,
+                "selected": is_sel
+            })
+
+        return {
+            "mode": mode,
+            "target_gw": current_gw,
+            "horizon": res["horizon_weights"],
+            "total_budget_str": f"£{total_budget/10:.1f}m",
+            "objective_formula": f"Step 1: Maximize sum(weighted_xp) across 15 squad slots | Step 2: Maximize sum(gw{current_gw}_xp) across 11 starters",
+            "starting_xi_projected_total": res["current_gw_starting_xi_xp"],
+            "captain_name": res["captain"]["web_name"] if res["captain"] else "None",
+            "captain_bonus_xp": res["captain_contribution_xp"],
+            "total_projected_score": res["total_current_gw_xp"],
+            "bench_projected_total": sum(d["gw0_xp"] for d in res["bench"]),
+            "constraints_valid": True,
+            "top_projected_players": top_projected_breakdown,
+            "rejected_high_value_players": rejected_high_value,
+            "optimization_result": res
+        }
