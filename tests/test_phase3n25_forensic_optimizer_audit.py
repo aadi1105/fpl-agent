@@ -131,7 +131,7 @@ def test_explain_optimization_debug_endpoint(client):
     
     assert data["mode"] == "NEXT_GW"
     assert data["target_gw"] == 2
-    assert "objective_formula" in data
+    assert "primary_objective" in data
     assert "top_projected_players" in data
     assert "rejected_high_value_players" in data
     assert len(data["top_projected_players"]) > 0

@@ -22,12 +22,19 @@ class SquadOptimizer:
         projection_source: str = "internal",
         weights: Optional[List[float]] = None,
         banned_player_ids: Optional[List[int]] = None,
-        locked_player_ids: Optional[List[int]] = None
+        locked_player_ids: Optional[List[int]] = None,
+        is_bench_boost: bool = False
     ) -> Dict[str, Any]:
         """
-        Two-Step Optimization:
-        Step 1 (Squad Selection): Select 15-man squad maximizing Weighted 4-GW outlook.
-        Step 2 (Lineup Selection): Select 11 starting players for CURRENT GAMEWEEK maximizing GW0 xP.
+        Phase 3N.26 — Starting-XI-First Lexicographic MILP Optimization Architecture.
+        
+        Primary Objective (Stage 1):
+        - Standard Mode: Maximize Expected Points of the 11 Starting XI players + Captain Bonus.
+        - Bench Boost Mode: Maximize Expected Points of ALL 15 Squad players + Captain Bonus.
+        
+        Secondary Objective (Stage 2):
+        - Lock Stage 1 Starting XI score (Z1*), then maximize Bench Quality (4 bench players)
+          without sacrificing starting XI points.
         """
         banned_player_ids = banned_player_ids or []
         locked_player_ids = locked_player_ids or []
@@ -73,13 +80,11 @@ class SquadOptimizer:
             PlayerProjection.source == projection_source
         ).all()
 
-        # Map player per-GW expected points
         player_gw_xp: Dict[int, Dict[int, float]] = {p.id: {} for p in players}
         for proj in projections:
             if proj.player_id in player_gw_xp:
                 player_gw_xp[proj.player_id][proj.gameweek_id] = proj.expected_points
 
-        # Calculate per-player weighted xP across 4-GW horizon
         player_weighted_xp: Dict[int, float] = {}
         player_gw0_xp: Dict[int, float] = {}
 
@@ -95,115 +100,151 @@ class SquadOptimizer:
             
             player_weighted_xp[pid] = round(weighted, 2)
 
-        # -------------------------------------------------------------
-        # STEP 1: SQUAD SELECTION (15 Players)
-        # -------------------------------------------------------------
-        solver1 = pywraplp.Solver.CreateSolver('CBC')
-        if not solver1:
-            solver1 = pywraplp.Solver.CreateSolver('SCIP')
-        if not solver1:
-            raise RuntimeError("OR-Tools solver CBC/SCIP not available.")
-
-        x = {p.id: solver1.BoolVar(f"x_{p.id}") for p in players}
-
         from backend.ingestion.current_state import CurrentGameStateManager
         state_mgr = CurrentGameStateManager(self.db)
-        
-        # Enforce current availability & eligibility constraints
+
+        # -------------------------------------------------------------
+        # STAGE 1: PRIMARY OBJECTIVE MILP (STARTING XI OPTIMIZATION)
+        # -------------------------------------------------------------
+        solver1 = pywraplp.Solver.CreateSolver('CBC')
+        if not solver1: solver1 = pywraplp.Solver.CreateSolver('SCIP')
+        if not solver1: raise RuntimeError("OR-Tools CBC/SCIP solver unavailable.")
+
+        x1 = {p.id: solver1.BoolVar(f"x1_{p.id}") for p in players}
+        s1 = {p.id: solver1.BoolVar(f"s1_{p.id}") for p in players}
+        b1 = {p.id: solver1.BoolVar(f"b1_{p.id}") for p in players}
+        c1 = {p.id: solver1.BoolVar(f"c1_{p.id}") for p in players}
+        v1 = {p.id: solver1.BoolVar(f"v1_{p.id}") for p in players}
+
         for p in players:
             elig_info = state_mgr.evaluate_player_eligibility(p)
             if not elig_info["is_optimizer_eligible"]:
-                if p.id in x and p.id not in locked_player_ids:
-                    solver1.Add(x[p.id] == 0)
+                if p.id not in locked_player_ids:
+                    solver1.Add(x1[p.id] == 0)
+
+            solver1.Add(x1[p.id] == s1[p.id] + b1[p.id])
+            solver1.Add(c1[p.id] <= s1[p.id])
+            solver1.Add(v1[p.id] <= s1[p.id])
+            solver1.Add(c1[p.id] + v1[p.id] <= 1)
 
         for pid in banned_player_ids:
-            if pid in x: solver1.Add(x[pid] == 0)
+            if pid in x1: solver1.Add(x1[pid] == 0)
         for pid in locked_player_ids:
-            if pid in x: solver1.Add(x[pid] == 1)
+            if pid in x1: solver1.Add(x1[pid] == 1)
 
-        # 1. Total Squad Size = 15
-        solver1.Add(solver1.Sum([x[p.id] for p in players]) == settings.SQUAD_SIZE)
+        solver1.Add(solver1.Sum([x1[p.id] for p in players]) == settings.SQUAD_SIZE)
+        solver1.Add(solver1.Sum([s1[p.id] for p in players]) == 11)
+        solver1.Add(solver1.Sum([b1[p.id] for p in players]) == 4)
+        solver1.Add(solver1.Sum([c1[p.id] for p in players]) == 1)
+        solver1.Add(solver1.Sum([v1[p.id] for p in players]) == 1)
 
-        # 2. Total Budget <= total_budget (in tenths, e.g. 1000 = £100.0m)
-        solver1.Add(solver1.Sum([p.now_cost * x[p.id] for p in players]) <= total_budget)
+        solver1.Add(solver1.Sum([p.now_cost * x1[p.id] for p in players]) <= total_budget)
 
-        # 3. Position counts (2 GKP, 5 DEF, 5 MID, 3 FWD)
         for pos, count in settings.POSITION_COUNTS.items():
             pos_players = [p for p in players if p.element_type == pos]
-            solver1.Add(solver1.Sum([x[p.id] for p in pos_players]) == count)
+            solver1.Add(solver1.Sum([x1[p.id] for p in pos_players]) == count)
 
-        # 4. Max 3 players per club
+        for pos, (min_start, max_start) in settings.STARTING_FORMATION_LIMITS.items():
+            pos_players = [p for p in players if p.element_type == pos]
+            solver1.Add(solver1.Sum([s1[p.id] for p in pos_players]) >= min_start)
+            solver1.Add(solver1.Sum([s1[p.id] for p in pos_players]) <= max_start)
+
         for team in teams:
-            team_players = [p for p in players if p.team_id == team.id]
-            solver1.Add(solver1.Sum([x[p.id] for p in team_players]) <= max_players_per_team)
+            t_players = [p for p in players if p.team_id == team.id]
+            solver1.Add(solver1.Sum([x1[p.id] for p in t_players]) <= max_players_per_team)
 
-        # Objective Step 1: Mode-Specific Objective Formulations
         obj1 = solver1.Objective()
-        for p in players:
-            pid = p.id
-            w_xp = player_weighted_xp.get(pid, 0.0)
-            
-            if mode == "STRONG_XI_DUMP_BENCH":
-                # Heavy cost penalty on enablers to dump bench cost into minimum enablers
-                cost_penalty = 0.025 * (p.now_cost / 10.0)
-                obj1.SetCoefficient(x[pid], w_xp - cost_penalty)
-            elif mode == "BALANCED_BENCH":
-                # Bonus for reliable playing minutes across entire 15-man squad
-                minutes_bonus = 0.015 * min(450.0, float(p.minutes))
-                obj1.SetCoefficient(x[pid], w_xp + minutes_bonus)
-            else:
-                obj1.SetCoefficient(x[pid], w_xp)
+        if is_bench_boost:
+            for p in players:
+                obj1.SetCoefficient(x1[p.id], player_weighted_xp.get(p.id, 0.0))
+                obj1.SetCoefficient(c1[p.id], player_gw0_xp.get(p.id, 0.0))
+        else:
+            for p in players:
+                obj1.SetCoefficient(s1[p.id], player_weighted_xp.get(p.id, 0.0))
+                obj1.SetCoefficient(c1[p.id], player_gw0_xp.get(p.id, 0.0))
 
         obj1.SetMaximization()
         status1 = solver1.Solve()
-
         if status1 not in [pywraplp.Solver.OPTIMAL, pywraplp.Solver.FEASIBLE]:
-            raise RuntimeError(f"Squad optimization failed with solver status code: {status1}")
+            raise RuntimeError(f"Stage 1 Optimization failed with solver status code: {status1}")
 
-        selected_squad = [p for p in players if x[p.id].solution_value() > 0.5]
-        selected_squad_ids = set(p.id for p in selected_squad)
+        z1_star = obj1.Value()
 
         # -------------------------------------------------------------
-        # STEP 2: CURRENT GAMEWEEK STARTING XI SELECTION (11 Players)
+        # STAGE 2: SECONDARY OBJECTIVE MILP (BENCH OPTIMIZATION)
+        # Lock Stage 1 starting XI score (Z1*), maximize bench xP
         # -------------------------------------------------------------
         solver2 = pywraplp.Solver.CreateSolver('CBC')
         if not solver2: solver2 = pywraplp.Solver.CreateSolver('SCIP')
 
-        s = {p.id: solver2.BoolVar(f"s_{p.id}") for p in selected_squad}
+        x2 = {p.id: solver2.BoolVar(f"x2_{p.id}") for p in players}
+        s2 = {p.id: solver2.BoolVar(f"s2_{p.id}") for p in players}
+        b2 = {p.id: solver2.BoolVar(f"b2_{p.id}") for p in players}
+        c2 = {p.id: solver2.BoolVar(f"c2_{p.id}") for p in players}
+        v2 = {p.id: solver2.BoolVar(f"v2_{p.id}") for p in players}
 
-        # 1. Starting XI count = 11
-        solver2.Add(solver2.Sum([s[p.id] for p in selected_squad]) == 11)
+        for p in players:
+            elig_info = state_mgr.evaluate_player_eligibility(p)
+            if not elig_info["is_optimizer_eligible"]:
+                if p.id not in locked_player_ids:
+                    solver2.Add(x2[p.id] == 0)
 
-        # 2. Formation limits for Starting XI
+            solver2.Add(x2[p.id] == s2[p.id] + b2[p.id])
+            solver2.Add(c2[p.id] <= s2[p.id])
+            solver2.Add(v2[p.id] <= s2[p.id])
+            solver2.Add(c2[p.id] + v2[p.id] <= 1)
+
+        for pid in banned_player_ids:
+            if pid in x2: solver2.Add(x2[pid] == 0)
+        for pid in locked_player_ids:
+            if pid in x2: solver2.Add(x2[pid] == 1)
+
+        solver2.Add(solver2.Sum([x2[p.id] for p in players]) == settings.SQUAD_SIZE)
+        solver2.Add(solver2.Sum([s2[p.id] for p in players]) == 11)
+        solver2.Add(solver2.Sum([b2[p.id] for p in players]) == 4)
+        solver2.Add(solver2.Sum([c2[p.id] for p in players]) == 1)
+        solver2.Add(solver2.Sum([v2[p.id] for p in players]) == 1)
+        solver2.Add(solver2.Sum([p.now_cost * x2[p.id] for p in players]) <= total_budget)
+
+        for pos, count in settings.POSITION_COUNTS.items():
+            pos_players = [p for p in players if p.element_type == pos]
+            solver2.Add(solver2.Sum([x2[p.id] for p in pos_players]) == count)
+
         for pos, (min_start, max_start) in settings.STARTING_FORMATION_LIMITS.items():
-            pos_squad = [p for p in selected_squad if p.element_type == pos]
-            solver2.Add(solver2.Sum([s[p.id] for p in pos_squad]) >= min_start)
-            solver2.Add(solver2.Sum([s[p.id] for p in pos_squad]) <= max_start)
+            pos_players = [p for p in players if p.element_type == pos]
+            solver2.Add(solver2.Sum([s2[p.id] for p in pos_players]) >= min_start)
+            solver2.Add(solver2.Sum([s2[p.id] for p in pos_players]) <= max_start)
 
-        # Objective Step 2: Maximize CURRENT GAMEWEEK (GW0) xP ONLY
+        for team in teams:
+            t_players = [p for p in players if p.team_id == team.id]
+            solver2.Add(solver2.Sum([x2[p.id] for p in t_players]) <= max_players_per_team)
+
+        # LOCK STAGE 1 OPTIMAL SCORE
+        if is_bench_boost:
+            solver2.Add(solver2.Sum([player_weighted_xp.get(p.id, 0.0) * x2[p.id] + player_gw0_xp.get(p.id, 0.0) * c2[p.id] for p in players]) >= z1_star - 1e-4)
+        else:
+            solver2.Add(solver2.Sum([player_weighted_xp.get(p.id, 0.0) * s2[p.id] + player_gw0_xp.get(p.id, 0.0) * c2[p.id] for p in players]) >= z1_star - 1e-4)
+
+        # STAGE 2 OBJECTIVE: Maximize Bench Expected Points + minute tiebreakers
         obj2 = solver2.Objective()
-        for p in selected_squad:
-            gw0_val = player_gw0_xp.get(p.id, 0.0)
-            obj2.SetCoefficient(s[p.id], gw0_val)
+        for p in players:
+            w_xp = player_weighted_xp.get(p.id, 0.0)
+            mins_bonus = 0.001 * float(p.minutes or 0)
+            obj2.SetCoefficient(b2[p.id], w_xp + mins_bonus)
 
         obj2.SetMaximization()
         status2 = solver2.Solve()
 
         if status2 not in [pywraplp.Solver.OPTIMAL, pywraplp.Solver.FEASIBLE]:
-            raise RuntimeError(f"Starting XI optimization failed with solver status code: {status2}")
+            s2, b2, c2, v2, x2 = s1, b1, c1, v1, x1
 
-        starters = [p for p in selected_squad if s[p.id].solution_value() > 0.5]
-        bench_players = [p for p in selected_squad if s[p.id].solution_value() <= 0.5]
+        starters = [p for p in players if s2[p.id].solution_value() > 0.5]
+        bench_players = [p for p in players if b2[p.id].solution_value() > 0.5]
+        selected_squad = starters + bench_players
 
-        # -------------------------------------------------------------
-        # STEP 3: CAPTAIN & VICE-CAPTAIN SELECTION
-        # -------------------------------------------------------------
-        # Sort starters by GW0 xP descending
-        starters.sort(key=lambda p: player_gw0_xp.get(p.id, 0.0), reverse=True)
-        captain_player = starters[0] if starters else None
-        vice_captain_player = starters[1] if len(starters) > 1 else None
+        captain_player = next((p for p in starters if c2[p.id].solution_value() > 0.5), starters[0] if starters else None)
+        vice_captain_player = next((p for p in starters if v2[p.id].solution_value() > 0.5), starters[1] if len(starters) > 1 else None)
 
-        # Build output player dicts
         starting_11_dicts = []
         bench_dicts = []
         total_cost = 0
@@ -218,11 +259,7 @@ class SquadOptimizer:
             is_vc = (p == vice_captain_player)
 
             gw0 = round(player_gw0_xp.get(pid, 0.0), 2)
-            gw1 = round(player_gw_xp[pid].get(horizon_gws[1] if len(horizon_gws) > 1 else current_gw, 0.0), 2)
-            gw2 = round(player_gw_xp[pid].get(horizon_gws[2] if len(horizon_gws) > 2 else current_gw, 0.0), 2)
-            gw3 = round(player_gw_xp[pid].get(horizon_gws[3] if len(horizon_gws) > 3 else current_gw, 0.0), 2)
             w_xp = round(player_weighted_xp.get(pid, 0.0), 2)
-
             weighted_squad_xp += w_xp
 
             p_dict = {
@@ -236,9 +273,6 @@ class SquadOptimizer:
                 "now_cost": p.now_cost,
                 "now_cost_str": f"£{p.now_cost / 10.0:.1f}m",
                 "gw0_xp": gw0,
-                "gw1_xp": gw1,
-                "gw2_xp": gw2,
-                "gw3_xp": gw3,
                 "weighted_xp": w_xp,
                 "expected_points_total": w_xp,
                 "expected_points_per_gw": gw0,
@@ -260,19 +294,19 @@ class SquadOptimizer:
         captain_extra = captain_dict["gw0_xp"] if captain_dict else 0.0
         total_current_gw_xp = current_gw_starting_xi_xp + captain_extra
 
-        # Sort starting 11 by position order (GKP, DEF, MID, FWD)
+        def_cnt = sum(1 for d in starting_11_dicts if d["element_type"] == "DEF")
+        mid_cnt = sum(1 for d in starting_11_dicts if d["element_type"] == "MID")
+        fwd_cnt = sum(1 for d in starting_11_dicts if d["element_type"] == "FWD")
+        formation_str = f"{def_cnt}-{mid_cnt}-{fwd_cnt}"
+
         pos_order = {"GKP": 1, "DEF": 2, "MID": 3, "FWD": 4}
         starting_11_dicts.sort(key=lambda d: (pos_order.get(d["element_type"], 5), -d["gw0_xp"]))
         bench_dicts.sort(key=lambda d: (pos_order.get(d["element_type"], 5), -d["gw0_xp"]))
 
-        # Build Explanations
-        explanations = []
-        if captain_dict:
-            explanations.append(f"Captain Pick: {captain_dict['web_name']} ({captain_dict['gw0_xp']} GW{current_gw} xP) selected for highest current GW expected return.")
-        if mode == "STRONG_XI_DUMP_BENCH":
-            explanations.append("Strong XI / Dump Bench mode concentrated budget into top starting XI while selecting minimal bench enablers.")
-        else:
-            explanations.append(f"Current GW + 3 Mode weighted GW{current_gw} at {gw_weights[0]*100:.0f}% while evaluating upcoming fixtures across 4 GWs.")
+        explanations = [
+            f"Primary Optimization Objective: Maximize Starting XI Expected Points ({current_gw_starting_xi_xp:.2f} xP) with {formation_str} formation.",
+            f"Captain Pick: {captain_dict['web_name']} ({captain_dict['gw0_xp']} GW{current_gw} xP) selected for highest starting XI expected return." if captain_dict else ""
+        ]
 
         anomalies = []
         if total_cost < 950:
@@ -283,6 +317,8 @@ class SquadOptimizer:
             "optimization_mode": mode,
             "current_gw": current_gw,
             "horizon_weights": gw_weights,
+            "formation": formation_str,
+            "is_bench_boost": is_bench_boost,
             "total_budget": total_budget,
             "total_cost": total_cost,
             "total_cost_str": f"£{total_cost / 10.0:.1f}m",
@@ -389,18 +425,42 @@ class SquadOptimizer:
                 "selected": is_sel
             })
 
+        # Calculate Marginal Swap Analysis for each selected starter
+        marginal_swap_analysis = []
+        for starter in res["starting_11"]:
+            s_pos = starter["element_type"]
+            s_xp = starter["gw0_xp"]
+            cands = [p for p in all_players if p.id not in selected_xi_ids and p.element_type == s_pos and state_mgr.evaluate_player_eligibility(p)["is_optimizer_eligible"]]
+            cands.sort(key=lambda p: proj_map.get(p.id, 0.0), reverse=True)
+            best_alt = cands[0] if cands else None
+            alt_xp = proj_map.get(best_alt.id, 0.0) if best_alt else 0.0
+            
+            marginal_swap_analysis.append({
+                "starter_name": starter["web_name"],
+                "position": s_pos,
+                "starter_xp": round(s_xp, 2),
+                "best_alternative_name": best_alt.web_name if best_alt else "None",
+                "best_alternative_xp": round(alt_xp, 2),
+                "marginal_advantage_xp": round(s_xp - alt_xp, 2)
+            })
+
         return {
+            "architecture": "Starting-XI-First Lexicographic MILP",
             "mode": mode,
             "target_gw": current_gw,
             "horizon": res["horizon_weights"],
+            "formation": res["formation"],
+            "is_bench_boost": res["is_bench_boost"],
             "total_budget_str": f"£{total_budget/10:.1f}m",
-            "objective_formula": f"Step 1: Maximize sum(weighted_xp) across 15 squad slots | Step 2: Maximize sum(gw{current_gw}_xp) across 11 starters",
+            "primary_objective": f"Maximize Starting XI Expected Points ({res['current_gw_starting_xi_xp']:.2f} xP) + Captain Bonus ({res['captain_contribution_xp']:.2f} xP)",
+            "secondary_objective": f"Lock Starting XI score (Z1*), then maximize Bench Quality ({sum(d['gw0_xp'] for d in res['bench']):.2f} xP)",
             "starting_xi_projected_total": res["current_gw_starting_xi_xp"],
             "captain_name": res["captain"]["web_name"] if res["captain"] else "None",
             "captain_bonus_xp": res["captain_contribution_xp"],
             "total_projected_score": res["total_current_gw_xp"],
             "bench_projected_total": sum(d["gw0_xp"] for d in res["bench"]),
             "constraints_valid": True,
+            "marginal_swap_analysis": marginal_swap_analysis,
             "top_projected_players": top_projected_breakdown,
             "rejected_high_value_players": rejected_high_value,
             "optimization_result": res

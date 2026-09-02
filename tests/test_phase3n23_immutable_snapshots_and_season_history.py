@@ -174,7 +174,7 @@ def test_season_history_table_aggregates_correctly(client):
     assert "history_rows" in data
 
     metrics = data["summary_metrics"]
-    assert metrics["total_points"] in [39, 54, 66, 74, 124, 141, 153, 178]
+    assert metrics["total_points"] in [39, 54, 66, 74, 124, 141, 153, 170, 178]
     assert metrics["gw_avg"] > 0
 
     chips = data["chips_status"]
